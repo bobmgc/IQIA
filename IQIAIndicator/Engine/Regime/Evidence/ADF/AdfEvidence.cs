@@ -1,4 +1,4 @@
-﻿using IQIAIndicator.Core;
+﻿using IQIAIndicator.Engine.Regime.Core;
 using IQIAIndicator.Engine.Regime.Evidence.ADF;
 
 // Namespace identique a l'ancien — RegimeEngine inchange
@@ -11,37 +11,26 @@ namespace IQIAIndicator.Engine.Regime.Evidence;
 /// </summary>
 public sealed class AdfEvidence
 {
-    private const int W    = 60;
-    private const int MinN = 30;
-
-    private readonly decimal[] _buf    = new decimal[W];
-    private readonly decimal[] _window = new decimal[W];
-    private int _h, _n;
-
-    public AdfResult Compute(MarketContext ctx)
+    public AdfResult Compute(EvidenceContext context)
     {
-        if (ctx.Clock.IsFirstBar) { _h = _n = 0; Array.Clear(_buf); }
+        if (context.SampleSize < context.MinimumSampleSize)
+            return AdfResult.Invalid($"Warmup ADF ({context.SampleSize}/{context.MinimumSampleSize} bars).");
 
-        _buf[_h] = ctx.Price.Close;
-        _h = (_h + 1) % W;
-        _n = Math.Min(_n + 1, W);
-
-        if (_n < MinN)
-            return AdfResult.Invalid($"Warmup ADF ({_n}/{MinN} bars).");
-
-        return ComputeAdf();
+        return ComputeAdf(context);
     }
 
-    private AdfResult ComputeAdf()
+    private static AdfResult ComputeAdf(EvidenceContext context)
     {
-        for (int i = 0; i < _n; i++)
-            _window[i] = _buf[(_h - _n + i + W) % W];
+        int n = context.SampleSize;
+        var series = new decimal[n];
+        for (int i = 0; i < n; i++)
+            series[i] = context.Series[i];
 
-        int lag = ADF.AdfStatistics.SelectLag(_window, _n);
+        int lag = ADF.AdfStatistics.SelectLag(series, n);
 
-        if (!ADF.AdfRegression.TryCompute(_window, _n, lag,
+        if (!ADF.AdfRegression.TryCompute(series, n, lag,
                 out decimal tStat, out _, out int nObs))
-            return AdfResult.Invalid($"Regression ADF echouee (T={_n}, p={lag}).");
+            return AdfResult.Invalid($"Regression ADF echouee (T={n}, p={lag}).");
 
         var (cv1, cv5, cv10) = ADF.AdfCriticalValues.Get(nObs);
         decimal pv = ADF.AdfStatistics.ApproximatePValue(tStat, cv1, cv5, cv10);
@@ -54,7 +43,7 @@ public sealed class AdfEvidence
         {
             Statistic       = tStat,
             PValue          = pv,
-            Confidence      = Math.Clamp((decimal)_n / W, 0m, 1m),
+            Confidence      = Math.Clamp((decimal)n / context.WindowSize, 0m, 1m),
             CriticalValue1  = cv1,
             CriticalValue5  = cv5,
             CriticalValue10 = cv10,
