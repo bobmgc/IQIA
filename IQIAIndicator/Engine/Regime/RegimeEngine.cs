@@ -1,34 +1,35 @@
 ﻿using IQIAIndicator.Core;
+using IQIAIndicator.Engine.Regime.Core;
 using IQIAIndicator.Engine.Regime.Evidence;
+using IQIAIndicator.Engine.Regime.Evidence.ADF;
+using IQIAIndicator.Engine.Regime.Evidence.KPSS;
 
 namespace IQIAIndicator.Engine.Regime;
 
 /// <summary>
-/// Orchestrateur du Statistical Evidence Engine.
-/// Appelle chaque modele independant, passe les resultats au moteur de fusion.
-/// Aucune regle metier ni heuristique ici — tout est dans les modeles et la fusion.
+/// Orchestrateur pur : appelle chaque modele et assemble l'EvidenceSet.
+/// Aucune logique metier. Aucune decision de regime.
 /// </summary>
 public sealed class RegimeEngine
 {
-    private readonly IRegimeEvidence[] _models =
-    [
-        new AdfEvidence(),
-        new KpssEvidence(),
-        new HurstEvidence(),
-        new HalfLifeEvidence(),
-        new VarianceRatioEvidence(),
-        new CusumEvidence(),
-        new VolatilityEvidence()
-    ];
+    private readonly AdfEvidence           _adf   = new();
+    private readonly KpssEvidence          _kpss  = new();
+    private readonly HurstEvidence         _hurst = new();
+    private readonly HalfLifeEvidence      _hl    = new();
+    private readonly VarianceRatioEvidence _vr    = new();
+    private readonly CusumEvidence         _cusum = new();
+    private readonly VolatilityEvidence    _vol   = new();
 
-    private readonly EvidenceFusionEngine _fusion = new();
-
-    public RegimeResult Analyze(MarketContext context)
+    public EvidenceSet Collect(MarketContext context) => new()
     {
-        var results = new List<EvidenceResult>(_models.Length);
-        foreach (var model in _models)
-            results.Add(model.Compute(context));
-
-        return _fusion.Fuse(results, context.Clock.CurrentTime);
-    }
+        Timestamp     = context.Clock.CurrentTime,
+        Adf           = _adf.Compute(context),
+        Kpss          = _kpss.Compute(context),
+        Hurst         = _hurst.Compute(context),
+        HalfLife      = _hl.Compute(context),
+        VarianceRatio = _vr.Compute(context),
+        Cusum         = _cusum.Compute(context),
+        Volatility    = _vol.Compute(context),
+        BaiPerron     = null
+    };
 }

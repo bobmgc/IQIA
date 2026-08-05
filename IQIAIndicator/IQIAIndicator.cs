@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using ATAS.Indicators;
 using IQIAIndicator.Core;
 using IQIAIndicator.Engine.Regime;
+using IQIAIndicator.Engine.Regime.Core;
 
 namespace IQIAIndicator;
 
@@ -21,6 +22,7 @@ public sealed class IQIAIndicator : Indicator
     private readonly MarketCache            _cache        = new();
     private readonly ILogger                _logger       = NullLogger.Instance;
     private readonly RegimeEngine           _regimeEngine = new();
+    private readonly EvidenceFusionEngine   _fusion       = new();
 
     // --- Parametres instrument -----------------------------------------------
     [Display(Name = "Valeur du Tick (€/$)", GroupName = "Instrument", Order = 10)]
@@ -52,9 +54,10 @@ public sealed class IQIAIndicator : Indicator
         if (!validation.IsValid)
             return;
 
-        var _ = _regimeEngine.Analyze(context);
+        var evidence   = _regimeEngine.Collect(context);
+        var _          = _fusion.Fuse(evidence);
 
-        // Sprint 2 termine ici — Decision Engine au Sprint 3
+        // Sprint 2.3 termine ici — EvidenceFusionEngine au Sprint 2.4
     }
 
     // --- Cablage du builder avec les sources ATAS ----------------------------

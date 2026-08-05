@@ -7,6 +7,7 @@ public sealed class KpssResult
 {
     public required decimal Statistic        { get; init; }  // η̂ (statistique KPSS)
     public required decimal PValue           { get; init; }  // p-value approximée
+    public required decimal Confidence       { get; init; }  // 0..1, basée sur la taille d'échantillon
     public required decimal CriticalValue1   { get; init; }  // Kwiatkowski et al. (1992) 1%
     public required decimal CriticalValue5   { get; init; }  // 5%
     public required decimal CriticalValue10  { get; init; }  // 10%
@@ -20,6 +21,7 @@ public sealed class KpssResult
     {
         Statistic       = decimal.MaxValue,
         PValue          = 0m,
+        Confidence      = 0m,
         CriticalValue1  = 0m,
         CriticalValue5  = 0m,
         CriticalValue10 = 0m,
