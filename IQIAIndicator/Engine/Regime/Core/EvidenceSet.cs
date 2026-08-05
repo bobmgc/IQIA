@@ -1,6 +1,7 @@
 using IQIAIndicator.Engine.Regime.Evidence;
 using IQIAIndicator.Engine.Regime.Evidence.ADF;
 using IQIAIndicator.Engine.Regime.Evidence.KPSS;
+using IQIAIndicator.Engine.Regime.Evidence.DFA;
 
 namespace IQIAIndicator.Engine.Regime.Core;
 
@@ -21,4 +22,5 @@ public sealed class EvidenceSet
     public required CusumResult?          Cusum         { get; init; }
     public required VolatilityResult?     Volatility    { get; init; }
     public          BaiPerronResult?      BaiPerron     { get; init; }  // null jusqu'au Sprint 2.4
+    public required DfaResult?            Dfa           { get; init; }
 }

@@ -19,6 +19,7 @@ public sealed class RegimeEngine
     private readonly VarianceRatioEvidence _vr    = new();
     private readonly CusumEvidence         _cusum = new();
     private readonly VolatilityEvidence    _vol   = new();
+    private readonly DfaEvidence           _dfa   = new();
 
     public EvidenceSet Collect(MarketContext context) => new()
     {
@@ -30,6 +31,7 @@ public sealed class RegimeEngine
         VarianceRatio = _vr.Compute(context),
         Cusum         = _cusum.Compute(context),
         Volatility    = _vol.Compute(context),
+        Dfa           = _dfa.Compute(context),
         BaiPerron     = null
     };
 }
