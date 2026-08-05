@@ -2,6 +2,10 @@ using IQIAIndicator.Engine.Regime.Evidence;
 using IQIAIndicator.Engine.Regime.Evidence.ADF;
 using IQIAIndicator.Engine.Regime.Evidence.KPSS;
 using IQIAIndicator.Engine.Regime.Evidence.DFA;
+using IQIAIndicator.Engine.Regime.Evidence.HalfLife;
+using IQIAIndicator.Engine.Regime.Evidence.VarianceRatio;
+using IQIAIndicator.Engine.Regime.Evidence.CUSUM;
+using IQIAIndicator.Engine.Regime.Evidence.BaiPerron;
 
 namespace IQIAIndicator.Engine.Regime.Core;
 
@@ -21,6 +25,6 @@ public sealed class EvidenceSet
     public required VarianceRatioResult?  VarianceRatio { get; init; }
     public required CusumResult?          Cusum         { get; init; }
     public required VolatilityResult?     Volatility    { get; init; }
-    public          BaiPerronResult?      BaiPerron     { get; init; }  // null jusqu'au Sprint 2.4
+    public required BaiPerronResult?      BaiPerron     { get; init; }
     public required DfaResult?            Dfa           { get; init; }
 }
