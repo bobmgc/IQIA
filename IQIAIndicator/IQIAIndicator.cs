@@ -38,6 +38,7 @@ public sealed class IQIAIndicator : Indicator
     ]);
     private readonly IQIAFusionDashboard _dashboard = new();
 
+    private EvidenceSet? _latestEvidence;
     private FusionResult? _latestFusionResult;
     private int _latestBarIndex;
     private DateTime _latestTimestamp;
@@ -55,6 +56,9 @@ public sealed class IQIAIndicator : Indicator
     [Display(Name = "Decimales du prix", GroupName = "Instrument", Order = 30)]
     [Range(0, 8)]
     public int PriceDecimals { get; set; } = 2;
+
+    [Display(Name = "Mode Debug", GroupName = "Diagnostic", Order = 100)]
+    public bool DebugMode { get; set; }
 
     public IQIAIndicator() : base(true)
     {
@@ -76,6 +80,7 @@ public sealed class IQIAIndicator : Indicator
             return;
 
         var evidence = _regimeEngine.Collect(context);
+    _latestEvidence = evidence;
         _latestFusionResult = _fusion.Fuse(
             new FusionContext
             {
@@ -94,14 +99,16 @@ public sealed class IQIAIndicator : Indicator
     {
         base.OnRender(renderContext, layout);
 
-        if (layout == DrawingLayouts.Final && _latestFusionResult is not null)
+        if (layout == DrawingLayouts.Final && _latestEvidence is not null && _latestFusionResult is not null)
         {
             _dashboard.Draw(
                 renderContext,
+            _latestEvidence,
                 _latestFusionResult,
                 _latestBarIndex,
                 _latestTimestamp,
-                _availableEvidenceCount);
+            _availableEvidenceCount,
+            DebugMode);
         }
     }
 
