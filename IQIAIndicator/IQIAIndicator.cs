@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using ATAS.Indicators;
 using IQIAIndicator.Core;
+using IQIAIndicator.Engine.Decision.Core;
 using IQIAIndicator.Engine.Fusion;
 using IQIAIndicator.Engine.Fusion.Core;
 using IQIAIndicator.Engine.Fusion.Rules;
@@ -28,6 +29,7 @@ public sealed class IQIAIndicator : Indicator
     private readonly MarketCache            _cache        = new();
     private readonly ILogger                _logger       = NullLogger.Instance;
     private readonly RegimeEngine           _regimeEngine = new();
+    private readonly DecisionEngine         _decisionEngine = new([]);
     private readonly FusionEngine           _fusion       = new(
     [
         new StationarityRule(),
@@ -40,6 +42,7 @@ public sealed class IQIAIndicator : Indicator
 
     private EvidenceSet? _latestEvidence;
     private FusionResult? _latestFusionResult;
+    private DecisionResult? _latestDecisionResult;
     private int _latestBarIndex;
     private DateTime _latestTimestamp;
     private int _availableEvidenceCount;
@@ -90,6 +93,12 @@ public sealed class IQIAIndicator : Indicator
                 TimeFrame = context.TimeFrame,
                 EvaluationId = Guid.NewGuid()
             });
+        _latestDecisionResult = _decisionEngine.Evaluate(
+            new DecisionContext
+            {
+                FusionResult = _latestFusionResult,
+                Evidence = evidence
+            });
         _latestBarIndex = bar;
         _latestTimestamp = evidence.Timestamp;
         _availableEvidenceCount = CountAvailableEvidence(evidence);
@@ -99,12 +108,14 @@ public sealed class IQIAIndicator : Indicator
     {
         base.OnRender(renderContext, layout);
 
-        if (layout == DrawingLayouts.Final && _latestEvidence is not null && _latestFusionResult is not null)
+        if (layout == DrawingLayouts.Final && _latestEvidence is not null && _latestFusionResult is not null &&
+            _latestDecisionResult is not null)
         {
             _dashboard.Draw(
                 renderContext,
             _latestEvidence,
                 _latestFusionResult,
+                _latestDecisionResult,
                 _latestBarIndex,
                 _latestTimestamp,
             _availableEvidenceCount,

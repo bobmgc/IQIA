@@ -1,6 +1,8 @@
 using System.Drawing;
 using System.Globalization;
+using IQIAIndicator.Engine.Decision.Core;
 using IQIAIndicator.Engine.Fusion.Core;
+using IQIAIndicator.Engine.Decision.States;
 using IQIAIndicator.Engine.Regime.Core;
 using OFT.Rendering.Context;
 using OFT.Rendering.Tools;
@@ -17,7 +19,7 @@ internal sealed class IQIAFusionDashboard
     private const int PanelWidth = 310;
     private const int PanelHeight = 244;
     private const int DebugPanelWidth = 1050;
-    private const int DebugPanelHeight = 565;
+    private const int DebugPanelHeight = 700;
     private const int BarWidth = 190;
     private const int RowHeight = 31;
     private const int FirstRowOffset = 76;
@@ -48,6 +50,7 @@ internal sealed class IQIAFusionDashboard
         RenderContext renderContext,
         EvidenceSet evidence,
         FusionResult fusionResult,
+        DecisionResult decisionResult,
         int barIndex,
         DateTime timestamp,
         int availableEvidenceCount,
@@ -55,7 +58,7 @@ internal sealed class IQIAFusionDashboard
     {
         if (debugMode)
         {
-            DrawDebug(renderContext, evidence, fusionResult, barIndex, timestamp, availableEvidenceCount);
+            DrawDebug(renderContext, evidence, fusionResult, decisionResult, barIndex, timestamp, availableEvidenceCount);
             return;
         }
 
@@ -110,6 +113,7 @@ internal sealed class IQIAFusionDashboard
         RenderContext renderContext,
         EvidenceSet evidence,
         FusionResult fusionResult,
+        DecisionResult decisionResult,
         int barIndex,
         DateTime timestamp,
         int availableEvidenceCount)
@@ -134,6 +138,10 @@ internal sealed class IQIAFusionDashboard
         int resultY = PanelY + 375;
         DrawSectionTitle(renderContext, "Fusion Result", PanelX + 10, resultY);
         DrawFusionResult(renderContext, fusionResult, PanelX + 10, resultY + 22);
+
+        int decisionY = PanelY + 545;
+        DrawSectionTitle(renderContext, "Decision Engine", PanelX + 10, decisionY);
+        DrawDecisionResult(renderContext, decisionResult, PanelX + 10, decisionY + 22);
     }
 
     private static void DrawEvidenceModels(RenderContext renderContext, EvidenceSet evidence, int x, int y)
@@ -184,6 +192,35 @@ internal sealed class IQIAFusionDashboard
             renderContext.FillRectangle(BarBackground, barBounds);
             renderContext.FillRectangle(stateColor, new Rectangle(barBounds.X, barBounds.Y, filledWidth, barBounds.Height));
         }
+    }
+
+    private static void DrawDecisionResult(RenderContext renderContext, DecisionResult decisionResult, int x, int y)
+    {
+        renderContext.DrawString($"Market State: {decisionResult.State}", BodyFont, TextColor, x, y);
+        renderContext.DrawString(
+            $"Confidence: {decisionResult.Confidence:F2}",
+            BodyFont,
+            GetStateColor(decisionResult.Confidence),
+            x + 220,
+            y);
+        renderContext.DrawString(
+            $"Triggered Rules: {FormatRules(decisionResult.TriggeredRules)}",
+            DebugFont,
+            SecondaryTextColor,
+            x,
+            y + DebugLineHeight);
+        renderContext.DrawString(
+            $"Rejected Rules: {FormatRules(decisionResult.RejectedRules)}",
+            DebugFont,
+            SecondaryTextColor,
+            x,
+            y + 2 * DebugLineHeight);
+        renderContext.DrawString(
+            $"Explanation: {decisionResult.Explanation}",
+            DebugFont,
+            SecondaryTextColor,
+            x,
+            y + 3 * DebugLineHeight);
     }
 
     private static void DrawSectionTitle(RenderContext renderContext, string title, int x, int y) =>
@@ -240,6 +277,9 @@ internal sealed class IQIAFusionDashboard
 
     private static string Truncate(string value, int maximumLength) =>
         value.Length <= maximumLength ? value : value[..(maximumLength - 3)] + "...";
+
+    private static string FormatRules(IReadOnlyList<string> rules) =>
+        rules.Count == 0 ? "None" : string.Join(", ", rules);
 
     private readonly record struct DashboardRow(FusionDimension Dimension, string Label);
 }

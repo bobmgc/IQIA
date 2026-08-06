@@ -14,6 +14,9 @@ public sealed class RandomWalkRule : IFusionRule
     private const double SampleSizeScale = 50.0;
     private const double InsufficientQualityLevel = 0.5;
     private const double MinimumPositiveVarianceRatio = 1e-12;
+    // Pondérations provisoires : la compatibilité scientifique avec la marche aléatoire domine.
+    private const double ScientificScoreWeight = 0.80;
+    private const double QualityScoreWeight = 0.20;
 
     public string Name => nameof(RandomWalkRule);
 
@@ -37,23 +40,36 @@ public sealed class RandomWalkRule : IFusionRule
             Math.Max(varianceRatio.VarianceRatio, MinimumPositiveVarianceRatio))) / VarianceRatioLogScale);
         double statisticCompatibility = Math.Exp(-Math.Abs(varianceRatio.ZStatistic) / ZStatisticScale);
         double pValueCompatibility = Math.Clamp(varianceRatio.PValue, 0.0, 1.0);
-        double estimationQuality = Math.Clamp(varianceRatio.Confidence, 0.0, 1.0) *
-            (1.0 - Math.Exp(-Math.Max(0, varianceRatio.SampleSize) / SampleSizeScale));
-        double value = Math.Clamp(
-            ratioCompatibility * statisticCompatibility * pValueCompatibility * estimationQuality,
-            0.0,
-            1.0);
+        double scientificScore = ratioCompatibility * statisticCompatibility * pValueCompatibility;
+        double qualityScore = 0.5 * (
+            Math.Clamp(varianceRatio.Confidence, 0.0, 1.0) +
+            SampleSizeStrength(varianceRatio.SampleSize));
+        double value = Blend(scientificScore, qualityScore);
 
-        string explanation = estimationQuality < InsufficientQualityLevel
-            ? $"La faible qualité de l'estimation réduit la confiance (qualité={estimationQuality:F3})."
+        string scientificExplanation = qualityScore < InsufficientQualityLevel
+            ? $"La faible qualité de l'estimation réduit la confiance (qualité={qualityScore:F3})."
             : $"Évidence compatible avec une marche aléatoire " +
                 $"(VR={varianceRatio.VarianceRatio:F3}, Z={varianceRatio.ZStatistic:F3}, " +
-                $"qualité={estimationQuality:F3}).";
+                $"qualité={qualityScore:F3}).";
 
         return new FusionConfidence
         {
             Value = value,
-            Explanation = explanation
+            Explanation = ScoreExplanation(scientificScore, qualityScore, value, scientificExplanation)
         };
     }
+
+    private static double SampleSizeStrength(int sampleSize) =>
+        1.0 - Math.Exp(-Math.Max(0, sampleSize) / SampleSizeScale);
+
+    private static double Blend(double scientificScore, double qualityScore) =>
+        Math.Clamp(ScientificScoreWeight * scientificScore + QualityScoreWeight * qualityScore, 0.0, 1.0);
+
+    private static string ScoreExplanation(
+        double scientificScore,
+        double qualityScore,
+        double finalScore,
+        string scientificExplanation) =>
+        $"Scientific Score={scientificScore:F3}; Quality Score={qualityScore:F3}; Final Score={finalScore:F3}. " +
+        scientificExplanation;
 }

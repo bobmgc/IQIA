@@ -19,6 +19,9 @@ public sealed class PersistenceRule : IFusionRule
     private const double ZStatisticScale = 2.0;
     private const double WindowCountScale = 4.0;
     private const double MinimumPositiveVarianceRatio = 1e-12;
+    // Pondérations provisoires : la persistance scientifique domine la qualité des estimations.
+    private const double ScientificScoreWeight = 0.90;
+    private const double QualityScoreWeight = 0.10;
 
     public string Name => nameof(PersistenceRule);
 
@@ -41,21 +44,25 @@ public sealed class PersistenceRule : IFusionRule
     {
         double dfaDirection = Math.Tanh(HurstDirectionSteepness *
             (Math.Clamp(dfa.Hurst, 0.0, 2.0) - HurstRandomWalkLevel));
-        double dfaQuality = Math.Clamp(dfa.Confidence, 0.0, 1.0) *
-            Math.Clamp(dfa.RSquared, 0.0, 1.0) *
-            (1.0 - Math.Exp(-Math.Max(0, dfa.WindowCount) / WindowCountScale));
-        double dfaPersistence = dfaQuality * PersistenceSupport(dfaDirection);
+        double dfaPersistence = PersistenceSupport(dfaDirection);
 
         double varianceRatioDirection = Math.Tanh(VarianceRatioDirectionSteepness *
             Math.Log(Math.Max(varianceRatio.VarianceRatio, MinimumPositiveVarianceRatio)));
-        double varianceRatioQuality = Math.Clamp(varianceRatio.Confidence, 0.0, 1.0) *
-            PValueStrength(varianceRatio.PValue) *
-            Math.Tanh(Math.Abs(varianceRatio.ZStatistic) / ZStatisticScale);
-        double varianceRatioPersistence = varianceRatioQuality * PersistenceSupport(varianceRatioDirection);
+        double varianceRatioPersistence = PValueStrength(varianceRatio.PValue) *
+            PersistenceSupport(varianceRatioDirection);
 
-        double value = Math.Clamp(0.5 * (dfaPersistence + varianceRatioPersistence), 0.0, 1.0);
+        double scientificScore = Math.Clamp(0.5 * (dfaPersistence + varianceRatioPersistence), 0.0, 1.0);
+        double dfaQuality = (
+            Math.Clamp(dfa.Confidence, 0.0, 1.0) +
+            Math.Clamp(dfa.RSquared, 0.0, 1.0) +
+            SampleSizeStrength(dfa.WindowCount)) / 3.0;
+        double varianceRatioQuality = 0.5 * (
+            Math.Clamp(varianceRatio.Confidence, 0.0, 1.0) +
+            SampleSizeStrength(varianceRatio.SampleSize));
+        double qualityScore = 0.5 * (dfaQuality + varianceRatioQuality);
+        double value = Blend(scientificScore, qualityScore);
         bool scientificDisagreement = dfaDirection * varianceRatioDirection < 0.0;
-        string explanation = scientificDisagreement
+        string scientificExplanation = scientificDisagreement
             ? $"Scientific disagreement: DFA={dfaPersistence:F3}, VarianceRatio={varianceRatioPersistence:F3}."
             : $"DFA and Variance Ratio persistence evidence: DFA={dfaPersistence:F3}, " +
                 $"VarianceRatio={varianceRatioPersistence:F3}.";
@@ -63,7 +70,7 @@ public sealed class PersistenceRule : IFusionRule
         return new FusionConfidence
         {
             Value = value,
-            Explanation = explanation
+            Explanation = ScoreExplanation(scientificScore, qualityScore, value, scientificExplanation)
         };
     }
 
@@ -79,4 +86,18 @@ public sealed class PersistenceRule : IFusionRule
         return 1.0 / (1.0 + Math.Exp(PValueLogisticSteepness *
             (normalizedPValue - PValueSignificanceLevel)));
     }
+
+    private static double SampleSizeStrength(int sampleSize) =>
+        1.0 - Math.Exp(-Math.Max(0, sampleSize) / WindowCountScale);
+
+    private static double Blend(double scientificScore, double qualityScore) =>
+        Math.Clamp(ScientificScoreWeight * scientificScore + QualityScoreWeight * qualityScore, 0.0, 1.0);
+
+    private static string ScoreExplanation(
+        double scientificScore,
+        double qualityScore,
+        double finalScore,
+        string scientificExplanation) =>
+        $"Scientific Score={scientificScore:F3}; Quality Score={qualityScore:F3}; Final Score={finalScore:F3}. " +
+        scientificExplanation;
 }
