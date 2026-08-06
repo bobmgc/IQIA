@@ -42,12 +42,15 @@ public sealed class StructuralBreakRule : IDecisionRule
             ScientificScoreWeight * scientificScore + QualityScoreWeight * qualityScore,
             0.0,
             1.0);
+        string explanation = BuildExplanation(scientificScore, qualityScore, finalScore, scores);
+
+        builder.SetCandidate(MarketState.StructuralBreak, scientificScore, qualityScore, finalScore, explanation);
 
         if (finalScore > builder.Confidence)
         {
             builder.State = MarketState.StructuralBreak;
             builder.Confidence = finalScore;
-            builder.Explanation = BuildExplanation(scientificScore, qualityScore, finalScore, scores);
+            builder.Explanation = explanation;
             builder.TriggeredRules.Add(nameof(StructuralBreakRule));
             return;
         }

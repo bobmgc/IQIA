@@ -10,6 +10,7 @@ using IQIAIndicator.Engine.Regime;
 using IQIAIndicator.Engine.Regime.Core;
 using IQIAIndicator.Visualization;
 using OFT.Rendering.Context;
+using DecisionRules = IQIAIndicator.Engine.Decision.Rules;
 using FusionEngine = IQIAIndicator.Engine.Fusion.EvidenceFusionEngine;
 
 namespace IQIAIndicator;
@@ -29,7 +30,14 @@ public sealed class IQIAIndicator : Indicator
     private readonly MarketCache            _cache        = new();
     private readonly ILogger                _logger       = NullLogger.Instance;
     private readonly RegimeEngine           _regimeEngine = new();
-    private readonly DecisionEngine         _decisionEngine = new([]);
+    private readonly DecisionEngine         _decisionEngine = new(
+    [
+        new DecisionRules.StableRangeRule(),
+        new DecisionRules.TrendingRule(),
+        new DecisionRules.MeanRevertingRule(),
+        new DecisionRules.StructuralBreakRule(),
+        new DecisionRules.RandomWalkRule()
+    ]);
     private readonly FusionEngine           _fusion       = new(
     [
         new StationarityRule(),

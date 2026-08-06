@@ -1,5 +1,6 @@
 using IQIAIndicator.Engine.Decision.Arbitration;
 using IQIAIndicator.Engine.Decision.Core;
+using IQIAIndicator.Engine.Decision.Rules;
 using IQIAIndicator.Engine.Decision.States;
 
 namespace IQIAIndicator.Tests.Decision;
@@ -15,6 +16,7 @@ public static class DecisionArbitrationTests
         AssertCloseCandidates();
         AssertWeakScoresKeepBestCandidate();
         AssertNoCandidates();
+        AssertDecisionEngineProducesStructuredCandidates();
     }
 
     private static void AssertClearWinner()
@@ -78,12 +80,41 @@ public static class DecisionArbitrationTests
         Assert(result.Explanation == "No Decision", "No candidates must return the no decision explanation.");
     }
 
+    private static void AssertDecisionEngineProducesStructuredCandidates()
+    {
+        var rules = new[]
+        {
+            new CandidateRule(MarketState.StableRange, 0.70, 0.80, 0.71),
+            new CandidateRule(MarketState.Trending, 0.90, 0.90, 0.90),
+            new CandidateRule(MarketState.MeanReverting, 0.40, 0.60, 0.42),
+            new CandidateRule(MarketState.StructuralBreak, 0.20, 0.50, 0.23),
+            new CandidateRule(MarketState.RandomWalk, 0.10, 0.70, 0.16)
+        };
+        var engine = new DecisionEngine(rules);
+
+        DecisionResult result = engine.Evaluate(new DecisionContext
+        {
+            FusionResult = null!,
+            Evidence = null!
+        });
+
+        Assert(rules.Length == 5, "The test engine must register five rules.");
+        Assert(Array.TrueForAll(rules, rule => rule.ExecutionCount == 1), "Each rule must be executed exactly once.");
+        Assert(result.Candidates.Length == 5, "The engine must produce five structured candidates.");
+        Assert(result.Winner == MarketState.Trending, "The arbitrator must receive the candidates and select the best one.");
+        AssertClose(0.90, result.WinnerScore, "Winner score must come from the structured candidate.");
+        Assert(result.Candidates[0].Explanation == "human text without scores", "Explanation must remain display-only text.");
+        AssertClose(0.90, result.Candidates[0].ScientificScore, "Scientific score must be structured data.");
+        AssertClose(0.90, result.Candidates[0].QualityScore, "Quality score must be structured data.");
+        AssertClose(0.90, result.Candidates[0].FinalScore, "Final score must be structured data.");
+    }
+
     private static DecisionResult Arbitrate(params DecisionCandidate[] candidates) =>
         new DecisionArbitrator().Arbitrate(candidates);
 
     private static DecisionCandidate Candidate(MarketState marketState, double finalScore) => new()
     {
-        MarketState = marketState,
+        State = marketState,
         ScientificScore = finalScore,
         QualityScore = finalScore,
         FinalScore = finalScore,
@@ -100,5 +131,38 @@ public static class DecisionArbitrationTests
     {
         if (!condition)
             throw new InvalidOperationException(message);
+    }
+
+    private sealed class CandidateRule : IDecisionRule
+    {
+        private readonly MarketState _state;
+        private readonly double _scientificScore;
+        private readonly double _qualityScore;
+        private readonly double _finalScore;
+
+        public CandidateRule(
+            MarketState state,
+            double scientificScore,
+            double qualityScore,
+            double finalScore)
+        {
+            _state = state;
+            _scientificScore = scientificScore;
+            _qualityScore = qualityScore;
+            _finalScore = finalScore;
+        }
+
+        public int ExecutionCount { get; private set; }
+
+        public void Evaluate(DecisionContext context, DecisionResultBuilder builder)
+        {
+            ExecutionCount++;
+            const string explanation = "human text without scores";
+            builder.SetCandidate(_state, _scientificScore, _qualityScore, _finalScore, explanation);
+            builder.State = _state;
+            builder.Confidence = _finalScore;
+            builder.Explanation = explanation;
+            builder.TriggeredRules.Add(nameof(CandidateRule));
+        }
     }
 }

@@ -1,8 +1,9 @@
 using System.Drawing;
 using System.Globalization;
+using IQIAIndicator.Engine.Decision.Arbitration;
 using IQIAIndicator.Engine.Decision.Core;
-using IQIAIndicator.Engine.Fusion.Core;
 using IQIAIndicator.Engine.Decision.States;
+using IQIAIndicator.Engine.Fusion.Core;
 using IQIAIndicator.Engine.Regime.Core;
 using OFT.Rendering.Context;
 using OFT.Rendering.Tools;
@@ -10,19 +11,18 @@ using OFT.Rendering.Tools;
 namespace IQIAIndicator.Visualization;
 
 /// <summary>
-/// Panneau ATAS en lecture seule pour observer les dimensions de fusion IQIA.
+/// Read-only ATAS panel for IQIA normal and debug views.
 /// </summary>
 internal sealed class IQIAFusionDashboard
 {
     private const int PanelX = 12;
     private const int PanelY = 12;
     private const int PanelWidth = 310;
-    private const int PanelHeight = 244;
+    private const int PanelHeight = 570;
     private const int DebugPanelWidth = 1050;
-    private const int DebugPanelHeight = 700;
+    private const int DebugPanelHeight = 860;
     private const int BarWidth = 190;
-    private const int RowHeight = 31;
-    private const int FirstRowOffset = 76;
+    private const int RowHeight = 43;
     private const int DebugLineHeight = 16;
 
     private static readonly RenderFont HeaderFont = new("Arial", 12f);
@@ -41,9 +41,18 @@ internal sealed class IQIAFusionDashboard
     [
         new(FusionDimension.Stationarity, "Stationarity"),
         new(FusionDimension.Persistence, "Persistence"),
-        new(FusionDimension.MeanReversion, "MeanReversion"),
-        new(FusionDimension.StructuralStability, "StructuralStability"),
-        new(FusionDimension.RandomWalk, "RandomWalk")
+        new(FusionDimension.MeanReversion, "Mean Reversion"),
+        new(FusionDimension.StructuralStability, "Structural Stability"),
+        new(FusionDimension.RandomWalk, "Random Walk")
+    ];
+
+    private static readonly CandidateRow[] CandidateRows =
+    [
+        new(MarketState.StableRange, "StableRange"),
+        new(MarketState.Trending, "Trending"),
+        new(MarketState.MeanReverting, "MeanReverting"),
+        new(MarketState.StructuralBreak, "StructuralBreak"),
+        new(MarketState.RandomWalk, "RandomWalk")
     ];
 
     public void Draw(
@@ -62,51 +71,54 @@ internal sealed class IQIAFusionDashboard
             return;
         }
 
-        DrawSummary(renderContext, fusionResult, barIndex, timestamp, availableEvidenceCount);
+        DrawNormal(renderContext, fusionResult, decisionResult);
     }
 
-    private static void DrawSummary(
+    private static void DrawNormal(
         RenderContext renderContext,
         FusionResult fusionResult,
-        int barIndex,
-        DateTime timestamp,
-        int availableEvidenceCount)
+        DecisionResult decisionResult)
     {
         renderContext.FillRectangle(PanelBackground, new Rectangle(PanelX, PanelY, PanelWidth, PanelHeight));
-        renderContext.DrawString("IQIA", HeaderFont, TextColor, PanelX + 10, PanelY + 8);
-        renderContext.DrawString(
-            $"Bar Index: {barIndex}  Heure: {timestamp:HH:mm:ss}",
-            BodyFont,
-            SecondaryTextColor,
-            PanelX + 10,
-            PanelY + 29);
-        renderContext.DrawString(
-            $"Évidences disponibles: {availableEvidenceCount}",
-            BodyFont,
-            SecondaryTextColor,
-            PanelX + 10,
-            PanelY + 46);
+        int y = PanelY + 8;
+
+        DrawNormalTitle(renderContext, "IQIA", PanelX + 10, y);
+        y += 38;
+
+        DrawNormalSection(renderContext, "MARKET", PanelX + 10, y);
+        y += 29;
+        DrawLabelValue(renderContext, "Market State", FormatMarketState(decisionResult.Winner), PanelX + 10, y);
+        y += 28;
+        DrawLabelValue(renderContext, "Confidence", FormatPercent(decisionResult.WinnerScore), PanelX + 10, y);
+        y += 28;
+        DrawLabelValue(renderContext, "Ambiguity", FormatPercent(decisionResult.AmbiguityScore), PanelX + 10, y);
+        y += 36;
+
+        DrawNormalSection(renderContext, "MARKET PROFILE", PanelX + 10, y);
+        y += 29;
 
         for (int index = 0; index < Rows.Length; index++)
         {
             DashboardRow row = Rows[index];
-            int rowY = PanelY + FirstRowOffset + index * RowHeight;
+            int rowY = y + index * RowHeight;
             double value = GetValue(fusionResult, row.Dimension);
             Color stateColor = GetStateColor(value);
             int filledWidth = (int)Math.Round(BarWidth * value, MidpointRounding.AwayFromZero);
 
             renderContext.DrawString(row.Label, BodyFont, TextColor, PanelX + 10, rowY);
-            renderContext.DrawString(
-                value.ToString("F2", CultureInfo.InvariantCulture),
-                BodyFont,
-                stateColor,
-                PanelX + 240,
-                rowY);
+            renderContext.DrawString(FormatPercent(value), BodyFont, stateColor, PanelX + 240, rowY);
 
             var barBounds = new Rectangle(PanelX + 10, rowY + 15, BarWidth, 8);
             renderContext.FillRectangle(BarBackground, barBounds);
             renderContext.FillRectangle(stateColor, new Rectangle(barBounds.X, barBounds.Y, filledWidth, barBounds.Height));
         }
+
+        y += Rows.Length * RowHeight + 4;
+        DrawWaitingSection(renderContext, "Strategy", PanelX + 10, y);
+        y += 48;
+        DrawWaitingSection(renderContext, "Signal", PanelX + 10, y);
+        y += 48;
+        DrawWaitingSection(renderContext, "Risk", PanelX + 10, y);
     }
 
     private static void DrawDebug(
@@ -121,7 +133,7 @@ internal sealed class IQIAFusionDashboard
         renderContext.FillRectangle(PanelBackground, new Rectangle(PanelX, PanelY, DebugPanelWidth, DebugPanelHeight));
         renderContext.DrawString("IQIA - Mode Debug", HeaderFont, TextColor, PanelX + 10, PanelY + 8);
         renderContext.DrawString(
-            $"Bar Index: {barIndex}  Heure: {timestamp:HH:mm:ss}  Évidences disponibles: {availableEvidenceCount}",
+            $"Bar Index: {barIndex}  Time: {timestamp:HH:mm:ss}  Available Evidence: {availableEvidenceCount}",
             BodyFont,
             SecondaryTextColor,
             PanelX + 10,
@@ -139,8 +151,16 @@ internal sealed class IQIAFusionDashboard
         DrawSectionTitle(renderContext, "Fusion Result", PanelX + 10, resultY);
         DrawFusionResult(renderContext, fusionResult, PanelX + 10, resultY + 22);
 
-        int decisionY = PanelY + 545;
-        DrawSectionTitle(renderContext, "Decision Engine", PanelX + 10, decisionY);
+        int candidatesY = PanelY + 545;
+        DrawSectionTitle(renderContext, "Decision Candidates", PanelX + 10, candidatesY);
+        DrawDecisionCandidates(renderContext, decisionResult, PanelX + 10, candidatesY + 22);
+
+        int arbitrationY = PanelY + 675;
+        DrawSectionTitle(renderContext, "Decision Arbitration", PanelX + 10, arbitrationY);
+        DrawDecisionArbitration(renderContext, decisionResult, PanelX + 10, arbitrationY + 22);
+
+        int decisionY = PanelY + 765;
+        DrawSectionTitle(renderContext, "Decision Result", PanelX + 10, decisionY);
         DrawDecisionResult(renderContext, decisionResult, PanelX + 10, decisionY + 22);
     }
 
@@ -163,9 +183,9 @@ internal sealed class IQIAFusionDashboard
             FusionConfidence confidence = GetConfidence(fusionResult, row.Dimension);
             int rowY = y + index * 25;
 
-            renderContext.DrawString($"{row.Label}Rule", DebugFont, TextColor, x, rowY);
+            renderContext.DrawString($"{row.Label} Rule", DebugFont, TextColor, x, rowY);
             renderContext.DrawString(
-                $"Value={confidence.Value:F3}  Explanation={Truncate(confidence.Explanation, 112)}",
+                $"Value={confidence.Value:F3}  Confidence={confidence.Confidence:F3}  Explanation={Truncate(confidence.Explanation, 92)}",
                 DebugFont,
                 GetStateColor(confidence.Value),
                 x + 190,
@@ -194,33 +214,46 @@ internal sealed class IQIAFusionDashboard
         }
     }
 
+    private static void DrawDecisionCandidates(RenderContext renderContext, DecisionResult decisionResult, int x, int y)
+    {
+        for (int index = 0; index < CandidateRows.Length; index++)
+        {
+            CandidateRow row = CandidateRows[index];
+            DecisionCandidate? candidate = FindCandidate(decisionResult, row.State);
+            int rowY = y + index * 20;
+
+            renderContext.DrawString(row.Label, DebugFont, TextColor, x, rowY);
+            renderContext.DrawString(
+                candidate is null
+                    ? "Scientific=n/a  Quality=n/a  Final=n/a"
+                    : $"Scientific={candidate.ScientificScore:F3}  Quality={candidate.QualityScore:F3}  Final={candidate.FinalScore:F3}",
+                DebugFont,
+                candidate is null ? SecondaryTextColor : GetStateColor(candidate.FinalScore),
+                x + 170,
+                rowY);
+        }
+    }
+
+    private static void DrawDecisionArbitration(RenderContext renderContext, DecisionResult decisionResult, int x, int y)
+    {
+        DecisionCandidate? winner = decisionResult.Candidates.Length > 0 ? decisionResult.Candidates[0] : null;
+        DecisionCandidate? runnerUp = decisionResult.Candidates.Length > 1 ? decisionResult.Candidates[1] : null;
+        double runnerUpScore = runnerUp?.FinalScore ?? 0.0;
+        double difference = winner is null ? 0.0 : winner.FinalScore - runnerUpScore;
+
+        DrawDebugLine(renderContext, x, y, "Winner", winner?.MarketState.ToString() ?? "Unknown");
+        DrawDebugLine(renderContext, x, y + DebugLineHeight, "Runner Up", runnerUp?.MarketState.ToString() ?? "None");
+        DrawDebugLine(renderContext, x, y + 2 * DebugLineHeight, "Winner Score", FormatScore(decisionResult.WinnerScore));
+        DrawDebugLine(renderContext, x, y + 3 * DebugLineHeight, "Runner Up Score", FormatScore(runnerUpScore));
+        DrawDebugLine(renderContext, x, y + 4 * DebugLineHeight, "Difference", FormatScore(difference));
+        DrawDebugLine(renderContext, x, y + 5 * DebugLineHeight, "Ambiguity", FormatScore(decisionResult.AmbiguityScore));
+    }
+
     private static void DrawDecisionResult(RenderContext renderContext, DecisionResult decisionResult, int x, int y)
     {
-        renderContext.DrawString($"Market State: {decisionResult.State}", BodyFont, TextColor, x, y);
-        renderContext.DrawString(
-            $"Confidence: {decisionResult.Confidence:F2}",
-            BodyFont,
-            GetStateColor(decisionResult.Confidence),
-            x + 220,
-            y);
-        renderContext.DrawString(
-            $"Triggered Rules: {FormatRules(decisionResult.TriggeredRules)}",
-            DebugFont,
-            SecondaryTextColor,
-            x,
-            y + DebugLineHeight);
-        renderContext.DrawString(
-            $"Rejected Rules: {FormatRules(decisionResult.RejectedRules)}",
-            DebugFont,
-            SecondaryTextColor,
-            x,
-            y + 2 * DebugLineHeight);
-        renderContext.DrawString(
-            $"Explanation: {decisionResult.Explanation}",
-            DebugFont,
-            SecondaryTextColor,
-            x,
-            y + 3 * DebugLineHeight);
+        DrawDebugLine(renderContext, x, y, "Winner", decisionResult.Winner.ToString());
+        DrawDebugLine(renderContext, x, y + DebugLineHeight, "Confidence", FormatScore(decisionResult.WinnerScore));
+        DrawDebugLine(renderContext, x, y + 2 * DebugLineHeight, "Explanation", Truncate(decisionResult.Explanation, 130));
     }
 
     private static void DrawSectionTitle(RenderContext renderContext, string title, int x, int y) =>
@@ -232,33 +265,59 @@ internal sealed class IQIAFusionDashboard
         renderContext.DrawString(values, DebugFont, SecondaryTextColor, x + 120, y);
     }
 
+    private static void DrawNormalTitle(RenderContext renderContext, string title, int x, int y)
+    {
+        renderContext.DrawString("=========================", BodyFont, SecondaryTextColor, x, y);
+        renderContext.DrawString(title, HeaderFont, TextColor, x, y + 12);
+        renderContext.DrawString("=========================", BodyFont, SecondaryTextColor, x, y + 24);
+    }
+
+    private static void DrawNormalSection(RenderContext renderContext, string title, int x, int y)
+    {
+        renderContext.DrawString("=========================", BodyFont, SecondaryTextColor, x, y);
+        renderContext.DrawString(title, HeaderFont, TextColor, x, y + 12);
+    }
+
+    private static void DrawWaitingSection(RenderContext renderContext, string title, int x, int y)
+    {
+        renderContext.DrawString("=========================", BodyFont, SecondaryTextColor, x, y);
+        renderContext.DrawString(title, BodyFont, TextColor, x, y + 14);
+        renderContext.DrawString("Waiting...", BodyFont, SecondaryTextColor, x + 115, y + 14);
+    }
+
+    private static void DrawLabelValue(RenderContext renderContext, string label, string value, int x, int y)
+    {
+        renderContext.DrawString(label, BodyFont, SecondaryTextColor, x, y);
+        renderContext.DrawString(value, BodyFont, TextColor, x + 145, y);
+    }
+
     private static string FormatAdf(EvidenceSet evidence) => evidence.Adf is { } adf
         ? $"Statistic={adf.Statistic:F3}  PValue={adf.PValue:F3}  Confidence={adf.Confidence:F3}  IsStationary={adf.IsStationary}"
-        : "Indisponible";
+        : "Unavailable";
 
     private static string FormatKpss(EvidenceSet evidence) => evidence.Kpss is { } kpss
         ? $"Statistic={kpss.Statistic:F3}  PValue={kpss.PValue:F3}  Confidence={kpss.Confidence:F3}  IsStationary={kpss.IsStationary}"
-        : "Indisponible";
+        : "Unavailable";
 
     private static string FormatDfa(EvidenceSet evidence) => evidence.Dfa is { } dfa
         ? $"Hurst={dfa.Hurst:F3}  RSquared={dfa.RSquared:F3}  Confidence={dfa.Confidence:F3}  WindowCount={dfa.WindowCount}"
-        : "Indisponible";
+        : "Unavailable";
 
     private static string FormatHalfLife(EvidenceSet evidence) => evidence.HalfLife is { } halfLife
         ? $"HalfLife={halfLife.HalfLife:F3}  RSquared={halfLife.RSquared:F3}  Confidence={halfLife.Confidence:F3}  SampleSize={halfLife.SampleSize}"
-        : "Indisponible";
+        : "Unavailable";
 
     private static string FormatVarianceRatio(EvidenceSet evidence) => evidence.VarianceRatio is { } varianceRatio
         ? $"VarianceRatio={varianceRatio.VarianceRatio:F3}  ZScore={varianceRatio.ZStatistic:F3}  PValue={varianceRatio.PValue:F3}  Confidence={varianceRatio.Confidence:F3}"
-        : "Indisponible";
+        : "Unavailable";
 
     private static string FormatCusum(EvidenceSet evidence) => evidence.Cusum is { } cusum
         ? $"Positive={cusum.PositiveCusum:F3}  Negative={cusum.NegativeCusum:F3}  Threshold={cusum.Threshold:F3}  Confidence={cusum.Confidence:F3}"
-        : "Indisponible";
+        : "Unavailable";
 
     private static string FormatBaiPerron(EvidenceSet evidence) => evidence.BaiPerron is { } baiPerron
         ? $"BreakCount={baiPerron.BreakCount}  Confidence={baiPerron.Confidence:F3}  BIC={baiPerron.BicScore:F3}  SampleSize={baiPerron.SampleSize}"
-        : "Indisponible";
+        : "Unavailable";
 
     private static double GetValue(FusionResult fusionResult, FusionDimension dimension) =>
         Math.Clamp(GetConfidence(fusionResult, dimension).Value, 0.0, 1.0);
@@ -269,7 +328,8 @@ internal sealed class IQIAFusionDashboard
             : new FusionConfidence
             {
                 Value = 0.0,
-                Explanation = "Indisponible"
+                Confidence = 0.0,
+                Explanation = "Unavailable"
             };
 
     private static Color GetStateColor(double value) =>
@@ -278,8 +338,40 @@ internal sealed class IQIAFusionDashboard
     private static string Truncate(string value, int maximumLength) =>
         value.Length <= maximumLength ? value : value[..(maximumLength - 3)] + "...";
 
-    private static string FormatRules(IReadOnlyList<string> rules) =>
-        rules.Count == 0 ? "None" : string.Join(", ", rules);
+    private static string FormatPercent(double value) =>
+        Math.Clamp(value, 0.0, 1.0).ToString("P0", CultureInfo.InvariantCulture);
+
+    private static string FormatScore(double value) => value.ToString("F3", CultureInfo.InvariantCulture);
+
+    private static string FormatMarketState(MarketState state) =>
+        state == MarketState.Unknown ? "Unknown" : SplitPascalCase(state.ToString());
+
+    private static string SplitPascalCase(string value)
+    {
+        var chars = new List<char>(value.Length + 4);
+        for (int index = 0; index < value.Length; index++)
+        {
+            if (index > 0 && char.IsUpper(value[index]) && !char.IsWhiteSpace(value[index - 1]))
+                chars.Add(' ');
+
+            chars.Add(value[index]);
+        }
+
+        return new string(chars.ToArray());
+    }
+
+    private static DecisionCandidate? FindCandidate(DecisionResult decisionResult, MarketState state)
+    {
+        foreach (DecisionCandidate candidate in decisionResult.Candidates)
+        {
+            if (candidate.MarketState == state)
+                return candidate;
+        }
+
+        return null;
+    }
 
     private readonly record struct DashboardRow(FusionDimension Dimension, string Label);
+
+    private readonly record struct CandidateRow(MarketState State, string Label);
 }
