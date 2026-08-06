@@ -29,6 +29,7 @@ public sealed class StationarityRule : IFusionRule
             ? new FusionConfidence
             {
                 Value = 0.0,
+                Confidence = 0.0,
                 Explanation = "Missing Evidence"
             }
             : EvaluateEvidence(adf, kpss);
@@ -64,7 +65,8 @@ public sealed class StationarityRule : IFusionRule
 
         return new FusionConfidence
         {
-            Value = value,
+            Value = scientificScore,
+            Confidence = qualityScore,
             Explanation = ScoreExplanation(scientificScore, qualityScore, value, scientificExplanation)
         };
     }

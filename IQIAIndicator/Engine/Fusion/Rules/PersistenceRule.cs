@@ -33,6 +33,7 @@ public sealed class PersistenceRule : IFusionRule
             ? new FusionConfidence
             {
                 Value = 0.0,
+                Confidence = 0.0,
                 Explanation = "Missing Evidence"
             }
             : EvaluateEvidence(dfa, varianceRatio);
@@ -69,7 +70,8 @@ public sealed class PersistenceRule : IFusionRule
 
         return new FusionConfidence
         {
-            Value = value,
+            Value = scientificScore,
+            Confidence = qualityScore,
             Explanation = ScoreExplanation(scientificScore, qualityScore, value, scientificExplanation)
         };
     }

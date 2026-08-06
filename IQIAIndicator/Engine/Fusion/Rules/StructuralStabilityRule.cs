@@ -28,6 +28,7 @@ public sealed class StructuralStabilityRule : IFusionRule
             ? new FusionConfidence
             {
                 Value = 0.0,
+                Confidence = 0.0,
                 Explanation = "Missing Evidence"
             }
             : EvaluateEvidence(cusum, baiPerron);
@@ -58,7 +59,8 @@ public sealed class StructuralStabilityRule : IFusionRule
 
         return new FusionConfidence
         {
-            Value = value,
+            Value = scientificScore,
+            Confidence = qualityScore,
             Explanation = ScoreExplanation(scientificScore, qualityScore, value, scientificExplanation)
         };
     }

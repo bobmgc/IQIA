@@ -27,6 +27,7 @@ public sealed class RandomWalkRule : IFusionRule
             ? new FusionConfidence
             {
                 Value = 0.0,
+                Confidence = 0.0,
                 Explanation = "Missing Evidence"
             }
             : EvaluateEvidence(varianceRatio);
@@ -54,7 +55,8 @@ public sealed class RandomWalkRule : IFusionRule
 
         return new FusionConfidence
         {
-            Value = value,
+            Value = scientificScore,
+            Confidence = qualityScore,
             Explanation = ScoreExplanation(scientificScore, qualityScore, value, scientificExplanation)
         };
     }

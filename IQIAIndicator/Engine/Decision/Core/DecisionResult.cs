@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using IQIAIndicator.Engine.Decision.Arbitration;
 using IQIAIndicator.Engine.Decision.States;
 
 namespace IQIAIndicator.Engine.Decision.Core;
@@ -7,6 +9,14 @@ namespace IQIAIndicator.Engine.Decision.Core;
 /// </summary>
 public sealed record DecisionResult
 {
+    public MarketState Winner { get; init; } = MarketState.Unknown;
+
+    public double WinnerScore { get; init; }
+
+    public ImmutableArray<DecisionCandidate> Candidates { get; init; } = [];
+
+    public double AmbiguityScore { get; init; }
+
     public MarketState State { get; init; }
 
     public double Confidence { get; init; }
@@ -35,6 +45,10 @@ public sealed class DecisionResultBuilder
 
     public DecisionResult Build() => new()
     {
+        Winner = State,
+        WinnerScore = Confidence,
+        Candidates = [],
+        AmbiguityScore = 0.0,
         State = State,
         Confidence = Confidence,
         Explanation = Explanation,

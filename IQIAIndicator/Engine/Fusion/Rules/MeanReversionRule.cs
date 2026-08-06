@@ -25,6 +25,7 @@ public sealed class MeanReversionRule : IFusionRule
             ? new FusionConfidence
             {
                 Value = 0.0,
+                Confidence = 0.0,
                 Explanation = "Missing Evidence"
             }
             : EvaluateEvidence(halfLife);
@@ -48,7 +49,8 @@ public sealed class MeanReversionRule : IFusionRule
 
         return new FusionConfidence
         {
-            Value = value,
+            Value = scientificScore,
+            Confidence = qualityScore,
             Explanation = ScoreExplanation(scientificScore, qualityScore, value, scientificExplanation)
         };
     }

@@ -7,5 +7,7 @@ public sealed record FusionConfidence
 {
     public double Value { get; init; } = 0.0;
 
+    public double Confidence { get; init; } = 0.0;
+
     public string Explanation { get; init; } = string.Empty;
 }
