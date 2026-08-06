@@ -2,8 +2,14 @@
 using System.ComponentModel.DataAnnotations;
 using ATAS.Indicators;
 using IQIAIndicator.Core;
+using IQIAIndicator.Engine.Fusion;
+using IQIAIndicator.Engine.Fusion.Core;
+using IQIAIndicator.Engine.Fusion.Rules;
 using IQIAIndicator.Engine.Regime;
 using IQIAIndicator.Engine.Regime.Core;
+using IQIAIndicator.Visualization;
+using OFT.Rendering.Context;
+using FusionEngine = IQIAIndicator.Engine.Fusion.EvidenceFusionEngine;
 
 namespace IQIAIndicator;
 
@@ -22,7 +28,20 @@ public sealed class IQIAIndicator : Indicator
     private readonly MarketCache            _cache        = new();
     private readonly ILogger                _logger       = NullLogger.Instance;
     private readonly RegimeEngine           _regimeEngine = new();
-    private readonly EvidenceFusionEngine   _fusion       = new();
+    private readonly FusionEngine           _fusion       = new(
+    [
+        new StationarityRule(),
+        new PersistenceRule(),
+        new MeanReversionRule(),
+        new StructuralStabilityRule(),
+        new RandomWalkRule()
+    ]);
+    private readonly IQIAFusionDashboard _dashboard = new();
+
+    private FusionResult? _latestFusionResult;
+    private int _latestBarIndex;
+    private DateTime _latestTimestamp;
+    private int _availableEvidenceCount;
 
     // --- Parametres instrument -----------------------------------------------
     [Display(Name = "Valeur du Tick (€/$)", GroupName = "Instrument", Order = 10)]
@@ -41,6 +60,8 @@ public sealed class IQIAIndicator : Indicator
     {
         DenyToChangePanel = true;
         ((ValueDataSeries)DataSeries[0]).VisualType = VisualMode.Hide;
+        EnableCustomDrawing = true;
+        SubscribeToDrawingEvents(DrawingLayouts.Final);
     }
 
     protected override void OnCalculate(int bar, decimal value)
@@ -54,10 +75,49 @@ public sealed class IQIAIndicator : Indicator
         if (!validation.IsValid)
             return;
 
-        var evidence   = _regimeEngine.Collect(context);
-        var _          = _fusion.Fuse(evidence);
+        var evidence = _regimeEngine.Collect(context);
+        _latestFusionResult = _fusion.Fuse(
+            new FusionContext
+            {
+                Evidence = evidence,
+                Timestamp = evidence.Timestamp,
+                Symbol = context.Instrument.Symbol,
+                TimeFrame = context.TimeFrame,
+                EvaluationId = Guid.NewGuid()
+            });
+        _latestBarIndex = bar;
+        _latestTimestamp = evidence.Timestamp;
+        _availableEvidenceCount = CountAvailableEvidence(evidence);
+    }
 
-        // Sprint 2.3 termine ici — EvidenceFusionEngine au Sprint 2.4
+    protected override void OnRender(RenderContext renderContext, DrawingLayouts layout)
+    {
+        base.OnRender(renderContext, layout);
+
+        if (layout == DrawingLayouts.Final && _latestFusionResult is not null)
+        {
+            _dashboard.Draw(
+                renderContext,
+                _latestFusionResult,
+                _latestBarIndex,
+                _latestTimestamp,
+                _availableEvidenceCount);
+        }
+    }
+
+    private static int CountAvailableEvidence(EvidenceSet evidence)
+    {
+        int count = 0;
+        count += evidence.Adf is { IsValid: true } ? 1 : 0;
+        count += evidence.Kpss is { IsValid: true } ? 1 : 0;
+        count += evidence.Hurst is { IsValid: true } ? 1 : 0;
+        count += evidence.HalfLife is { IsValid: true } ? 1 : 0;
+        count += evidence.VarianceRatio is { IsValid: true } ? 1 : 0;
+        count += evidence.Cusum is { IsValid: true } ? 1 : 0;
+        count += evidence.Volatility is { IsValid: true } ? 1 : 0;
+        count += evidence.BaiPerron is { IsValid: true } ? 1 : 0;
+        count += evidence.Dfa is { IsValid: true } ? 1 : 0;
+        return count;
     }
 
     // --- Cablage du builder avec les sources ATAS ----------------------------
