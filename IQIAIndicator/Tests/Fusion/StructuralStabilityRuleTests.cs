@@ -8,7 +8,7 @@ using IQIAIndicator.Engine.Regime.Evidence.CUSUM;
 namespace IQIAIndicator.Tests.Fusion;
 
 /// <summary>
-/// Vérifications de contrat de la règle de stabilité structurelle CUSUM-Bai-Perron.
+/// Contract checks for current structural coherence from CUSUM and Bai-Perron.
 /// </summary>
 public static class StructuralStabilityRuleTests
 {
@@ -16,7 +16,7 @@ public static class StructuralStabilityRuleTests
     {
         AssertStableStructure();
         AssertConfirmedBreak();
-        AssertScientificDisagreement();
+        AssertRecoveryAfterHistoricalBreaks();
         AssertMissingEvidence();
     }
 
@@ -26,8 +26,8 @@ public static class StructuralStabilityRuleTests
             CreateCusum(false, 0.0, 0.0, 1.0),
             CreateBaiPerron(0));
 
-        Assert(confidence.Value > 0.8, "Des structures stables concordantes doivent produire une confiance élevée.");
-        Assert(!confidence.Explanation.Contains("Scientific disagreement"), "L'accord ne doit pas être déclaré conflictuel.");
+        Assert(confidence.Value > 0.95, "A coherent current structure must produce high structural stability.");
+        Assert(confidence.Explanation.Contains("Current structural coherence"), "Current coherence must be explained.");
     }
 
     private static void AssertConfirmedBreak()
@@ -36,26 +36,27 @@ public static class StructuralStabilityRuleTests
             CreateCusum(true, 2.0, 0.0, 1.0),
             CreateBaiPerron(2));
 
-        Assert(confidence.Value < 0.2, "Des ruptures confirmées doivent produire une confiance faible.");
-        Assert(!confidence.Explanation.Contains("Scientific disagreement"), "L'accord sur les ruptures ne doit pas être déclaré conflictuel.");
+        Assert(confidence.Value < 0.35, "Strong transition pressure must quickly reduce structural stability.");
+        Assert(confidence.Explanation.Contains("transition pressure"), "Transition pressure must be explained.");
     }
 
-    private static void AssertScientificDisagreement()
+    private static void AssertRecoveryAfterHistoricalBreaks()
     {
         FusionConfidence confidence = Evaluate(
             CreateCusum(false, 0.0, 0.0, 1.0),
-            CreateBaiPerron(2));
+            CreateBaiPerron(6));
 
-        Assert(confidence.Value > 0.25 && confidence.Value < 0.75,
-            "Un désaccord scientifique doit produire une confiance intermédiaire.");
-        Assert(confidence.Explanation.Contains("Scientific disagreement"), "Le désaccord doit être explicite.");
+        Assert(confidence.Value > 0.75,
+            "Recovered current coherence must not stay near zero because of historical breaks.");
+        Assert(confidence.Explanation.Contains("recovery"), "Structural recovery must be explained.");
     }
 
     private static void AssertMissingEvidence()
     {
         FusionConfidence confidence = Evaluate(null, CreateBaiPerron(0));
-        Assert(confidence.Value == 0.0, "Une évidence manquante doit produire une confiance faible.");
-        Assert(confidence.Explanation == "Missing Evidence", "L'évidence manquante doit être expliquée.");
+        Assert(confidence.Value == 0.0, "Missing evidence must produce low structural stability.");
+        Assert(confidence.Confidence == 0.0, "Missing evidence must produce low quality.");
+        Assert(confidence.Explanation == "Missing Evidence", "Missing evidence must be explained.");
     }
 
     private static FusionConfidence Evaluate(CusumResult? cusum, BaiPerronResult? baiPerron)

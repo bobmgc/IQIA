@@ -5,16 +5,22 @@ using IQIAIndicator.Engine.Regime.Evidence.CUSUM;
 namespace IQIAIndicator.Engine.Fusion.Rules;
 
 /// <summary>
-/// Mesure l'accord scientifique entre CUSUM et Bai-Perron sur la stabilité structurelle.
+/// Estimates current structural coherence from transition pressure and historical instability.
 /// </summary>
 public sealed class StructuralStabilityRule : IFusionRule
 {
-    // Calibrages provisoires : deux unités de pression CUSUM et cinquante observations.
-    private const double CusumPressureScale = 2.0;
-    private const double BreakCountDecayScale = 1.0;
+    // Provisional calibration: CUSUM pressure is a temporary transition penalty.
+    private const double TransitionPressureDecayScale = 1.25;
+    // Provisional calibration: historical instability is capped so old breaks cannot dominate current stability.
+    private const double HistoricalBreakDecayScale = 2.0;
+    private const double MinimumHistoricalStability = 0.50;
     private const double SampleSizeScale = 50.0;
     private const double MinimumThreshold = 1e-12;
-    // Pondérations provisoires : l'absence scientifique de rupture reste déterminante.
+    // Provisional structural coherence weights: recent behavioural consistency dominates.
+    private const double BehaviourConsistencyWeight = 0.50;
+    private const double TransitionPressureWeight = 0.30;
+    private const double HistoricalInstabilityWeight = 0.20;
+    // Provisional final blend weights: current coherence remains the primary output.
     private const double ScientificScoreWeight = 0.90;
     private const double QualityScoreWeight = 0.10;
 
@@ -39,23 +45,32 @@ public sealed class StructuralStabilityRule : IFusionRule
     private static FusionConfidence EvaluateEvidence(CusumResult cusum, BaiPerronResult baiPerron)
     {
         double cusumMagnitude = Math.Max(Math.Abs(cusum.PositiveCusum), Math.Abs(cusum.NegativeCusum));
-        double cusumPressure = cusumMagnitude / Math.Max(Math.Abs(cusum.Threshold), MinimumThreshold);
-        double cusumStability = Math.Exp(-CusumPressureScale * cusumPressure);
+        double normalizedCusumPressure = cusumMagnitude / Math.Max(Math.Abs(cusum.Threshold), MinimumThreshold);
+        double transitionPressure = Math.Max(normalizedCusumPressure, cusum.ChangeDetected ? 1.0 : 0.0);
+        double transitionStability = Math.Exp(-TransitionPressureDecayScale * transitionPressure);
 
-        double baiPerronStability = Math.Exp(-Math.Max(0, baiPerron.BreakCount) / BreakCountDecayScale);
+        double rawHistoricalStability = Math.Exp(-Math.Max(0, baiPerron.BreakCount) / HistoricalBreakDecayScale);
+        double historicalStability = MinimumHistoricalStability +
+            (1.0 - MinimumHistoricalStability) * rawHistoricalStability;
+        double behaviourConsistency = BehaviourConsistency(cusum, transitionStability, historicalStability);
 
-        double scientificScore = Math.Clamp(0.5 * (cusumStability + baiPerronStability), 0.0, 1.0);
+        double scientificScore = Math.Clamp(
+            BehaviourConsistencyWeight * behaviourConsistency +
+            TransitionPressureWeight * transitionStability +
+            HistoricalInstabilityWeight * historicalStability,
+            0.0,
+            1.0);
         double cusumQuality = 0.5 * (
             Math.Clamp(cusum.Confidence, 0.0, 1.0) + SampleSizeStrength(cusum.SampleSize));
         double baiPerronQuality = 0.5 * (
             Math.Clamp(baiPerron.Confidence, 0.0, 1.0) + SampleSizeStrength(baiPerron.SampleSize));
         double qualityScore = 0.5 * (cusumQuality + baiPerronQuality);
         double value = Blend(scientificScore, qualityScore);
-        bool scientificDisagreement = cusum.ChangeDetected != (baiPerron.BreakCount > 0);
-        string scientificExplanation = scientificDisagreement
-            ? $"Scientific disagreement: CUSUM={cusumStability:F3}, Bai-Perron={baiPerronStability:F3}."
-            : $"CUSUM and Bai-Perron structural stability evidence: CUSUM={cusumStability:F3}, " +
-                $"Bai-Perron={baiPerronStability:F3}.";
+        string scientificExplanation = cusum.ChangeDetected
+            ? $"Current structural coherence under transition pressure: Behaviour={behaviourConsistency:F3}, " +
+                $"Transition={transitionStability:F3}, Historical={historicalStability:F3}."
+            : $"Current structural coherence with recovery: Behaviour={behaviourConsistency:F3}, " +
+                $"Transition={transitionStability:F3}, Historical={historicalStability:F3}.";
 
         return new FusionConfidence
         {
@@ -63,6 +78,22 @@ public sealed class StructuralStabilityRule : IFusionRule
             Confidence = qualityScore,
             Explanation = ScoreExplanation(scientificScore, qualityScore, value, scientificExplanation)
         };
+    }
+
+    private static double BehaviourConsistency(
+        CusumResult cusum,
+        double transitionStability,
+        double historicalStability)
+    {
+        double currentCoherence = cusum.ChangeDetected ? transitionStability : 1.0;
+        double recovery = cusum.ChangeDetected ? transitionStability : 1.0;
+
+        return Math.Clamp(
+            0.60 * currentCoherence +
+            0.30 * recovery +
+            0.10 * historicalStability,
+            0.0,
+            1.0);
     }
 
     private static double SampleSizeStrength(int sampleSize) =>
