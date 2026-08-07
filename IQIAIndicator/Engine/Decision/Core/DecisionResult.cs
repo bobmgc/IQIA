@@ -33,8 +33,6 @@ public sealed record DecisionResult
 /// </summary>
 public sealed class DecisionResultBuilder
 {
-    public DecisionCandidate? Candidate { get; private set; }
-
     public MarketState State { get; set; } = MarketState.Unknown;
 
     public double Confidence { get; set; }
@@ -45,28 +43,11 @@ public sealed class DecisionResultBuilder
 
     public List<string> RejectedRules { get; } = [];
 
-    public void SetCandidate(
-        MarketState state,
-        double scientificScore,
-        double qualityScore,
-        double finalScore,
-        string explanation)
-    {
-        Candidate = new DecisionCandidate
-        {
-            State = state,
-            ScientificScore = scientificScore,
-            QualityScore = qualityScore,
-            FinalScore = finalScore,
-            Explanation = explanation
-        };
-    }
-
     public DecisionResult Build() => new()
     {
         Winner = State,
         WinnerScore = Confidence,
-        Candidates = Candidate is null ? [] : [Candidate],
+        Candidates = [],
         AmbiguityScore = 0.0,
         State = State,
         Confidence = Confidence,

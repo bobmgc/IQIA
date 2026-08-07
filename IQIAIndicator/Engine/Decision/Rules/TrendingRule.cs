@@ -39,15 +39,12 @@ public sealed class TrendingRule : IDecisionRule
             ScientificScoreWeight * scientificScore + QualityScoreWeight * qualityScore,
             0.0,
             1.0);
-        string explanation = BuildExplanation(scientificScore, qualityScore, finalScore, scores);
-
-        builder.SetCandidate(MarketState.Trending, scientificScore, qualityScore, finalScore, explanation);
 
         if (finalScore > builder.Confidence)
         {
             builder.State = MarketState.Trending;
             builder.Confidence = finalScore;
-            builder.Explanation = explanation;
+            builder.Explanation = BuildExplanation(scientificScore, qualityScore, finalScore, scores);
             builder.TriggeredRules.Add(nameof(TrendingRule));
             return;
         }

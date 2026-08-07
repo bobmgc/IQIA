@@ -4,6 +4,7 @@ using IQIAIndicator.Engine.Decision.Arbitration;
 using IQIAIndicator.Engine.Decision.Core;
 using IQIAIndicator.Engine.Decision.States;
 using IQIAIndicator.Engine.Fusion.Core;
+using IQIAIndicator.Engine.Fusion.State;
 using IQIAIndicator.Engine.Regime.Core;
 using OFT.Rendering.Context;
 using OFT.Rendering.Tools;
@@ -18,7 +19,7 @@ internal sealed class IQIAFusionDashboard
     private const int PanelX = 12;
     private const int PanelY = 12;
     private const int PanelWidth = 310;
-    private const int PanelHeight = 570;
+    private const int PanelHeight = 630;
     private const int DebugPanelWidth = 1050;
     private const int DebugPanelHeight = 860;
     private const int BarWidth = 190;
@@ -59,6 +60,7 @@ internal sealed class IQIAFusionDashboard
         RenderContext renderContext,
         EvidenceSet evidence,
         FusionResult fusionResult,
+        FusionSnapshot fusionSnapshot,
         DecisionResult decisionResult,
         int barIndex,
         DateTime timestamp,
@@ -67,16 +69,24 @@ internal sealed class IQIAFusionDashboard
     {
         if (debugMode)
         {
-            DrawDebug(renderContext, evidence, fusionResult, decisionResult, barIndex, timestamp, availableEvidenceCount);
+            DrawDebug(
+                renderContext,
+                evidence,
+                fusionResult,
+                fusionSnapshot,
+                decisionResult,
+                barIndex,
+                timestamp,
+                availableEvidenceCount);
             return;
         }
 
-        DrawNormal(renderContext, fusionResult, decisionResult);
+        DrawNormal(renderContext, fusionSnapshot, decisionResult);
     }
 
     private static void DrawNormal(
         RenderContext renderContext,
-        FusionResult fusionResult,
+        FusionSnapshot fusionSnapshot,
         DecisionResult decisionResult)
     {
         renderContext.FillRectangle(PanelBackground, new Rectangle(PanelX, PanelY, PanelWidth, PanelHeight));
@@ -92,6 +102,10 @@ internal sealed class IQIAFusionDashboard
         DrawLabelValue(renderContext, "Confidence", FormatPercent(decisionResult.WinnerScore), PanelX + 10, y);
         y += 28;
         DrawLabelValue(renderContext, "Ambiguity", FormatPercent(decisionResult.AmbiguityScore), PanelX + 10, y);
+        y += 28;
+        DrawLabelValue(renderContext, "Market Status", fusionSnapshot.StateChanged ? "Updating" : "Stable", PanelX + 10, y);
+        y += 28;
+        DrawLabelValue(renderContext, "Last Stable Update", $"Update #{fusionSnapshot.UpdateCount}", PanelX + 10, y);
         y += 36;
 
         DrawNormalSection(renderContext, "MARKET PROFILE", PanelX + 10, y);
@@ -101,7 +115,7 @@ internal sealed class IQIAFusionDashboard
         {
             DashboardRow row = Rows[index];
             int rowY = y + index * RowHeight;
-            double value = GetValue(fusionResult, row.Dimension);
+            double value = GetValue(fusionSnapshot.StableResult, row.Dimension);
             Color stateColor = GetStateColor(value);
             int filledWidth = (int)Math.Round(BarWidth * value, MidpointRounding.AwayFromZero);
 
@@ -124,7 +138,8 @@ internal sealed class IQIAFusionDashboard
     private static void DrawDebug(
         RenderContext renderContext,
         EvidenceSet evidence,
-        FusionResult fusionResult,
+        FusionResult rawFusionResult,
+        FusionSnapshot fusionSnapshot,
         DecisionResult decisionResult,
         int barIndex,
         DateTime timestamp,
@@ -145,23 +160,31 @@ internal sealed class IQIAFusionDashboard
 
         int rulesY = PanelY + 225;
         DrawSectionTitle(renderContext, "Fusion Rules", PanelX + 10, rulesY);
-        DrawFusionRules(renderContext, fusionResult, PanelX + 10, rulesY + 20);
+        DrawFusionRules(renderContext, rawFusionResult, PanelX + 10, rulesY + 20);
 
         int resultY = PanelY + 375;
-        DrawSectionTitle(renderContext, "Fusion Result", PanelX + 10, resultY);
-        DrawFusionResult(renderContext, fusionResult, PanelX + 10, resultY + 22);
+        DrawSectionTitle(renderContext, "Raw Fusion", PanelX + 10, resultY);
+        DrawFusionResult(renderContext, rawFusionResult, PanelX + 10, resultY + 22);
 
-        int candidatesY = PanelY + 545;
-        DrawSectionTitle(renderContext, "Decision Candidates", PanelX + 10, candidatesY);
-        DrawDecisionCandidates(renderContext, decisionResult, PanelX + 10, candidatesY + 22);
+        int stableY = PanelY + 545;
+        DrawSectionTitle(renderContext, "Stable Fusion", PanelX + 10, stableY);
+        DrawFusionResult(renderContext, fusionSnapshot.StableResult, PanelX + 10, stableY + 22);
 
-        int arbitrationY = PanelY + 675;
-        DrawSectionTitle(renderContext, "Decision Arbitration", PanelX + 10, arbitrationY);
-        DrawDecisionArbitration(renderContext, decisionResult, PanelX + 10, arbitrationY + 22);
+        int differenceY = PanelY + 715;
+        DrawSectionTitle(renderContext, "Difference", PanelX + 10, differenceY);
+        DrawFusionDifference(renderContext, rawFusionResult, fusionSnapshot.StableResult, PanelX + 10, differenceY + 22);
 
-        int decisionY = PanelY + 765;
-        DrawSectionTitle(renderContext, "Decision Result", PanelX + 10, decisionY);
-        DrawDecisionResult(renderContext, decisionResult, PanelX + 10, decisionY + 22);
+        int candidatesY = PanelY + 58;
+        DrawSectionTitle(renderContext, "Decision Candidates", PanelX + 560, candidatesY);
+        DrawDecisionCandidates(renderContext, decisionResult, PanelX + 560, candidatesY + 22);
+
+        int arbitrationY = PanelY + 200;
+        DrawSectionTitle(renderContext, "Decision Arbitration", PanelX + 560, arbitrationY);
+        DrawDecisionArbitration(renderContext, decisionResult, PanelX + 560, arbitrationY + 22);
+
+        int decisionY = PanelY + 315;
+        DrawSectionTitle(renderContext, "Decision Result", PanelX + 560, decisionY);
+        DrawDecisionResult(renderContext, decisionResult, PanelX + 560, decisionY + 22);
     }
 
     private static void DrawEvidenceModels(RenderContext renderContext, EvidenceSet evidence, int x, int y)
@@ -211,6 +234,33 @@ internal sealed class IQIAFusionDashboard
             var barBounds = new Rectangle(x + 235, rowY + 2, debugBarWidth, 11);
             renderContext.FillRectangle(BarBackground, barBounds);
             renderContext.FillRectangle(stateColor, new Rectangle(barBounds.X, barBounds.Y, filledWidth, barBounds.Height));
+        }
+    }
+
+    private static void DrawFusionDifference(
+        RenderContext renderContext,
+        FusionResult rawFusionResult,
+        FusionResult stableFusionResult,
+        int x,
+        int y)
+    {
+        const int debugRowHeight = 22;
+
+        for (int index = 0; index < Rows.Length; index++)
+        {
+            DashboardRow row = Rows[index];
+            int rowY = y + index * debugRowHeight;
+            double rawValue = GetValue(rawFusionResult, row.Dimension);
+            double stableValue = GetValue(stableFusionResult, row.Dimension);
+            double difference = rawValue - stableValue;
+
+            renderContext.DrawString(row.Label, DebugFont, TextColor, x, rowY);
+            renderContext.DrawString(
+                $"Raw={rawValue:F3}  Stable={stableValue:F3}  Difference={difference:F3}",
+                DebugFont,
+                GetStateColor(Math.Abs(difference)),
+                x + 170,
+                rowY);
         }
     }
 

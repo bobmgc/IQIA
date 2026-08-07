@@ -7,9 +7,7 @@ namespace IQIAIndicator.Engine.Decision.Arbitration;
 /// </summary>
 public sealed record DecisionCandidate
 {
-    public required MarketState State { get; init; }
-
-    public MarketState MarketState => State;
+    public required MarketState MarketState { get; init; }
 
     public required double ScientificScore { get; init; }
 

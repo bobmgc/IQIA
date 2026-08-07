@@ -6,6 +6,7 @@ using IQIAIndicator.Engine.Decision.Core;
 using IQIAIndicator.Engine.Fusion;
 using IQIAIndicator.Engine.Fusion.Core;
 using IQIAIndicator.Engine.Fusion.Rules;
+using IQIAIndicator.Engine.Fusion.State;
 using IQIAIndicator.Engine.Regime;
 using IQIAIndicator.Engine.Regime.Core;
 using IQIAIndicator.Visualization;
@@ -46,10 +47,12 @@ public sealed class IQIAIndicator : Indicator
         new StructuralStabilityRule(),
         new RandomWalkRule()
     ]);
+    private readonly FusionStateManager     _fusionState  = new();
     private readonly IQIAFusionDashboard _dashboard = new();
 
     private EvidenceSet? _latestEvidence;
     private FusionResult? _latestFusionResult;
+    private FusionSnapshot? _latestFusionSnapshot;
     private DecisionResult? _latestDecisionResult;
     private int _latestBarIndex;
     private DateTime _latestTimestamp;
@@ -101,10 +104,11 @@ public sealed class IQIAIndicator : Indicator
                 TimeFrame = context.TimeFrame,
                 EvaluationId = Guid.NewGuid()
             });
+        _latestFusionSnapshot = _fusionState.Update(_latestFusionResult, evidence.Timestamp);
         _latestDecisionResult = _decisionEngine.Evaluate(
             new DecisionContext
             {
-                FusionResult = _latestFusionResult,
+                FusionResult = _latestFusionSnapshot.StableResult,
                 Evidence = evidence
             });
         _latestBarIndex = bar;
@@ -117,12 +121,14 @@ public sealed class IQIAIndicator : Indicator
         base.OnRender(renderContext, layout);
 
         if (layout == DrawingLayouts.Final && _latestEvidence is not null && _latestFusionResult is not null &&
+            _latestFusionSnapshot is not null &&
             _latestDecisionResult is not null)
         {
             _dashboard.Draw(
                 renderContext,
             _latestEvidence,
                 _latestFusionResult,
+                _latestFusionSnapshot,
                 _latestDecisionResult,
                 _latestBarIndex,
                 _latestTimestamp,
