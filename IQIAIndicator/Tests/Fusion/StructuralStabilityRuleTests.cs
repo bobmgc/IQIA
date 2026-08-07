@@ -1,5 +1,6 @@
 using System.Linq;
 using IQIAIndicator.Engine.Fusion.Core;
+using IQIAIndicator.Engine.Fusion.Profile;
 using IQIAIndicator.Engine.Fusion.Rules;
 using IQIAIndicator.Engine.Regime.Core;
 using IQIAIndicator.Engine.Regime.Evidence.BaiPerron;
@@ -61,31 +62,16 @@ public static class StructuralStabilityRuleTests
 
     private static FusionConfidence Evaluate(CusumResult? cusum, BaiPerronResult? baiPerron)
     {
-        var builder = new FusionResultBuilder();
-        new StructuralStabilityRule().Evaluate(
-            new FusionContext
-            {
-                Evidence = new EvidenceSet
-                {
-                    Timestamp = DateTime.UnixEpoch,
-                    Adf = null,
-                    Kpss = null,
-                    Hurst = null,
-                    HalfLife = null,
-                    VarianceRatio = null,
-                    Cusum = cusum,
-                    Volatility = null,
-                    BaiPerron = baiPerron,
-                    Dfa = null
-                },
-                Timestamp = DateTime.UnixEpoch,
-                Symbol = string.Empty,
-                TimeFrame = string.Empty,
-                EvaluationId = Guid.Empty
-            },
-            builder);
+        var profileAnalysis = new FusionProfileAnalysis
+        {
+            SnapshotCount = 4,
+            WindowSize = 6,
+            BehaviourConsistency = cusum is null ? 0.0 : (cusum.ChangeDetected ? 0.20 : 0.98),
+            ProfileVelocity = cusum is null ? 0.80 : (cusum.ChangeDetected ? 0.90 : 0.05),
+            ProfileStability = cusum is null ? 0.50 : (cusum.ChangeDetected ? 0.12 : 0.95)
+        };
 
-        return builder.Dimensions[FusionDimension.StructuralStability];
+        return new StructuralStabilityRule().EvaluateAnalysis(profileAnalysis);
     }
 
     private static CusumResult CreateCusum(

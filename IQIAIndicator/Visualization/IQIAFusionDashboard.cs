@@ -23,8 +23,10 @@ internal sealed class IQIAFusionDashboard
     private const int DebugPanelWidth = 1050;
     private const int DebugPanelHeight = 860;
     private const int BarWidth = 190;
-    private const int RowHeight = 43;
+    private const int RowHeight = 34;
+    private const int ProfileRowHeight = 36;
     private const int DebugLineHeight = 16;
+    private const int ValueColumnOffset = 165;
 
     private static readonly RenderFont HeaderFont = new("Arial", 12f);
     private static readonly RenderFont BodyFont = new("Arial", 10f);
@@ -97,15 +99,15 @@ internal sealed class IQIAFusionDashboard
 
         DrawNormalSection(renderContext, "MARKET", PanelX + 10, y);
         y += 29;
-        DrawLabelValue(renderContext, "Market State", FormatMarketState(decisionResult.Winner), PanelX + 10, y);
+        DrawLabelValue(renderContext, "Behaviour", FormatMarketState(decisionResult.Winner), PanelX + 10, y);
         y += 28;
-        DrawLabelValue(renderContext, "Confidence", FormatPercent(decisionResult.WinnerScore), PanelX + 10, y);
+        DrawLabelValue(renderContext, "Winner Score", FormatPercent(decisionResult.WinnerScore), PanelX + 10, y);
         y += 28;
-        DrawLabelValue(renderContext, "Ambiguity", FormatPercent(decisionResult.AmbiguityScore), PanelX + 10, y);
+        DrawLabelValue(renderContext, "Decision Quality", FormatDecisionQuality(decisionResult.AmbiguityScore), PanelX + 10, y);
         y += 28;
-        DrawLabelValue(renderContext, "Market Status", fusionSnapshot.StateChanged ? "Updating" : "Stable", PanelX + 10, y);
+        DrawLabelValue(renderContext, "Snapshot Status", fusionSnapshot.StateChanged ? "Updating" : "Stable", PanelX + 10, y);
         y += 28;
-        DrawLabelValue(renderContext, "Last Stable Update", $"Update #{fusionSnapshot.UpdateCount}", PanelX + 10, y);
+        DrawLabelValue(renderContext, "Snapshot ID", $"#{fusionSnapshot.UpdateCount}", PanelX + 10, y);
         y += 36;
 
         DrawNormalSection(renderContext, "MARKET PROFILE", PanelX + 10, y);
@@ -114,25 +116,26 @@ internal sealed class IQIAFusionDashboard
         for (int index = 0; index < Rows.Length; index++)
         {
             DashboardRow row = Rows[index];
-            int rowY = y + index * RowHeight;
+            int rowY = y + index * ProfileRowHeight;
             double value = GetValue(fusionSnapshot.StableResult, row.Dimension);
             Color stateColor = GetStateColor(value);
             int filledWidth = (int)Math.Round(BarWidth * value, MidpointRounding.AwayFromZero);
 
             renderContext.DrawString(row.Label, BodyFont, TextColor, PanelX + 10, rowY);
-            renderContext.DrawString(FormatPercent(value), BodyFont, stateColor, PanelX + 240, rowY);
+            int barY = rowY + 16;
+            renderContext.DrawString(FormatPercent(value), BodyFont, stateColor, PanelX + 240, barY - 2);
 
-            var barBounds = new Rectangle(PanelX + 10, rowY + 15, BarWidth, 8);
+            var barBounds = new Rectangle(PanelX + 10, barY, BarWidth, 10);
             renderContext.FillRectangle(BarBackground, barBounds);
             renderContext.FillRectangle(stateColor, new Rectangle(barBounds.X, barBounds.Y, filledWidth, barBounds.Height));
         }
 
-        y += Rows.Length * RowHeight + 4;
-        DrawWaitingSection(renderContext, "Strategy", PanelX + 10, y);
-        y += 48;
-        DrawWaitingSection(renderContext, "Signal", PanelX + 10, y);
-        y += 48;
-        DrawWaitingSection(renderContext, "Risk", PanelX + 10, y);
+        y += Rows.Length * ProfileRowHeight + 4;
+        DrawLabelValue(renderContext, "Recommended Methodology", FormatMethodology(decisionResult.Winner), PanelX + 10, y);
+        y += 28;
+        DrawLabelValue(renderContext, "Signal", "Not Available", PanelX + 10, y);
+        y += 28;
+        DrawLabelValue(renderContext, "Risk", "Not Available", PanelX + 10, y);
     }
 
     private static void DrawDebug(
@@ -317,14 +320,14 @@ internal sealed class IQIAFusionDashboard
 
     private static void DrawNormalTitle(RenderContext renderContext, string title, int x, int y)
     {
-        renderContext.DrawString("=========================", BodyFont, SecondaryTextColor, x, y);
+        renderContext.DrawString("-----------------------------", BodyFont, SecondaryTextColor, x, y);
         renderContext.DrawString(title, HeaderFont, TextColor, x, y + 12);
-        renderContext.DrawString("=========================", BodyFont, SecondaryTextColor, x, y + 24);
+        renderContext.DrawString("-----------------------------", BodyFont, SecondaryTextColor, x, y + 24);
     }
 
     private static void DrawNormalSection(RenderContext renderContext, string title, int x, int y)
     {
-        renderContext.DrawString("=========================", BodyFont, SecondaryTextColor, x, y);
+        renderContext.DrawString("-----------------------------", BodyFont, SecondaryTextColor, x, y);
         renderContext.DrawString(title, HeaderFont, TextColor, x, y + 12);
     }
 
@@ -338,7 +341,7 @@ internal sealed class IQIAFusionDashboard
     private static void DrawLabelValue(RenderContext renderContext, string label, string value, int x, int y)
     {
         renderContext.DrawString(label, BodyFont, SecondaryTextColor, x, y);
-        renderContext.DrawString(value, BodyFont, TextColor, x + 145, y);
+        renderContext.DrawString(value, BodyFont, TextColor, x + ValueColumnOffset, y);
     }
 
     private static string FormatAdf(EvidenceSet evidence) => evidence.Adf is { } adf
@@ -387,6 +390,29 @@ internal sealed class IQIAFusionDashboard
 
     private static string Truncate(string value, int maximumLength) =>
         value.Length <= maximumLength ? value : value[..(maximumLength - 3)] + "...";
+
+    private static string FormatDecisionQuality(double ambiguity)
+    {
+        string label = ambiguity switch
+        {
+            <= 0.25 => "Excellent",
+            <= 0.50 => "Good",
+            <= 0.75 => "Moderate",
+            _ => "Weak"
+        };
+
+        return $"{label} ({FormatPercent(ambiguity)})";
+    }
+
+    private static string FormatMethodology(MarketState winner) => winner switch
+    {
+        MarketState.StableRange => "Range Methodology",
+        MarketState.MeanReverting => "Mean Reversion Methodology",
+        MarketState.Trending => "Trend Following Methodology",
+        MarketState.StructuralBreak => "Structural Break Methodology",
+        MarketState.RandomWalk => "Random Walk Methodology",
+        _ => "Not Available"
+    };
 
     private static string FormatPercent(double value) =>
         Math.Clamp(value, 0.0, 1.0).ToString("P0", CultureInfo.InvariantCulture);

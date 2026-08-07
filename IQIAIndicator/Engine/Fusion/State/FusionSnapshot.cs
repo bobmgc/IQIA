@@ -1,4 +1,5 @@
 using IQIAIndicator.Engine.Fusion.Core;
+using IQIAIndicator.Engine.Fusion.Profile;
 
 namespace IQIAIndicator.Engine.Fusion.State;
 
@@ -14,4 +15,6 @@ public sealed record FusionSnapshot
     public required int UpdateCount { get; init; }
 
     public required bool StateChanged { get; init; }
+
+    public FusionProfileAnalysis ProfileAnalysis { get; init; } = FusionProfileAnalysis.Empty;
 }

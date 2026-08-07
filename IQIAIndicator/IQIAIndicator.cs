@@ -44,7 +44,6 @@ public sealed class IQIAIndicator : Indicator
         new StationarityRule(),
         new PersistenceRule(),
         new MeanReversionRule(),
-        new StructuralStabilityRule(),
         new RandomWalkRule()
     ]);
     private readonly FusionStateManager     _fusionState  = new();

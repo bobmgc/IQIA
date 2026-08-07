@@ -1,4 +1,6 @@
 using IQIAIndicator.Engine.Fusion.Core;
+using IQIAIndicator.Engine.Fusion.Profile;
+using IQIAIndicator.Engine.Fusion.Rules;
 
 namespace IQIAIndicator.Engine.Fusion.State;
 
@@ -17,6 +19,9 @@ public sealed class FusionStateManager
     ];
 
     private readonly StabilizationConfiguration _configuration = StabilizationConfiguration.Default;
+    private readonly FusionProfileAnalyzer _profileAnalyzer = new();
+    private readonly StructuralStabilityRule _structuralStabilityRule = new();
+
     private FusionResult? _previousStableResult;
     private int _updateCount;
 
@@ -31,13 +36,36 @@ public sealed class FusionStateManager
         _previousStableResult = stableResult;
         _updateCount++;
 
-        return new FusionSnapshot
+        FusionSnapshot snapshot = new()
         {
             StableResult = stableResult,
             Timestamp = timestamp,
             UpdateCount = _updateCount,
             StateChanged = stateChanged
         };
+
+        FusionProfileAnalysis analysis = _profileAnalyzer.Analyze(snapshot);
+        FusionConfidence stabilityConfidence = _structuralStabilityRule.EvaluateAnalysis(analysis);
+        FusionResult adjustedStableResult = ReplaceStructuralStability(stableResult, stabilityConfidence);
+
+        return snapshot with
+        {
+            StableResult = adjustedStableResult,
+            ProfileAnalysis = analysis
+        };
+    }
+
+    private static FusionResult ReplaceStructuralStability(FusionResult fusionResult, FusionConfidence stabilityConfidence)
+    {
+        var builder = new FusionResultBuilder();
+
+        foreach (KeyValuePair<FusionDimension, FusionConfidence> entry in fusionResult.Dimensions)
+        {
+            builder.Dimensions[entry.Key] = entry.Value;
+        }
+
+        builder.Dimensions[FusionDimension.StructuralStability] = stabilityConfidence;
+        return builder.Build();
     }
 
     private FusionResult BuildInitialStableResult(FusionResult rawResult)
@@ -45,7 +73,21 @@ public sealed class FusionStateManager
         var builder = new FusionResultBuilder();
 
         foreach (FusionDimension dimension in Dimensions)
+        {
+            if (dimension == FusionDimension.StructuralStability &&
+                !rawResult.Dimensions.ContainsKey(FusionDimension.StructuralStability))
+            {
+                builder.Dimensions[dimension] = new FusionConfidence
+                {
+                    Value = 1.0,
+                    Confidence = 1.0,
+                    Explanation = "Initial structural stability default."
+                };
+                continue;
+            }
+
             builder.Dimensions[dimension] = GetConfidence(rawResult, dimension);
+        }
 
         return builder.Build();
     }
@@ -60,24 +102,34 @@ public sealed class FusionStateManager
 
         foreach (FusionDimension dimension in Dimensions)
         {
-            FusionConfidence rawConfidence = GetConfidence(rawResult, dimension);
             FusionConfidence previousConfidence = GetConfidence(previousStableResult, dimension);
+            FusionConfidence newConfidence;
 
-            double smoothedValue = Smooth(rawConfidence.Value, previousConfidence.Value);
-            double smoothedConfidence = Smooth(rawConfidence.Confidence, previousConfidence.Confidence);
-            bool valueChanged = Math.Abs(smoothedValue - previousConfidence.Value) >= _configuration.HysteresisThreshold;
-            bool confidenceChanged = Math.Abs(smoothedConfidence - previousConfidence.Confidence) >=
-                _configuration.HysteresisThreshold;
-
-            if (valueChanged)
-                changedDimensionCount++;
-
-            builder.Dimensions[dimension] = new FusionConfidence
+            if (dimension == FusionDimension.StructuralStability)
             {
-                Value = valueChanged ? smoothedValue : previousConfidence.Value,
-                Confidence = confidenceChanged ? smoothedConfidence : previousConfidence.Confidence,
-                Explanation = rawConfidence.Explanation
-            };
+                newConfidence = previousConfidence;
+            }
+            else
+            {
+                FusionConfidence rawConfidence = GetConfidence(rawResult, dimension);
+                double smoothedValue = Smooth(rawConfidence.Value, previousConfidence.Value);
+                double smoothedConfidence = Smooth(rawConfidence.Confidence, previousConfidence.Confidence);
+                bool valueChanged = Math.Abs(smoothedValue - previousConfidence.Value) >= _configuration.HysteresisThreshold;
+                bool confidenceChanged = Math.Abs(smoothedConfidence - previousConfidence.Confidence) >=
+                    _configuration.HysteresisThreshold;
+
+                if (valueChanged)
+                    changedDimensionCount++;
+
+                newConfidence = new FusionConfidence
+                {
+                    Value = valueChanged ? smoothedValue : previousConfidence.Value,
+                    Confidence = confidenceChanged ? smoothedConfidence : previousConfidence.Confidence,
+                    Explanation = rawConfidence.Explanation
+                };
+            }
+
+            builder.Dimensions[dimension] = newConfidence;
         }
 
         return builder.Build();
