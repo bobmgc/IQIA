@@ -10,7 +10,7 @@ Ils sont excellents... mais uniquement lorsque le Decision Engine détecte un co
 
 Maintenant, il faut étudier le pendant naturel de ces modèles pour les marchés directionnels.
 
-R-004 — Time Series Momentum (TSMOM)
+R-005 — Time Series Momentum (TSMOM)
 
 À mon avis, c'est le modèle de référence pour les marchés Trending.
 

@@ -1,4 +1,4 @@
-R-006 — Bayesian Decision Theory
+R-007 — Bayesian Decision Theory
 
 Verdict avant l'étude :
 

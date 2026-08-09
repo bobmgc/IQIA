@@ -1,4 +1,4 @@
-R-007 — Bayesian Online Change Point Detection (BOCPD)
+R-008 — Bayesian Online Change Point Detection (BOCPD)
 
 Adams & MacKay (2007)
 

@@ -6,4 +6,5 @@ namespace IQIAIndicator.Engine.ScientificModels.Abstractions;
 public sealed record ScientificModelContext(
     MarketContext MarketContext,
     DecisionResult DecisionResult,
-    MethodologySelection MethodologySelection);
+    MethodologySelection MethodologySelection,
+    IReadOnlyList<ScientificModelResult>? ScientificResults = null);

@@ -150,17 +150,159 @@ Le hasard.
 
 Le Brownian Motion.
 
-4. Pourquoi OU est extraordinaire ?
+4. Version discrète utilisée en trading
 
-Parce qu'il modélise parfaitement ceci :
+En trading, les observations sont prises à des instants discrets. La version discrète d'un processus OU s'écrit souvent comme une forme AR(1) :
 
-Prix
+X_{t+1} = μ + φ (X_t − μ) + ε_t
 
-      ↑
+avec φ = e^{−θ Δt} et ε_t un bruit centré de variance σ^2 Δt.
 
-105
+En pratique, pour des barres régulières, on simplifie souvent ainsi :
 
-104
+X_{t+1} − X_t = θ (μ − X_t) Δt + σ √{Δt} ε_t.
+
+Pour Δt = 1, on retrouve une relation linéaire proche de la forme AR(1).
+
+Cette version discrète est celle que l'on utilise pour estimer les paramètres d'un actif financier à partir d'une série temporelle de prix.
+
+5. Méthodes d'estimation de θ, μ et σ
+
+Les méthodes classiques sont :
+
+- μ : l'équilibre peut être estimé par la moyenne historique de la série ou par une estimation de niveau latent.
+- θ : la vitesse de retour se calcule par régression de ΔX_t sur (μ − X_t), ou par estimation de l'autocorrélation φ du terme AR(1) puis conversion θ = −ln(φ)/Δt.
+- σ : on estime l'écart-type des résidus de la régression OU, c'est-à-dire de ε_t.
+
+En finance quantitative, on utilise souvent :
+
+- l'estimation OLS d'un AR(1) centré autour de μ ;
+- l'estimateur du maximum de vraisemblance (MLE) pour une série Ornstein-Uhlenbeck discrète ;
+- le filtre de Kalman lorsque μ est traité comme un état caché et que les observations sont bruitées.
+
+Dans IQIA, la mise en œuvre actuelle dérive des métriques du filtre de Kalman. Au lieu de recalculer séparément θ, μ et σ, le système exploite :
+
+- EstimatedMean (équilibre latent) ;
+- Innovation et InnovationStd (bruit observé) ;
+- NormalizedInnovation (écart relatif au bruit) ;
+- KalmanGain (confiance du filtre) ;
+- FilterCovariance (optionnellement, incertitude de l'état latent).
+
+8. Variante IQIA Real-Time Ornstein-Uhlenbeck
+
+Cette variante est spécifique à IQIA. Elle conserve les fondements mathématiques du modèle OU, mais elle adapte uniquement le pipeline de calcul pour une architecture temps réel.
+
+Il ne s'agit pas d'un nouveau modèle mathématique ; il s'agit d'une implémentation architecturale optimisée.
+
+7. Principe d'architecture
+
+Le filtre de Kalman est l'unique source officielle de l'état latent.
+
+Le modèle Ornstein-Uhlenbeck ne réestime jamais :
+
+- μ ;
+- Innovation ;
+- InnovationStd ;
+- KalmanGain ;
+- FilterCovariance.
+
+Cette décision est volontaire. Elle évite :
+
+- les calculs redondants ;
+- les incohérences ;
+- les doubles estimations.
+
+Elle garantit :
+
+une information scientifique
+↓
+une seule source de vérité.
+
+Schéma du pipeline :
+
+Market Data
+
+↓
+
+Kalman Filter
+
+↓
+
+Estimated Mean
+Innovation
+InnovationStd
+Kalman Gain
+Filter Covariance
+
+↓
+
+Ornstein-Uhlenbeck
+
+↓
+
+Theta
+Half-Life
+Mean Reversion Strength
+Diagnostics
+
+↓
+
+Dynamic Z-Score
+
+↓
+
+Volatility
+
+↓
+
+SPRT
+
+↓
+
+SignalCandidate
+
+8. Implémentation spécifique d'IQIA
+
+La théorie classique OU estime μ, θ et σ à partir de la série elle-même (OLS, MLE, AR(1)).
+
+Dans IQIA, cette approche est adaptée à une architecture temps réel orientée pipeline.
+
+Le filtre de Kalman est la source officielle de l'état latent.
+
+Le modèle Ornstein-Uhlenbeck n'est donc jamais autorisé à réestimer :
+
+- μ ;
+- Innovation ;
+- Variance ;
+- Kalman Gain.
+
+Ces informations sont récupérées directement depuis les métriques structurées produites par `KalmanFilterModel`.
+
+Le rôle d'Ornstein-Uhlenbeck est exclusivement :
+
+- d'estimer la dynamique de retour vers la moyenne ;
+- de calculer la Half-Life ;
+- d'évaluer l'intensité du phénomène de Mean Reversion.
+
+Cette architecture évite les calculs redondants, garantit une seule source de vérité et optimise l'exécution temps réel.
+
+9. Calcul de la Half-Life
+
+La Half-Life est le temps nécessaire pour que l'écart à l'équilibre se réduise de moitié.
+
+Pour le processus continu, elle s'exprime comme :
+
+Half-Life = ln(2) / θ.
+
+Pour la version discrète AR(1), on la calcule aussi via φ :
+
+Half-Life = ln(0.5) / ln(φ)
+
+avec φ = e^{−θ Δt}.
+
+Si θ ≤ 0 ou φ ≥ 1, la Half-Life est considérée comme infinie, car il n'y a pas de rappel vers la moyenne.
+
+10. Pourquoi OU est extraordinaire ?
 
 103
 
@@ -188,7 +330,7 @@ plus la force de rappel augmente.
 
 C'est exactement ce que l'on observe sur beaucoup de marchés en range.
 
-5. Ce qu'il permet de calculer
+11. Ce qu'il permet de calculer
 
 OU fournit énormément d'informations.
 
@@ -218,7 +360,7 @@ Half-Life provient directement du modèle OU.
 
 Donc IQIA exploite déjà une partie de ce modèle.
 
-6. Utilisation en finance
+12. Utilisation en finance
 
 OU est utilisé notamment pour :
 
@@ -232,7 +374,7 @@ Options
 
 Il est omniprésent dans les desks quantitatifs.
 
-7. Les limites
+13. Les limites
 
 OU suppose que :
 
@@ -252,7 +394,7 @@ C'est important.
 
 Il ne faut jamais appliquer OU partout.
 
-8. Compatibilité avec IQIA
+14. Compatibilité avec IQIA
 
 Je pense qu'elle est excellente.
 
@@ -298,7 +440,19 @@ OU interdit
 
 selon le comportement détecté.
 
-9. Ce que je ne ferais PAS
+15. Principe fondamental
+
+Les Scientific Models ne déclenchent jamais une position.
+
+Ils produisent uniquement des preuves quantitatives.
+
+Chaque modèle enrichit les informations produites par les modèles précédents.
+
+Une information scientifique ne doit avoir qu'une seule source de vérité.
+
+La décision finale appartient exclusivement au futur Entry Engine.
+
+16. Conclusion
 
 Beaucoup de traders font :
 
@@ -338,7 +492,7 @@ OU devient une preuve,
 
 pas un déclencheur.
 
-10. Ce que je retiens
+17. Note scientifique
 
 Pour moi,
 
@@ -348,7 +502,6 @@ C'est un modèle probabiliste.
 
 C'est très différent.
 
-Note scientifique
 Critère	Note
 Fondement mathématique	⭐⭐⭐⭐⭐
 Publications académiques	⭐⭐⭐⭐⭐
@@ -356,6 +509,8 @@ Robustesse	⭐⭐⭐⭐⭐
 Objectivité	⭐⭐⭐⭐⭐
 Explicabilité	⭐⭐⭐⭐⭐
 Compatibilité IQIA	⭐⭐⭐⭐⭐
+18. Verdict
+
 Mon verdict
 
 Je pense qu'OU doit devenir l'un des piliers du futur Signal Engine, mais uniquement lorsque le Decision Engine a déjà identifié un comportement compatible avec la Mean Reversion.

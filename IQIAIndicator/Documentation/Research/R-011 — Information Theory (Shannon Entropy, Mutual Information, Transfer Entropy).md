@@ -1,4 +1,4 @@
-R-010 — Information Theory (Shannon Entropy, Mutual Information, Transfer Entropy)
+R-011 — Information Theory (Shannon Entropy, Mutual Information, Transfer Entropy)
 
 Claude Shannon (1948)
 

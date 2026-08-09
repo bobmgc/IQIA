@@ -1,4 +1,4 @@
-R-008 — Volatility Models (EWMA, GARCH, Realized Volatility)
+R-009 — Volatility Models (EWMA, GARCH, Realized Volatility)
 
 Verdict avant l'étude :
 

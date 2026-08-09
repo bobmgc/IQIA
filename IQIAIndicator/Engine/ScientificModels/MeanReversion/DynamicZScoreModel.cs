@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using IQIAIndicator.Engine.Decision.States;
 using IQIAIndicator.Engine.ScientificModels.Abstractions;
 
@@ -8,6 +11,8 @@ public sealed class DynamicZScoreModel : IScientificModel
     public string Name => "DynamicZScoreModel";
 
     public string Category => "MeanReversion";
+
+    private const double MaxZScoreForConfidence = 6.0;
 
     public ScientificModelResult Evaluate(ScientificModelContext context)
     {
@@ -24,37 +29,92 @@ public sealed class DynamicZScoreModel : IScientificModel
                 "The selected methodology and decision winner are not compatible with the Mean Reversion scientific stack.");
         }
 
-        IReadOnlyList<decimal> history = context.MarketContext.History;
-        if (history.Count < 2)
+        ScientificModelResult? kalmanResult = context.ScientificResults?.FirstOrDefault(result => result.ModelName == "KalmanFilterModel");
+        if (kalmanResult is null || !kalmanResult.Success || kalmanResult.Metrics is null)
         {
             return new ScientificModelResult(
                 Name,
                 false,
                 0.0,
-                "DynamicZScoreModel needs at least two points to evaluate a dynamic Z-score.");
+                "DynamicZScoreModel requires valid KalmanFilterModel metrics from prior scientific execution.");
         }
 
-        int window = Math.Min(30, history.Count);
-        double[] windowValues = history.Skip(history.Count - window).Select(x => (double)x).ToArray();
-        double mean = windowValues.Average();
-        double variance = 0.0;
-        foreach (double value in windowValues)
+        if (!TryGetFiniteDouble(kalmanResult.Metrics, "EstimatedMean", out double estimatedMean) ||
+            !TryGetFiniteDouble(kalmanResult.Metrics, "InnovationStd", out double innovationStd))
         {
-            double delta = value - mean;
-            variance += delta * delta;
+            return new ScientificModelResult(
+                Name,
+                false,
+                0.0,
+                "DynamicZScoreModel requires finite EstimatedMean and InnovationStd from KalmanFilterModel.");
         }
 
-        variance /= Math.Max(1, windowValues.Length - 1);
-        double std = Math.Sqrt(Math.Max(variance, 1e-12));
-        double current = (double)context.MarketContext.CurrentBar;
-        double z = (current - mean) / std;
+        double currentPrice = (double)context.MarketContext.CurrentBar;
+        if (!double.IsFinite(currentPrice))
+        {
+            return new ScientificModelResult(
+                Name,
+                false,
+                0.0,
+                "DynamicZScoreModel received an invalid current price.");
+        }
 
-        double zScore = Math.Clamp(1.0 - Math.Abs(z) / 6.0, 0.0, 1.0);
+        double dynamicZScore;
+        bool usedInnovationStdFallback = false;
+
+        if (innovationStd <= 0.0)
+        {
+            usedInnovationStdFallback = true;
+            dynamicZScore = currentPrice == estimatedMean
+                ? 0.0
+                : Math.Sign(currentPrice - estimatedMean) * MaxZScoreForConfidence;
+        }
+        else
+        {
+            dynamicZScore = (currentPrice - estimatedMean) / innovationStd;
+        }
+
+        double normalizedDistance = Math.Abs(dynamicZScore);
+        double expectedReversionDistance = Math.Abs(currentPrice - estimatedMean);
+        double dynamicConfidence = innovationStd > 0.0
+            ? 1.0 - Math.Clamp(normalizedDistance / MaxZScoreForConfidence, 0.0, 1.0)
+            : 0.0;
+
+        if (!double.IsFinite(dynamicConfidence))
+        {
+            dynamicConfidence = 0.0;
+        }
+
+        string diagnostics = usedInnovationStdFallback
+            ? "InnovationStd was zero or negative. Dynamic Z-Score returned a bounded fallback value."
+            : "Dynamic Z-Score computed from Kalman estimated mean and innovation standard deviation.";
+
+        var metrics = new Dictionary<string, object>
+        {
+            ["DynamicZScore"] = dynamicZScore,
+            ["NormalizedDistance"] = normalizedDistance,
+            ["ExpectedReversionDistance"] = expectedReversionDistance,
+            ["DynamicConfidence"] = dynamicConfidence,
+            ["Diagnostics"] = diagnostics
+        };
 
         return new ScientificModelResult(
             Name,
             true,
-            zScore,
-            $"Dynamic Z-Score computed on {window} price points: mean={mean:F6}, std={std:F6}, current={current:F6}, z={z:F6}.");
+            dynamicConfidence,
+            "Dynamic Z-Score evaluation completed using scientific pipeline results.",
+            metrics);
+    }
+
+    private static bool TryGetFiniteDouble(IReadOnlyDictionary<string, object> metrics, string key, out double value)
+    {
+        if (metrics.TryGetValue(key, out object? raw) && raw is double typed && double.IsFinite(typed))
+        {
+            value = typed;
+            return true;
+        }
+
+        value = 0.0;
+        return false;
     }
 }

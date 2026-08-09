@@ -6,7 +6,7 @@ Je vais être honnête : c'est probablement l'étude la plus difficile que nous 
 
 Mais si ce modèle est retenu, il pourrait devenir l'évolution naturelle du Decision Engine V2.
 
-R-009 — Hidden Markov Models (HMM)
+R-010 — Hidden Markov Models (HMM)
 
 Auteurs principaux :
 

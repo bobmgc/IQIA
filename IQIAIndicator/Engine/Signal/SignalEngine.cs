@@ -43,7 +43,8 @@ public sealed class SignalEngine
                 0m,
                 Array.Empty<decimal>()),
             methodologySelection.DecisionResult,
-            methodologySelection);
+            methodologySelection,
+            Array.Empty<ScientificModelResult>());
 
         var signalContext = new SignalContext(
             methodologySelection.DecisionResult,
@@ -51,10 +52,15 @@ public sealed class SignalEngine
             context);
 
         var builder = new SignalResultBuilder();
+        var scientificResults = new List<ScientificModelResult>();
+        var currentContext = context;
 
         foreach (IScientificModel model in models)
         {
+            signalContext = signalContext with { ScientificModelContext = currentContext };
             ScientificModelResult result = model.Evaluate(signalContext.ScientificModelContext);
+            scientificResults.Add(result);
+            currentContext = currentContext with { ScientificResults = scientificResults.AsReadOnly() };
             builder.AddScientificResult(result);
         }
 
