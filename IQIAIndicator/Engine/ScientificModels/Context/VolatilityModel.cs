@@ -33,10 +33,8 @@ public sealed class VolatilityModel : IScientificModel
             return FailureResult("VolatilityModel requires at least three historical points for volatility estimation.");
         }
 
-        if (!TryGetFiniteDouble(context.MarketContext.CurrentBar, out double currentPrice))
-        {
-            return FailureResult("VolatilityModel received an invalid current price.");
-        }
+        // Derive current price from the provided history rather than using CurrentBar (which may be an index).
+        double currentPrice = (double)history[history.Count - 1];
 
         if (context.ScientificResults is null)
         {
@@ -44,7 +42,7 @@ public sealed class VolatilityModel : IScientificModel
         }
 
         var scientificResults = context.ScientificResults;
-        if (!TryGetPriorMetrics(scientificResults, context.MarketContext.CurrentBar, out var priorMetrics, out var priorExplanation))
+        if (!TryGetPriorMetrics(scientificResults, (decimal)history[history.Count - 1], out var priorMetrics, out var priorExplanation))
         {
             return FailureResult(priorExplanation);
         }

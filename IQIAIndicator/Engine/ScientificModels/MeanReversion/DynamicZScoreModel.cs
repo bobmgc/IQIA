@@ -49,7 +49,18 @@ public sealed class DynamicZScoreModel : IScientificModel
                 "DynamicZScoreModel requires finite EstimatedMean and InnovationStd from KalmanFilterModel.");
         }
 
-        double currentPrice = (double)context.MarketContext.CurrentBar;
+        // Derive current price from the provided history to avoid misinterpreting CurrentBar (index) as price.
+        IReadOnlyList<decimal> _history = context.MarketContext.History;
+        if (_history is null || _history.Count == 0)
+        {
+            return new ScientificModelResult(
+                Name,
+                false,
+                0.0,
+                "DynamicZScoreModel requires a non-empty market history to obtain the current price.");
+        }
+
+        double currentPrice = (double)_history[_history.Count - 1];
         if (!double.IsFinite(currentPrice))
         {
             return new ScientificModelResult(

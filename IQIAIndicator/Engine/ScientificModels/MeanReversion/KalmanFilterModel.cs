@@ -32,7 +32,7 @@ public sealed class KalmanFilterModel : IScientificModel
         }
 
         IReadOnlyList<decimal> history = context.MarketContext.History;
-        if (history.Count < 2)
+        if (history is null || history.Count < 2)
         {
             return new ScientificModelResult(
                 Name,
@@ -41,7 +41,8 @@ public sealed class KalmanFilterModel : IScientificModel
                 "KalmanFilterModel requires at least two historical observations to estimate an equilibrium.");
         }
 
-        double currentPrice = (double)context.MarketContext.CurrentBar;
+        // Use the last element of the provided history as the current observation.
+        double currentPrice = (double)history[history.Count - 1];
         double[] observations = history.Select(x => (double)x).ToArray();
         if (observations.Any(double.IsNaN) || observations.Any(double.IsInfinity) || double.IsNaN(currentPrice) || double.IsInfinity(currentPrice))
         {
