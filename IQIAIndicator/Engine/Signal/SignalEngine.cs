@@ -1,5 +1,6 @@
 using System.Linq;
 using IQIAIndicator.Core;
+using IQIAIndicator.Core.Observability;
 using IQIAIndicator.Engine.Decision.Core;
 using IQIAIndicator.Engine.Entry;
 using IQIAIndicator.Engine.EntryTrigger;
@@ -24,10 +25,12 @@ public sealed class SignalEngine
     private readonly VisualizationEngine _visualizationEngine = new();
     private readonly ChartAnnotationEngine _chartAnnotationEngine = new();
     private readonly OpportunityPresentationEngine _opportunityPresentationEngine = new();
+    private readonly IPipelineTraceCollector _traceCollector;
 
-    public SignalEngine()
+    public SignalEngine(IPipelineTraceCollector? traceCollector = null)
     {
         _registry = new ScientificModelRegistry();
+        _traceCollector = traceCollector ?? NullPipelineTraceCollector.Instance;
     }
 
     public ChartAnnotationCandidate? LastChartAnnotationCandidate { get; private set; }
@@ -39,6 +42,12 @@ public sealed class SignalEngine
     public OpportunityPresentation? LastOpportunityPresentation { get; private set; }
 
     public OpportunityPresentation Process(ScientificMarketContext marketContext, MethodologySelection methodologySelection)
+        => Process(marketContext, methodologySelection, null);
+
+    public OpportunityPresentation Process(
+        ScientificMarketContext marketContext,
+        MethodologySelection methodologySelection,
+        PipelineTraceRun? trace)
     {
         ArgumentNullException.ThrowIfNull(marketContext);
         ArgumentNullException.ThrowIfNull(methodologySelection);
@@ -54,12 +63,83 @@ public sealed class SignalEngine
         foreach (IScientificModel model in activeModels)
         {
             currentContext = currentContext with { ScientificResults = scientificResults.AsReadOnly() };
-            ScientificModelResult result = model.Evaluate(currentContext);
+            PipelineTraceScope modelTrace = trace is null
+                ? default
+                : _traceCollector.BeginStage(trace, PipelineTraceStage.ScientificModels);
+            DateTime modelStartedAt = DateTime.UtcNow;
+            ScientificModelResult result;
+            try
+            {
+                result = model.Evaluate(currentContext);
+                if (trace is not null)
+                {
+                    modelTrace.Complete(
+                        PipelineTraceDetails.Create(
+                            ("Model", result.ModelName),
+                            ("Success", result.Success),
+                            ("Score", result.Score),
+                            ("Confidence", "N/A: ScientificModelResult has no Confidence property"),
+                            ("ElapsedMs", (DateTime.UtcNow - modelStartedAt).TotalMilliseconds),
+                            ("MetricsCount", result.Metrics?.Count ?? 0),
+                            ("Explanation", result.Explanation)),
+                        result.Metrics?.Count ?? 0);
+                }
+            }
+            catch (Exception exception)
+            {
+                modelTrace.Fail(exception);
+                throw;
+            }
             scientificResults.Add(result);
         }
 
-        ScientificAssessment scientificAssessment = _scientificFusionEngine.Assess(scientificResults);
-        EntryCandidate entryCandidate = _entryEngine.Process(new EntryContext(scientificAssessment));
+        ScientificAssessment scientificAssessment;
+        PipelineTraceScope fusionTrace = trace is null ? default : _traceCollector.BeginStage(trace, PipelineTraceStage.ScientificFusion);
+        try
+        {
+            scientificAssessment = _scientificFusionEngine.Assess(scientificResults);
+            if (trace is not null)
+            {
+                fusionTrace.Complete(
+                    PipelineTraceDetails.Create(
+                        ("OverallConfidence", scientificAssessment.OverallConfidence),
+                        ("SuccessfulModels", string.Join(", ", scientificAssessment.SuccessfulModels)),
+                        ("FailedModels", string.Join(", ", scientificAssessment.FailedModels)),
+                        ("EvidenceAgreement", string.Join(", ", scientificAssessment.EvidenceAgreement)),
+                        ("EvidenceConflict", string.Join(", ", scientificAssessment.EvidenceConflict)),
+                        ("MissingEvidence", string.Join(", ", scientificAssessment.MissingEvidence)),
+                        ("Diagnostics", scientificAssessment.Diagnostics)),
+                    scientificAssessment.MissingEvidence.Count + scientificAssessment.EvidenceConflict.Count);
+            }
+        }
+        catch (Exception exception)
+        {
+            fusionTrace.Fail(exception);
+            throw;
+        }
+
+        EntryCandidate entryCandidate;
+        PipelineTraceScope entryTrace = trace is null ? default : _traceCollector.BeginStage(trace, PipelineTraceStage.Entry);
+        try
+        {
+            entryCandidate = _entryEngine.Process(new EntryContext(scientificAssessment));
+            if (trace is not null)
+            {
+                entryTrace.Complete(
+                    PipelineTraceDetails.Create(
+                        ("OpportunityStatus", entryCandidate.OpportunityStatus),
+                        ("Priority", entryCandidate.OpportunityPriority),
+                        ("EntryReadiness", entryCandidate.Assessment.EntryReadiness),
+                        ("BlockingIssues", string.Join(", ", entryCandidate.Assessment.BlockingIssues)),
+                        ("SupportingEvidence", string.Join(", ", entryCandidate.Assessment.SupportingEvidence))),
+                    entryCandidate.Assessment.Diagnostics.Count);
+            }
+        }
+        catch (Exception exception)
+        {
+            entryTrace.Fail(exception);
+            throw;
+        }
 
         // Build EntryBusinessContext from available upstream data (no recalculation)
         decimal currentPrice = marketContext.CurrentPrice;
@@ -120,10 +200,93 @@ public sealed class SignalEngine
             entryCandidate.OpportunityReasons ?? Array.Empty<string>(),
             entryCandidate.OpportunityStatus);
 
-        EntryTriggerResult entryTriggerResult = _entryTriggerEngine.Process(new EntryTriggerContext(businessContext, scientificAssessment, entryCandidate.Assessment, entryCandidate, methodologySelection));
-        VisualizationCandidate visualizationCandidate = _visualizationEngine.Process(new VisualizationContext(entryTriggerResult.Candidate));
-        ChartAnnotationCandidate chartAnnotationCandidate = _chartAnnotationEngine.Process(new ChartAnnotationContext(visualizationCandidate));
-        OpportunityPresentation opportunityPresentation = _opportunityPresentationEngine.Process(new OpportunityPresentationContext(chartAnnotationCandidate));
+        EntryTriggerResult entryTriggerResult;
+        PipelineTraceScope triggerTrace = trace is null ? default : _traceCollector.BeginStage(trace, PipelineTraceStage.EntryTrigger);
+        try
+        {
+            entryTriggerResult = _entryTriggerEngine.Process(new EntryTriggerContext(businessContext, scientificAssessment, entryCandidate.Assessment, entryCandidate, methodologySelection));
+            if (trace is not null)
+            {
+                triggerTrace.Complete(
+                    PipelineTraceDetails.Create(
+                        ("TriggerStatus", entryTriggerResult.Candidate.Assessment.TriggerStatus),
+                        ("Direction", entryTriggerResult.Candidate.Assessment.Direction),
+                        ("EstimatedEquilibrium", entryTriggerResult.Candidate.Assessment.EstimatedEquilibrium),
+                        ("DistanceToEquilibrium", entryTriggerResult.Candidate.Assessment.DistanceToEquilibrium),
+                        ("Confidence", entryTriggerResult.Candidate.Assessment.ScientificConfidence),
+                        ("TriggerExplanation", entryTriggerResult.Candidate.Assessment.Reason)),
+                    entryTriggerResult.Candidate.Diagnostics.Count + entryTriggerResult.Candidate.Warnings.Count);
+            }
+        }
+        catch (Exception exception)
+        {
+            triggerTrace.Fail(exception);
+            throw;
+        }
+
+        VisualizationCandidate visualizationCandidate;
+        PipelineTraceScope visualizationTrace = trace is null ? default : _traceCollector.BeginStage(trace, PipelineTraceStage.Visualization);
+        try
+        {
+            visualizationCandidate = _visualizationEngine.Process(new VisualizationContext(entryTriggerResult.Candidate));
+            if (trace is not null)
+            {
+                visualizationTrace.Complete(
+                    PipelineTraceDetails.Create(
+                        ("DisplayStatus", visualizationCandidate.Assessment.DisplayStatus),
+                        ("Visibility", visualizationCandidate.Assessment.DisplayStatus),
+                        ("Diagnostics", string.Join(", ", visualizationCandidate.Diagnostics))),
+                    visualizationCandidate.Diagnostics.Count + visualizationCandidate.Warnings.Count);
+            }
+        }
+        catch (Exception exception)
+        {
+            visualizationTrace.Fail(exception);
+            throw;
+        }
+
+        ChartAnnotationCandidate chartAnnotationCandidate;
+        PipelineTraceScope presentationTrace = trace is null ? default : _traceCollector.BeginStage(trace, PipelineTraceStage.ChartAnnotation);
+        try
+        {
+            chartAnnotationCandidate = _chartAnnotationEngine.Process(new ChartAnnotationContext(visualizationCandidate));
+            if (trace is not null)
+            {
+                presentationTrace.Complete(
+                    PipelineTraceDetails.Create(
+                        ("AnnotationType", chartAnnotationCandidate.Annotations.Count == 0 ? "None" : chartAnnotationCandidate.Annotations[0].AnnotationType),
+                        ("Visibility", chartAnnotationCandidate.Annotations.Count == 0 ? "None" : chartAnnotationCandidate.Annotations[0].Visibility),
+                        ("Annotations", chartAnnotationCandidate.Annotations.Count)),
+                    chartAnnotationCandidate.Diagnostics.Count + chartAnnotationCandidate.Warnings.Count);
+            }
+        }
+        catch (Exception exception)
+        {
+            presentationTrace.Fail(exception);
+            throw;
+        }
+
+        OpportunityPresentation opportunityPresentation;
+        PipelineTraceScope opportunityTrace = trace is null ? default : _traceCollector.BeginStage(trace, PipelineTraceStage.Presentation);
+        try
+        {
+            opportunityPresentation = _opportunityPresentationEngine.Process(new OpportunityPresentationContext(chartAnnotationCandidate));
+            if (trace is not null)
+            {
+                opportunityTrace.Complete(
+                    PipelineTraceDetails.Create(
+                        ("OpportunityStatus", opportunityPresentation.OpportunityStatus),
+                        ("Priority", opportunityPresentation.OpportunityPriority),
+                        ("SignalLabel", opportunityPresentation.SignalLabel),
+                        ("RiskLabel", opportunityPresentation.RiskLabel)),
+                    opportunityPresentation.Diagnostics.Length + opportunityPresentation.Warnings.Length);
+            }
+        }
+        catch (Exception exception)
+        {
+            opportunityTrace.Fail(exception);
+            throw;
+        }
 
         LastScientificAssessment = scientificAssessment;
         LastEntryCandidate = entryCandidate;

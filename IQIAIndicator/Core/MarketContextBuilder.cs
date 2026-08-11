@@ -1,4 +1,5 @@
-﻿using ATAS.Indicators;
+﻿using System;
+using ATAS.Indicators;
 
 namespace IQIAIndicator.Core;
 
@@ -21,6 +22,10 @@ public sealed class MarketContextBuilder
 
     // Seul etat conserve : heure du premier bar pour ElapsedMinutes
     private DateTime _firstBarTime;
+
+    // Plus grand bar déjà vu en temps réel (IsRealtime == true) par ce builder.
+    // Sert uniquement à la détection heuristique du Replay (voir Build).
+    private int _maxRealtimeBar = -1;
 
     public MarketContextBuilder(
         Func<int, IndicatorCandle> getBar,
@@ -49,7 +54,20 @@ public sealed class MarketContextBuilder
         var c = _getBar(bar);
 
         if (bar == 0)
+        {
             _firstBarTime = c.Time;
+            _maxRealtimeBar = -1;
+        }
+
+        bool isRealtime = bar == currentBar - 1;
+
+        // Détection heuristique du Replay ATAS : le SDK public (ATAS.Indicators / ATAS.Types /
+        // ATAS.DataFeedsCore, vérifié par réflexion) n'expose aucun flag "chart en cours de
+        // relecture". En dehors d'un Replay, un bar déjà vu en temps réel n'est jamais recalculé :
+        // OnCalculate ne revisite un bar <= _maxRealtimeBar qu'au moment d'un rewind de Replay.
+        bool isReplay = bar <= _maxRealtimeBar && !isRealtime;
+        if (isRealtime)
+            _maxRealtimeBar = Math.Max(_maxRealtimeBar, bar);
 
         return new MarketContext
         {
@@ -75,9 +93,9 @@ public sealed class MarketContextBuilder
             {
                 CurrentBar        = currentBar,
                 LastCalculatedBar = bar,
-                IsRealtime        = bar == currentBar - 1,
+                IsRealtime        = isRealtime,
                 IsHistorical      = bar < currentBar - 1,
-                IsReplay          = false
+                IsReplay          = isReplay
             }
         };
     }

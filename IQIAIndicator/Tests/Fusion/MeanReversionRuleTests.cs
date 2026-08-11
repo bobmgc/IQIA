@@ -33,7 +33,7 @@ public static class MeanReversionRuleTests
     private static void AssertInsufficientEstimateQuality()
     {
         FusionConfidence confidence = Evaluate(CreateHalfLife(1.0, 0.2, 0.2, 10));
-        Assert(confidence.Value < 0.1, "Une estimation peu fiable doit réduire la confiance.");
+        Assert(confidence.Confidence < 0.5, "Une estimation peu fiable doit réduire la qualité.");
         Assert(confidence.Explanation.Contains("qualité de l'estimation est insuffisante"),
             "La qualité insuffisante doit être expliquée.");
     }

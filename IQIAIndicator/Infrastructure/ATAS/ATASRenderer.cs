@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using IQIAIndicator.Engine.Presentation;
 using OFT.Rendering.Context;
 
@@ -51,5 +52,29 @@ public sealed class ATASRenderer
 
             drawing.RenderTo(renderContext);
         }
+    }
+
+    public IReadOnlyDictionary<string, string> Describe(ChartAnnotationCandidate candidate)
+    {
+        if (candidate is null)
+            throw new ArgumentNullException(nameof(candidate));
+
+        if (candidate.Annotations is null || candidate.Annotations.Count == 0)
+            return new Dictionary<string, string>
+            {
+                ["Position"] = "None",
+                ["Color"] = "None",
+                ["Text"] = string.Empty
+            };
+
+        ChartAnnotation annotation = candidate.Annotations[0];
+        var bounds = _coordinateMapper.Map(annotation.Anchor, 0);
+        ATASAnnotationDescriptor descriptor = _annotationMapper.Map(annotation, bounds);
+        return new Dictionary<string, string>
+        {
+            ["Position"] = bounds.ToString(),
+            ["Color"] = $"{descriptor.Style.Category}/{descriptor.Style.Theme}/{descriptor.Style.Severity}",
+            ["Text"] = string.Join(" | ", descriptor.Lines)
+        };
     }
 }

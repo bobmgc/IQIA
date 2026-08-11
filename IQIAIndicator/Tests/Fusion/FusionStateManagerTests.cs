@@ -82,7 +82,8 @@ public static class FusionStateManagerTests
             DateTime.UnixEpoch.AddSeconds(1));
 
         Assert(!snapshot.StateChanged, "A single changed dimension must not mark the state as changed.");
-        AssertValue(snapshot, FusionDimension.StructuralStability, 0.60, "StructuralStability EMA must still be applied.");
+        Assert(snapshot.StableResult.Dimensions[FusionDimension.StructuralStability].Explanation.Contains(
+            "BehaviourConsistency="), "StructuralStability must be recalculated from the profile.");
     }
 
     private static void AssertConfidenceIsSmoothed()

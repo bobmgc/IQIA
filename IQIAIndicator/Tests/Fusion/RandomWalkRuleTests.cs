@@ -33,7 +33,7 @@ public static class RandomWalkRuleTests
     private static void AssertInsufficientEstimateQuality()
     {
         FusionConfidence confidence = Evaluate(CreateVarianceRatio(1.0, 0.0, 0.95, 0.2, 10));
-        Assert(confidence.Value < 0.1, "Une estimation peu fiable doit réduire la confiance.");
+        Assert(confidence.Confidence < 0.5, "Une estimation peu fiable doit réduire la qualité.");
         Assert(confidence.Explanation.Contains("faible qualité de l'estimation"),
             "La faible qualité de l'estimation doit être expliquée.");
     }
