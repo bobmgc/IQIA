@@ -5,6 +5,7 @@ using IQIAIndicator.Engine.Decision.Core;
 using IQIAIndicator.Engine.Decision.States;
 using IQIAIndicator.Engine.Fusion.Core;
 using IQIAIndicator.Engine.Fusion.State;
+using IQIAIndicator.Engine.Presentation;
 using IQIAIndicator.Engine.Regime.Core;
 using OFT.Rendering.Context;
 using OFT.Rendering.Tools;
@@ -67,6 +68,7 @@ internal sealed class IQIAFusionDashboard
         int barIndex,
         DateTime timestamp,
         int availableEvidenceCount,
+        OpportunityPresentation? opportunityPresentation,
         bool debugMode)
     {
         if (debugMode)
@@ -79,17 +81,19 @@ internal sealed class IQIAFusionDashboard
                 decisionResult,
                 barIndex,
                 timestamp,
-                availableEvidenceCount);
+                availableEvidenceCount,
+                opportunityPresentation);
             return;
         }
 
-        DrawNormal(renderContext, fusionSnapshot, decisionResult);
+        DrawNormal(renderContext, fusionSnapshot, decisionResult, opportunityPresentation);
     }
 
     private static void DrawNormal(
         RenderContext renderContext,
         FusionSnapshot fusionSnapshot,
-        DecisionResult decisionResult)
+        DecisionResult decisionResult,
+        OpportunityPresentation? opportunityPresentation)
     {
         renderContext.FillRectangle(PanelBackground, new Rectangle(PanelX, PanelY, PanelWidth, PanelHeight));
         int y = PanelY + 8;
@@ -133,9 +137,9 @@ internal sealed class IQIAFusionDashboard
         y += Rows.Length * ProfileRowHeight + 4;
         DrawLabelValue(renderContext, "Recommended Methodology", FormatMethodology(decisionResult.Winner), PanelX + 10, y);
         y += 28;
-        DrawLabelValue(renderContext, "Signal", "Not Available", PanelX + 10, y);
+        DrawLabelValue(renderContext, "Signal", opportunityPresentation?.SignalLabel ?? "Not Available", PanelX + 10, y);
         y += 28;
-        DrawLabelValue(renderContext, "Risk", "Not Available", PanelX + 10, y);
+        DrawLabelValue(renderContext, "Risque", opportunityPresentation?.RiskLabel ?? "Not Available", PanelX + 10, y);
     }
 
     private static void DrawDebug(
@@ -146,7 +150,8 @@ internal sealed class IQIAFusionDashboard
         DecisionResult decisionResult,
         int barIndex,
         DateTime timestamp,
-        int availableEvidenceCount)
+        int availableEvidenceCount,
+        OpportunityPresentation? opportunityPresentation)
     {
         renderContext.FillRectangle(PanelBackground, new Rectangle(PanelX, PanelY, DebugPanelWidth, DebugPanelHeight));
         renderContext.DrawString("IQIA - Mode Debug", HeaderFont, TextColor, PanelX + 10, PanelY + 8);
@@ -188,6 +193,11 @@ internal sealed class IQIAFusionDashboard
         int decisionY = PanelY + 315;
         DrawSectionTitle(renderContext, "Decision Result", PanelX + 560, decisionY);
         DrawDecisionResult(renderContext, decisionResult, PanelX + 560, decisionY + 22);
+
+        int presentationY = PanelY + 475;
+        DrawSectionTitle(renderContext, "Signal Presentation", PanelX + 560, presentationY);
+        DrawField(renderContext, "Signal", opportunityPresentation?.SignalLabel ?? "N/A", PanelX + 560, presentationY + 22, TextColor);
+        DrawField(renderContext, "Risque", opportunityPresentation?.RiskLabel ?? "N/A", PanelX + 560, presentationY + 36, TextColor);
     }
 
     private static void DrawEvidenceModels(RenderContext renderContext, EvidenceSet evidence, int x, int y)
@@ -316,6 +326,12 @@ internal sealed class IQIAFusionDashboard
     {
         renderContext.DrawString(model, DebugFont, TextColor, x, y);
         renderContext.DrawString(values, DebugFont, SecondaryTextColor, x + 120, y);
+    }
+
+    private static void DrawField(RenderContext renderContext, string label, string value, int x, int y, Color color)
+    {
+        renderContext.DrawString(label, DebugFont, SecondaryTextColor, x, y);
+        renderContext.DrawString(value, DebugFont, color, x + 130, y);
     }
 
     private static void DrawNormalTitle(RenderContext renderContext, string title, int x, int y)

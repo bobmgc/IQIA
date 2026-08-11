@@ -7,10 +7,12 @@ namespace IQIAIndicator.Engine.Presentation;
 
 public sealed class OpportunityPresentationBuilder
 {
-    private const string DefaultTitle = "IQIA Opportunity";
-    private const string DefaultSubtitle = "No annotation available";
-    private const string DefaultStatus = "Unavailable";
-    private const string DefaultSummary = "No descriptive summary available.";
+    private const string DefaultTitle = "Opportunité IQIA";
+    private const string DefaultSubtitle = "Aucune annotation disponible";
+    private const string DefaultStatus = "Indisponible";
+    private const string DefaultSummary = "Aucun résumé descriptif disponible.";
+    private const string DefaultSignal = "Aucun signal";
+    private const string DefaultRisk = "Risque indéfini";
 
     private readonly List<string> _supportingEvidence = new();
     private readonly List<string> _blockingIssues = new();
@@ -20,6 +22,8 @@ public sealed class OpportunityPresentationBuilder
     private string _title = DefaultTitle;
     private string _subtitle = DefaultSubtitle;
     private string _opportunityStatus = DefaultStatus;
+    private string _signalLabel = DefaultSignal;
+    private string _riskLabel = DefaultRisk;
     private int _opportunityPriority;
 
     public void Populate(ChartAnnotationCandidate chartAnnotationCandidate)
@@ -44,10 +48,12 @@ public sealed class OpportunityPresentationBuilder
         ChartAnnotation primaryAnnotation = SelectPrimaryAnnotation(chartAnnotationCandidate.Annotations);
         ChartAnnotationPayload payload = primaryAnnotation.Payload;
 
-        _title = DefaultTitle;
+        _title = FirstText(payload?.Title, DefaultTitle);
         _opportunityStatus = FirstText(payload?.Title, primaryAnnotation.Visibility.ToString());
         _opportunityPriority = primaryAnnotation.Priority;
-        _subtitle = $"{_opportunityStatus} | Priority {_opportunityPriority}";
+        _subtitle = FirstText(payload?.Subtitle, $"{_opportunityStatus} | Priorité {_opportunityPriority}");
+        _signalLabel = DetermineSignalLabel(primaryAnnotation);
+        _riskLabel = DetermineRiskLabel(_opportunityPriority, _warnings.Count, _diagnostics.Count);
 
         foreach (ChartAnnotation annotation in chartAnnotationCandidate.Annotations)
         {
@@ -70,6 +76,8 @@ public sealed class OpportunityPresentationBuilder
             _subtitle,
             _opportunityStatus,
             _opportunityPriority,
+            _signalLabel,
+            _riskLabel,
             BuildScientificSummary(),
             ImmutableArray.CreateRange(_supportingEvidence),
             ImmutableArray.CreateRange(_blockingIssues),
@@ -98,8 +106,34 @@ public sealed class OpportunityPresentationBuilder
         parts.AddRange(_supportingEvidence);
 
         return parts.Count == 0
-            ? FirstText(_opportunityStatus, DefaultSummary)
+            ? FirstText(_signalLabel, DefaultSummary)
             : string.Join(" | ", parts);
+    }
+
+    private static string DetermineSignalLabel(ChartAnnotation annotation)
+        => annotation.AnnotationType switch
+        {
+            AnnotationType.Arrow => "Signal directionnel manuel",
+            AnnotationType.Badge => "Signal manuel prioritaire",
+            AnnotationType.Label => "Observation manuelle",
+            AnnotationType.InformationBox => "Observation du marché",
+            _ => DefaultSignal
+        };
+
+    private static string DetermineRiskLabel(int priority, int warningCount, int diagnosticCount)
+    {
+        if (warningCount > 0 || diagnosticCount > 0)
+        {
+            return "Risque accru";
+        }
+
+        return priority switch
+        {
+            >= 3 => "Risque faible",
+            2 => "Risque moyen",
+            1 => "Risque élevé",
+            _ => DefaultRisk
+        };
     }
 
     private static ChartAnnotation SelectPrimaryAnnotation(IEnumerable<ChartAnnotation> annotations)

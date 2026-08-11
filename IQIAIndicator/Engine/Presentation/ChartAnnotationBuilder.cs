@@ -54,16 +54,38 @@ public sealed class ChartAnnotationBuilder
         var warnings = _warnings.ToArray();
         var diagnostics = _diagnostics.ToArray();
 
+        string title = assessment.DisplayStatus switch
+        {
+            DisplayStatus.FEATURED => "Opportunité de trade manuel",
+            DisplayStatus.HIGHLIGHTED => "Observation prioritaire du marché",
+            DisplayStatus.VISIBLE => "Observation du marché",
+            _ => "Aucune opportunité détectée"
+        };
+
+        string subtitle = assessment.DisplayReasons is { Count: > 0 }
+            ? string.Join(" | ", assessment.DisplayReasons.Where(reason => !string.IsNullOrWhiteSpace(reason)))
+            : $"Priorité {assessment.DisplayPriority}";
+
         var payload = new ChartAnnotationPayload(
-            assessment.DisplayStatus.ToString(),
-            assessment.DisplayPriority.ToString(),
+            title,
+            subtitle,
             assessment.DisplayReasons?.Where(reason => !string.IsNullOrWhiteSpace(reason)).ToArray() ?? Array.Empty<string>(),
             warnings,
             diagnostics,
-            ImmutableDictionary<string, object>.Empty);
+            ImmutableDictionary<string, object>.Empty
+                .Add("DisplayStatus", assessment.DisplayStatus.ToString())
+                .Add("DisplayPriority", assessment.DisplayPriority));
+
+        var annotationType = assessment.DisplayStatus switch
+        {
+            DisplayStatus.FEATURED => AnnotationType.Badge,
+            DisplayStatus.HIGHLIGHTED => AnnotationType.Label,
+            DisplayStatus.VISIBLE => AnnotationType.InformationBox,
+            _ => AnnotationType.InformationBox
+        };
 
         return new ChartAnnotation(
-            AnnotationType.InformationBox,
+            annotationType,
             AnnotationAnchor.CurrentBar,
             assessment.DisplayPriority,
             ToVisibility(assessment.DisplayStatus),

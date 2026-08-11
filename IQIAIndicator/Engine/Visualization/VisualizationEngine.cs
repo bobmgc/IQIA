@@ -12,7 +12,7 @@ public sealed class VisualizationEngine
         }
 
         var builder = new VisualizationAssessmentBuilder();
-        builder.Populate(context.EntryCandidate);
+        builder.Populate(context.EntryTriggerCandidate);
         var assessment = builder.Build();
 
         var candidate = new VisualizationCandidate(

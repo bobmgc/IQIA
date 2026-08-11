@@ -169,6 +169,7 @@ public sealed class IQIAIndicator : Indicator
                 _latestBarIndex,
                 _latestTimestamp,
                 _availableEvidenceCount,
+                _latestOpportunityPresentation,
                 DebugMode);
 
             if (DebugPipeline)

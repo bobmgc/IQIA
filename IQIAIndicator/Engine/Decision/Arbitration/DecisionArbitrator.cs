@@ -22,6 +22,7 @@ public sealed class DecisionArbitrator
                 Candidates = [],
                 AmbiguityScore = 0.0,
                 Explanation = "No Decision",
+                ArbitrationExplanation = "No Decision",
                 State = MarketState.Unknown,
                 Confidence = 0.0
             };
@@ -35,6 +36,10 @@ public sealed class DecisionArbitrator
         double runnerUpScore = runnerUp?.FinalScore ?? 0.0;
         double difference = winner.FinalScore - runnerUpScore;
         double ambiguityScore = Math.Clamp(1.0 - difference, 0.0, 1.0);
+        string arbitrationExplanation = BuildExplanation(winner, runnerUp, difference, ambiguityScore);
+        string combinedExplanation = string.IsNullOrEmpty(winner.RuleExplanation)
+            ? arbitrationExplanation
+            : winner.RuleExplanation + Environment.NewLine + arbitrationExplanation;
 
         return new DecisionResult
         {
@@ -42,9 +47,13 @@ public sealed class DecisionArbitrator
             WinnerScore = winner.FinalScore,
             Candidates = orderedCandidates,
             AmbiguityScore = ambiguityScore,
-            Explanation = BuildExplanation(winner, runnerUp, difference, ambiguityScore),
+            Explanation = combinedExplanation,
+            RuleExplanation = winner.RuleExplanation,
+            ArbitrationExplanation = arbitrationExplanation,
             State = winner.MarketState,
-            Confidence = winner.FinalScore
+            Confidence = winner.FinalScore,
+            TriggeredRules = winner.TriggeredRules,
+            RejectedRules = winner.RejectedRules
         };
     }
 

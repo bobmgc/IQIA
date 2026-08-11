@@ -128,37 +128,37 @@ public sealed class VolatilityModel : IScientificModel
             return false;
         }
 
-        if (!TryGetFiniteDouble(kalmanResult.Metrics, "EstimatedMean", out double estimatedMean) ||
-            !TryGetFiniteDouble(kalmanResult.Metrics, "InnovationStd", out double innovationStd) ||
-            !TryGetFiniteDouble(kalmanResult.Metrics, "KalmanGain", out double kalmanGain))
+        if (!TryGetFiniteDouble(kalmanResult.Metrics, ScientificMetricKeys.EstimatedMean, out double estimatedMean) ||
+            !TryGetFiniteDouble(kalmanResult.Metrics, ScientificMetricKeys.InnovationStd, out double innovationStd) ||
+            !TryGetFiniteDouble(kalmanResult.Metrics, ScientificMetricKeys.KalmanGain, out double kalmanGain))
         {
             explanation = "VolatilityModel requires finite KalmanFilterModel metrics EstimatedMean, InnovationStd and KalmanGain.";
             return false;
         }
 
-        if (!TryGetFiniteDouble(ouResult.Metrics, "Theta", out double theta) ||
-            !TryGetFiniteDouble(ouResult.Metrics, "HalfLife", out double halfLife) ||
-            !TryGetFiniteDouble(ouResult.Metrics, "MeanReversionStrength", out double meanReversionStrength))
+        if (!TryGetFiniteDouble(ouResult.Metrics, ScientificMetricKeys.EstimatedTheta, out double estimatedTheta) ||
+            !TryGetFiniteDouble(ouResult.Metrics, ScientificMetricKeys.HalfLife, out double halfLife) ||
+            !TryGetFiniteDouble(ouResult.Metrics, ScientificMetricKeys.MeanReversionStrength, out double meanReversionStrength))
         {
-            explanation = "VolatilityModel requires finite OrnsteinUhlenbeckModel metrics Theta, HalfLife and MeanReversionStrength.";
+            explanation = "VolatilityModel requires finite OrnsteinUhlenbeckModel metrics EstimatedTheta, HalfLife and MeanReversionStrength.";
             return false;
         }
 
-        if (!TryGetFiniteDouble(dynamicZScoreResult.Metrics, "DynamicZScore", out double dynamicZScore) ||
-            !TryGetFiniteDouble(dynamicZScoreResult.Metrics, "NormalizedDistance", out double normalizedDistance))
+        if (!TryGetFiniteDouble(dynamicZScoreResult.Metrics, ScientificMetricKeys.DynamicZScore, out double dynamicZScore) ||
+            !TryGetFiniteDouble(dynamicZScoreResult.Metrics, ScientificMetricKeys.NormalizedDistance, out double normalizedDistance))
         {
             explanation = "VolatilityModel requires finite DynamicZScoreModel metrics DynamicZScore and NormalizedDistance.";
             return false;
         }
 
-        metrics["EstimatedMean"] = estimatedMean;
-        metrics["InnovationStd"] = innovationStd;
-        metrics["KalmanGain"] = kalmanGain;
-        metrics["Theta"] = theta;
-        metrics["HalfLife"] = halfLife;
-        metrics["MeanReversionStrength"] = meanReversionStrength;
-        metrics["DynamicZScore"] = dynamicZScore;
-        metrics["NormalizedDistance"] = normalizedDistance;
+        metrics[ScientificMetricKeys.EstimatedMean] = estimatedMean;
+        metrics[ScientificMetricKeys.InnovationStd] = innovationStd;
+        metrics[ScientificMetricKeys.KalmanGain] = kalmanGain;
+        metrics[ScientificMetricKeys.EstimatedTheta] = estimatedTheta;
+        metrics[ScientificMetricKeys.HalfLife] = halfLife;
+        metrics[ScientificMetricKeys.MeanReversionStrength] = meanReversionStrength;
+        metrics[ScientificMetricKeys.DynamicZScore] = dynamicZScore;
+        metrics[ScientificMetricKeys.NormalizedDistance] = normalizedDistance;
         metrics["DistanceToEquilibrium"] = Math.Abs((double)currentBar - estimatedMean);
 
         return true;

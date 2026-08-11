@@ -29,7 +29,7 @@ public static class OrnsteinUhlenbeckModelTests
         if (result.Metrics is null)
             throw new InvalidOperationException("Metrics must be present.");
 
-        if (!result.Metrics.TryGetValue("EstimatedTheta", out var estimatedThetaValueObj) || estimatedThetaValueObj is not double estimatedThetaValue)
+        if (!result.Metrics.TryGetValue(ScientificMetricKeys.EstimatedTheta, out var estimatedThetaValueObj) || estimatedThetaValueObj is not double estimatedThetaValue)
             throw new InvalidOperationException("Metrics must contain EstimatedTheta as a double.");
         if (!result.Metrics.TryGetValue("HalfLife", out var halfLifeValueObj) || halfLifeValueObj is not double halfLifeValue)
             throw new InvalidOperationException("Metrics must contain HalfLife as a double.");

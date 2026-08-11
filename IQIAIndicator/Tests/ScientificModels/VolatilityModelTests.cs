@@ -135,25 +135,25 @@ public static class VolatilityModelTests
         var metrics = includeInvalidPriorMetrics
             ? new Dictionary<string, object>
             {
-                ["EstimatedMean"] = invalidMetric,
-                ["InnovationStd"] = invalidMetric,
-                ["KalmanGain"] = invalidMetric,
-                ["Theta"] = invalidMetric,
-                ["HalfLife"] = invalidMetric,
-                ["MeanReversionStrength"] = invalidMetric,
-                ["DynamicZScore"] = invalidMetric,
-                ["NormalizedDistance"] = invalidMetric
+                [ScientificMetricKeys.EstimatedMean] = invalidMetric,
+                [ScientificMetricKeys.InnovationStd] = invalidMetric,
+                [ScientificMetricKeys.KalmanGain] = invalidMetric,
+                [ScientificMetricKeys.EstimatedTheta] = invalidMetric,
+                [ScientificMetricKeys.HalfLife] = invalidMetric,
+                [ScientificMetricKeys.MeanReversionStrength] = invalidMetric,
+                [ScientificMetricKeys.DynamicZScore] = invalidMetric,
+                [ScientificMetricKeys.NormalizedDistance] = invalidMetric
             }
             : new Dictionary<string, object>
             {
-                ["EstimatedMean"] = 100.0,
-                ["InnovationStd"] = 2.0,
-                ["KalmanGain"] = 0.8,
-                ["Theta"] = 0.2,
-                ["HalfLife"] = 5.0,
-                ["MeanReversionStrength"] = 0.9,
-                ["DynamicZScore"] = 0.5,
-                ["NormalizedDistance"] = 0.5
+                [ScientificMetricKeys.EstimatedMean] = 100.0,
+                [ScientificMetricKeys.InnovationStd] = 2.0,
+                [ScientificMetricKeys.KalmanGain] = 0.8,
+                [ScientificMetricKeys.EstimatedTheta] = 0.2,
+                [ScientificMetricKeys.HalfLife] = 5.0,
+                [ScientificMetricKeys.MeanReversionStrength] = 0.9,
+                [ScientificMetricKeys.DynamicZScore] = 0.5,
+                [ScientificMetricKeys.NormalizedDistance] = 0.5
             };
 
         var kalman = new ScientificModelResult("KalmanFilterModel", true, 1.0, "Synthetic Kalman result.", metrics);

@@ -88,16 +88,16 @@ public sealed class OrnsteinUhlenbeckModel : IScientificModel
 
         var metrics = new Dictionary<string, object>
         {
-            ["EstimatedMean"] = estimatedMean,
-            ["KalmanGain"] = kalmanGain,
-            ["Innovation"] = innovation,
-            ["InnovationStd"] = innovationStd,
-            ["NormalizedInnovation"] = normalizedInnovation,
-            ["EstimatedTheta"] = estimatedTheta,
-            ["HalfLife"] = halfLife,
-            ["MeanReversionStrength"] = meanReversionStrength,
-            ["ExpectedDeviation"] = expectedDeviation,
-            ["OUScore"] = score
+            [ScientificMetricKeys.EstimatedMean] = estimatedMean,
+            [ScientificMetricKeys.KalmanGain] = kalmanGain,
+            [ScientificMetricKeys.Innovation] = innovation,
+            [ScientificMetricKeys.InnovationStd] = innovationStd,
+            [ScientificMetricKeys.NormalizedInnovation] = normalizedInnovation,
+            [ScientificMetricKeys.EstimatedTheta] = estimatedTheta,
+            [ScientificMetricKeys.HalfLife] = halfLife,
+            [ScientificMetricKeys.MeanReversionStrength] = meanReversionStrength,
+            [ScientificMetricKeys.ExpectedDeviation] = expectedDeviation,
+            [ScientificMetricKeys.OUScore] = score
         };
 
         if (kalmanResult.Metrics.TryGetValue("FilterCovariance", out object? covarianceValue) && covarianceValue is double covariance)

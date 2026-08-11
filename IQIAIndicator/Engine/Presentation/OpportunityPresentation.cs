@@ -8,6 +8,8 @@ public sealed record OpportunityPresentation(
     string Subtitle,
     string OpportunityStatus,
     int OpportunityPriority,
+    string SignalLabel,
+    string RiskLabel,
     string ScientificSummary,
     ImmutableArray<string> SupportingEvidence,
     ImmutableArray<string> BlockingIssues,
@@ -22,6 +24,8 @@ public sealed record OpportunityPresentation(
             .Add("Subtitle", Subtitle)
             .Add("OpportunityStatus", OpportunityStatus)
             .Add("OpportunityPriority", OpportunityPriority)
+            .Add("SignalLabel", SignalLabel)
+            .Add("RiskLabel", RiskLabel)
             .Add("ScientificSummary", ScientificSummary)
             .Add("SupportingEvidence", SupportingEvidence)
             .Add("BlockingIssues", BlockingIssues)

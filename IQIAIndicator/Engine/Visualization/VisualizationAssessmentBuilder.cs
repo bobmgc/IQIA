@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using IQIAIndicator.Engine.Entry;
+using IQIAIndicator.Engine.EntryTrigger;
 
 namespace IQIAIndicator.Engine.Visualization;
 
@@ -12,7 +13,7 @@ public sealed class VisualizationAssessmentBuilder
     private DisplayStatus _displayStatus;
     private int _displayPriority;
 
-    public void Populate(EntryCandidate entryCandidate)
+    public void Populate(EntryTriggerCandidate entryTriggerCandidate)
     {
         _diagnostics.Clear();
         _displayReasons.Clear();
@@ -20,29 +21,29 @@ public sealed class VisualizationAssessmentBuilder
         _displayStatus = DisplayStatus.HIDDEN;
         _displayPriority = 0;
 
-        if (entryCandidate is null)
+        if (entryTriggerCandidate is null)
         {
-            _warnings.Add("EntryCandidate missing.");
+            _warnings.Add("EntryTriggerCandidate missing.");
             _diagnostics.Add("Visualization assessment could not be populated.");
             return;
         }
 
-        _displayStatus = ToDisplayStatus(entryCandidate.OpportunityStatus);
+        _displayStatus = ToDisplayStatus(entryTriggerCandidate.EntryCandidate.OpportunityStatus);
         _displayPriority = ToDisplayPriority(_displayStatus);
 
-        if (entryCandidate.OpportunityReasons is not null && entryCandidate.OpportunityReasons.Count > 0)
+        if (entryTriggerCandidate.EntryCandidate.OpportunityReasons is not null && entryTriggerCandidate.EntryCandidate.OpportunityReasons.Count > 0)
         {
-            _displayReasons.AddRange(entryCandidate.OpportunityReasons.Where(reason => !string.IsNullOrWhiteSpace(reason)));
+            _displayReasons.AddRange(entryTriggerCandidate.EntryCandidate.OpportunityReasons.Where(reason => !string.IsNullOrWhiteSpace(reason)));
         }
 
-        if (entryCandidate.Warnings is not null && entryCandidate.Warnings.Count > 0)
+        if (entryTriggerCandidate.Warnings is not null && entryTriggerCandidate.Warnings.Count > 0)
         {
-            _warnings.AddRange(entryCandidate.Warnings.Where(warning => !string.IsNullOrWhiteSpace(warning)));
+            _warnings.AddRange(entryTriggerCandidate.Warnings.Where(warning => !string.IsNullOrWhiteSpace(warning)));
         }
 
-        if (entryCandidate.Diagnostics is not null && entryCandidate.Diagnostics.Count > 0)
+        if (entryTriggerCandidate.Diagnostics is not null && entryTriggerCandidate.Diagnostics.Count > 0)
         {
-            _diagnostics.AddRange(entryCandidate.Diagnostics.Where(diagnostic => !string.IsNullOrWhiteSpace(diagnostic)));
+            _diagnostics.AddRange(entryTriggerCandidate.Diagnostics.Where(diagnostic => !string.IsNullOrWhiteSpace(diagnostic)));
         }
     }
 

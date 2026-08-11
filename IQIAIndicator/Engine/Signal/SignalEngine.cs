@@ -2,6 +2,7 @@ using System.Linq;
 using IQIAIndicator.Core;
 using IQIAIndicator.Engine.Decision.Core;
 using IQIAIndicator.Engine.Entry;
+using IQIAIndicator.Engine.EntryTrigger;
 using IQIAIndicator.Engine.Methodology.Core;
 using IQIAIndicator.Engine.Presentation;
 using IQIAIndicator.Engine.ScientificFusion;
@@ -19,6 +20,7 @@ public sealed class SignalEngine
     private readonly ScientificModelRegistry _registry;
     private readonly ScientificFusionEngine _scientificFusionEngine = new();
     private readonly EntryEngine _entryEngine = new();
+    private readonly EntryTriggerEngine _entryTriggerEngine = new();
     private readonly VisualizationEngine _visualizationEngine = new();
     private readonly ChartAnnotationEngine _chartAnnotationEngine = new();
     private readonly OpportunityPresentationEngine _opportunityPresentationEngine = new();
@@ -31,6 +33,8 @@ public sealed class SignalEngine
     public ChartAnnotationCandidate? LastChartAnnotationCandidate { get; private set; }
     public ScientificAssessment? LastScientificAssessment { get; private set; }
     public EntryCandidate? LastEntryCandidate { get; private set; }
+    public EntryTriggerCandidate? LastEntryTriggerCandidate { get; private set; }
+    public EntryTiming? LastEntryTiming { get; private set; }
     public VisualizationCandidate? LastVisualizationCandidate { get; private set; }
     public OpportunityPresentation? LastOpportunityPresentation { get; private set; }
 
@@ -56,17 +60,80 @@ public sealed class SignalEngine
 
         ScientificAssessment scientificAssessment = _scientificFusionEngine.Assess(scientificResults);
         EntryCandidate entryCandidate = _entryEngine.Process(new EntryContext(scientificAssessment));
-        VisualizationCandidate visualizationCandidate = _visualizationEngine.Process(new VisualizationContext(entryCandidate));
+
+        // Build EntryBusinessContext from available upstream data (no recalculation)
+        decimal currentPrice = marketContext.CurrentPrice;
+        double? estimatedEquilibrium = null;
+        double? distanceToEquilibrium = null;
+        double? dynamicZScore = null;
+
+        foreach (var result in scientificResults)
+        {
+            if (result.Metrics is null) continue;
+
+            if (string.Equals(result.ModelName, "KalmanFilterModel", StringComparison.OrdinalIgnoreCase) &&
+                result.Metrics.TryGetValue("EstimatedMean", out var em) && em is double emd && double.IsFinite(emd))
+            {
+                estimatedEquilibrium = emd;
+            }
+
+            if (result.Metrics.TryGetValue("DistanceToEquilibrium", out var dte) && dte is double dted && double.IsFinite(dted))
+            {
+                distanceToEquilibrium = dted;
+            }
+
+            if (string.Equals(result.ModelName, "DynamicZScoreModel", StringComparison.OrdinalIgnoreCase) &&
+                result.Metrics.TryGetValue("DynamicZScore", out var dz) && dz is double dzv && double.IsFinite(dzv))
+            {
+                dynamicZScore = dzv;
+            }
+        }
+
+        string? methodology = methodologySelection?.SelectedMethodology?.Name;
+
+        // Collect supporting evidence and diagnostics from upstream
+        var supporting = new List<string>();
+        if (scientificAssessment.SuccessfulModels is not null) supporting.AddRange(scientificAssessment.SuccessfulModels);
+        if (entryCandidate.Assessment.SupportingEvidence is not null) supporting.AddRange(entryCandidate.Assessment.SupportingEvidence);
+
+        var diagnostics = new List<string>();
+        if (!string.IsNullOrWhiteSpace(scientificAssessment.Diagnostics)) diagnostics.Add(scientificAssessment.Diagnostics);
+        if (entryCandidate.Assessment.Diagnostics is not null) diagnostics.AddRange(entryCandidate.Assessment.Diagnostics);
+
+        var warnings = new List<string>();
+        if (entryCandidate.Warnings is not null) warnings.AddRange(entryCandidate.Warnings);
+        if (entryCandidate.Assessment.Warnings is not null) warnings.AddRange(entryCandidate.Assessment.Warnings);
+
+        var businessContext = new EntryBusinessContext(
+            currentPrice,
+            estimatedEquilibrium,
+            distanceToEquilibrium,
+            dynamicZScore,
+            scientificAssessment.OverallConfidence,
+            entryCandidate.OpportunityPriority,
+            methodology,
+            marketContext.Timestamp,
+            supporting.AsReadOnly(),
+            entryCandidate.Assessment.BlockingIssues ?? Array.Empty<string>(),
+            diagnostics.AsReadOnly(),
+            warnings.AsReadOnly(),
+            entryCandidate.OpportunityReasons ?? Array.Empty<string>(),
+            entryCandidate.OpportunityStatus);
+
+        EntryTriggerResult entryTriggerResult = _entryTriggerEngine.Process(new EntryTriggerContext(businessContext, scientificAssessment, entryCandidate.Assessment, entryCandidate, methodologySelection));
+        VisualizationCandidate visualizationCandidate = _visualizationEngine.Process(new VisualizationContext(entryTriggerResult.Candidate));
         ChartAnnotationCandidate chartAnnotationCandidate = _chartAnnotationEngine.Process(new ChartAnnotationContext(visualizationCandidate));
         OpportunityPresentation opportunityPresentation = _opportunityPresentationEngine.Process(new OpportunityPresentationContext(chartAnnotationCandidate));
 
         LastScientificAssessment = scientificAssessment;
         LastEntryCandidate = entryCandidate;
+        LastEntryTriggerCandidate = entryTriggerResult.Candidate;
+        LastEntryTiming = entryTriggerResult.Timing;
         LastVisualizationCandidate = visualizationCandidate;
         LastChartAnnotationCandidate = chartAnnotationCandidate;
         LastOpportunityPresentation = opportunityPresentation;
 
-        LogDebugDetails(marketContext, methodologySelection, scientificResults, scientificAssessment, entryCandidate, visualizationCandidate, chartAnnotationCandidate, opportunityPresentation);
+        LogDebugDetails(marketContext, methodologySelection!, scientificResults, scientificAssessment, entryCandidate, entryTriggerResult, visualizationCandidate, chartAnnotationCandidate, opportunityPresentation);
 
         return opportunityPresentation;
     }
@@ -93,6 +160,7 @@ public sealed class SignalEngine
         IReadOnlyList<ScientificModelResult> scientificResults,
         ScientificAssessment scientificAssessment,
         EntryCandidate entryCandidate,
+        EntryTriggerResult entryTriggerResult,
         VisualizationCandidate visualizationCandidate,
         ChartAnnotationCandidate chartAnnotationCandidate,
         OpportunityPresentation opportunityPresentation)
@@ -103,6 +171,7 @@ public sealed class SignalEngine
         _logger.Info($"Scientific Success : {scientificResults.Count(result => result.Success)}");
         _logger.Info($"Scientific Failure : {scientificResults.Count(result => !result.Success)}");
         _logger.Info($"Entry Status : {entryCandidate.OpportunityStatus}");
+        _logger.Info($"EntryTrigger Status : {entryTriggerResult.Candidate.Assessment.TriggerStatus}");
         _logger.Info($"Opportunity Status : {opportunityPresentation.OpportunityStatus}");
         _logger.Info($"Visualization : {visualizationCandidate.Assessment.DisplayStatus}");
         _logger.Info($"Presentation : {opportunityPresentation.Title}");

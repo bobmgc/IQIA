@@ -29,13 +29,28 @@ public sealed class DecisionEngine
     public DecisionResult Evaluate(DecisionContext context)
     {
         var candidates = new List<DecisionCandidate>();
+        var rejectedRules = new List<string>();
         foreach (IDecisionRule rule in Rules)
         {
             var builder = new DecisionResultBuilder();
             rule.Evaluate(context, builder);
+            DecisionResult ruleResult = builder.Build();
 
-            if (TryCreateCandidate(builder.Build(), out DecisionCandidate? candidate) && candidate is not null)
+            rejectedRules.AddRange(ruleResult.RejectedRules);
+
+            if (TryCreateCandidate(ruleResult, out DecisionCandidate? candidate) && candidate is not null)
                 candidates.Add(candidate);
+        }
+
+        if (candidates.Count == 0)
+        {
+            return new DecisionResult
+            {
+                Explanation = "No Decision Rule",
+                RuleExplanation = "No Decision Rule",
+                ArbitrationExplanation = "No Decision Rule",
+                RejectedRules = rejectedRules.AsReadOnly()
+            };
         }
 
         return Arbitrator.Arbitrate(candidates);
@@ -60,7 +75,10 @@ public sealed class DecisionEngine
             ScientificScore = scientificScore,
             QualityScore = qualityScore,
             FinalScore = ruleResult.Confidence,
-            Explanation = ruleResult.Explanation
+            Explanation = ruleResult.Explanation,
+            TriggeredRules = ruleResult.TriggeredRules,
+            RejectedRules = ruleResult.RejectedRules,
+            RuleExplanation = ruleResult.Explanation
         };
 
         return true;

@@ -23,6 +23,10 @@ public sealed record DecisionResult
 
     public string Explanation { get; init; } = string.Empty;
 
+    public string RuleExplanation { get; init; } = string.Empty;
+
+    public string ArbitrationExplanation { get; init; } = string.Empty;
+
     public IReadOnlyList<string> TriggeredRules { get; init; } = [];
 
     public IReadOnlyList<string> RejectedRules { get; init; } = [];
@@ -52,6 +56,7 @@ public sealed class DecisionResultBuilder
         State = State,
         Confidence = Confidence,
         Explanation = Explanation,
+        RuleExplanation = Explanation,
         TriggeredRules = TriggeredRules.AsReadOnly(),
         RejectedRules = RejectedRules.AsReadOnly()
     };

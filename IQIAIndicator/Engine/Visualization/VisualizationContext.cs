@@ -1,6 +1,6 @@
-using IQIAIndicator.Engine.Entry;
+using IQIAIndicator.Engine.EntryTrigger;
 
 namespace IQIAIndicator.Engine.Visualization;
 
 public sealed record VisualizationContext(
-    EntryCandidate EntryCandidate);
+    EntryTriggerCandidate EntryTriggerCandidate);

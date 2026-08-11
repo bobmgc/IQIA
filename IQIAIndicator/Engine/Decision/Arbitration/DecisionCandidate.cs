@@ -16,4 +16,10 @@ public sealed record DecisionCandidate
     public required double FinalScore { get; init; }
 
     public required string Explanation { get; init; }
+
+    public IReadOnlyList<string> TriggeredRules { get; init; } = [];
+
+    public IReadOnlyList<string> RejectedRules { get; init; } = [];
+
+    public string RuleExplanation { get; init; } = string.Empty;
 }
