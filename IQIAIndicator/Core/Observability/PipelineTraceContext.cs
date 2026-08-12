@@ -17,6 +17,7 @@ public enum PipelineTraceStage
     ScientificFusion,
     Entry,
     EntryTrigger,
+    TradePlan,
     Visualization,
     ChartAnnotation,
     Presentation,

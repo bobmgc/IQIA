@@ -25,6 +25,7 @@ public static class SignalEngineCoverageIntegrationTests
     {
         AssertNoCoverageRegimeNeverFabricatesADirectionalSignal();
         AssertMeanReversionRegimeKeepsTheNormalScientificPath();
+        AssertAllSixRegimesMatchTheAuditedCoverageMatrix();
     }
 
     /// <summary>
@@ -111,6 +112,59 @@ public static class SignalEngineCoverageIntegrationTests
         Assert(assessment.ScientificResults.Count == 5, "Each executed model must produce a real ScientificModelResult.");
         Assert(!assessment.Diagnostics.Contains("No scientific model coverage", StringComparison.Ordinal),
             "The no-coverage diagnostic must never appear when models were actually registered and executed.");
+    }
+
+    /// <summary>
+    /// Sprint 15.5 (C1/C2/C3). Full-pipeline confirmation of the 6-regime coverage matrix established
+    /// by the Sprint 15.4 audit and fixed by this sprint: exactly one regime (MeanReverting) has real
+    /// scientific model coverage, and Direction is never fabricated for any of the other five -
+    /// through the real DecisionEngine -&gt; MethodologyEngine -&gt; ScientificModelRegistry -&gt; SignalEngine
+    /// wiring, not a hand-built substitute. See MethodologyRegistryCoverageTests (Tests/Methodology)
+    /// for the equivalent unit-level matrix and DecisionDirectionCoherenceTests
+    /// (Tests/EntryTrigger) for deterministic BUY/SELL coverage.
+    /// </summary>
+    private static void AssertAllSixRegimesMatchTheAuditedCoverageMatrix()
+    {
+        (MarketState State, string ExpectedMethodology, int ExpectedModelCount, bool DirectionMustBeNoAction)[] matrix =
+        [
+            (MarketState.MeanReverting, "MeanReversionMethodology", 5, false),
+            (MarketState.Trending, "TrendFollowingMethodology", 0, true),
+            (MarketState.StructuralBreak, "StructuralBreakMethodology", 0, true),
+            (MarketState.RandomWalk, "RandomWalkMethodology", 0, true),
+            (MarketState.StableRange, "StableRangeMethodology", 0, true),
+            (MarketState.Transitional, "TransitionalMethodology", 0, true),
+        ];
+
+        foreach ((MarketState state, string expectedMethodology, int expectedModelCount, bool directionMustBeNoAction) in matrix)
+        {
+            var decisionResult = new DecisionResult { Winner = state, Confidence = 0.85, AmbiguityScore = 0.1 };
+            MethodologySelection methodologySelection = new MethodologyEngine().Evaluate(decisionResult);
+            Assert(methodologySelection.SelectedMethodology.Name == expectedMethodology,
+                $"{state}: expected methodology={expectedMethodology}, actual={methodologySelection.SelectedMethodology.Name}.");
+
+            var marketContext = new ScientificMarketContext(DateTime.UtcNow, 100m, BuildHistory(), CurrentPrice: 100m);
+            var signalEngine = new SignalEngine();
+            signalEngine.Process(marketContext, methodologySelection);
+
+            ScientificAssessment? assessment = signalEngine.LastScientificAssessment;
+            if (assessment is null)
+                throw new InvalidOperationException($"{state}: LastScientificAssessment must be populated after Process.");
+
+            Assert(assessment.ExecutedModels.Count == expectedModelCount,
+                $"{state}: expected {expectedModelCount} executed models, actual={assessment.ExecutedModels.Count}.");
+            Assert(assessment.CoverageStatus == (expectedModelCount == 0 ? ScientificCoverageStatus.NoModelCoverage : ScientificCoverageStatus.ModelsExecuted),
+                $"{state}: CoverageStatus mismatch. Actual={assessment.CoverageStatus}.");
+
+            EntryTriggerCandidate? triggerCandidate = signalEngine.LastEntryTriggerCandidate;
+            if (triggerCandidate is null)
+                throw new InvalidOperationException($"{state}: LastEntryTriggerCandidate must be populated after Process.");
+
+            if (directionMustBeNoAction)
+            {
+                Assert(triggerCandidate.Assessment.Direction == DirectionCandidate.NO_ACTION,
+                    $"{state}: a regime with no directionally-capable model must never produce BUY/SELL/WATCH. Actual={triggerCandidate.Assessment.Direction}.");
+            }
+        }
     }
 
     private static IReadOnlyList<decimal> BuildHistory()

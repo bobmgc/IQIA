@@ -280,47 +280,44 @@ public static class AdfKpssRobustnessTests
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// FINDING (Part 11, documented per the sprint's own explicit instruction not to impose
-    /// invariance the implementation doesn't actually guarantee - discovered empirically, not
-    /// assumed): the naive hypothesis "t-statistic is scale-invariant for X/10X/100X/0.1X" is WRONG
-    /// as originally stated. Measured directly: scale=1 selects lag=0 (t=-1.45940136712939...),
-    /// scale=0.1 ALSO selects lag=0 and reproduces the exact same t-statistic bit-for-bit; but
-    /// scale=10 and scale=100 both select lag=12 instead (t=-2.14511953064405...), matching each
-    /// other to 25+ significant digits (residual difference attributable to the
-    /// (decimal)Math.Sqrt((double)...) conversion in SE's computation, not to the fix).
-    ///
-    /// Root cause (verified, not guessed): AdfStatistics.SelectLag's AIC comparison between lag=0 and
-    /// lag=12 for this specific 100-bar series is a near-tie (the SSR reduction from adding lags very
-    /// nearly offsets the 2k parameter penalty). AIC = n*ln(SSR/n) is computed via
-    /// `(decimal)(nObs * Math.Log((double)(ssr/nObs)))` - the decimal-to-double cast of the raw SSR
-    /// (not a scale-invariant ratio) loses relative precision differently at different absolute SSR
-    /// magnitudes, and for a near-tied comparison this is enough to flip which lag wins. This is a
-    /// PRE-EXISTING property of the AIC lag-selection code (AdfStatistics.SelectLag /
-    /// AdfRegression.TryCompute's AIC output), completely unrelated to and unaffected by this
-    /// sprint's SCI15-01 fix (which touches only the X'X accumulation and the upfront magnitude
-    /// guard, neither used by AIC computation) - and it is explicitly out of this sprint's scope to
-    /// address (Part 2.2/14 protect "sélection AIC des lags").
-    ///
-    /// The REAL, verified property this test asserts instead: the t-statistic IS exactly
-    /// scale-invariant GIVEN a fixed selected lag - proven both by the closed-form OLS argument (beta
-    /// and SE(beta) both derive from ratios of quantities that scale identically under a uniform
-    /// rescaling with an intercept term present) and by these two direct measurements.
+    /// FINDING (Part 11, Sprint 15.1) — SUPERSEDED by Sprint 15.2 (see
+    /// AdfLagSelectionScaleStabilityTests, which now owns the full scale-stability test surface for
+    /// ADF lag selection). At the time this was written, the naive hypothesis "t-statistic is
+    /// scale-invariant for X/10X/100X/0.1X" was found to be wrong for this series: scale=1/0.1 both
+    /// selected lag=0, but scale=10/100 both selected lag=12 instead. That finding's proposed
+    /// explanation (a near-tied AIC comparison flipped by decimal-to-double cast precision loss) was
+    /// itself INCOMPLETE, as Sprint 15.2 later proved directly: the actual AIC gap between lag=0 and
+    /// lag=12 at a given scale is only a few units, while the scale-induced shift is ~400-456 units
+    /// (2*nObs(p)*ln(scale), and nObs(p) = n-1-p differs by lag) - a genuine mathematical property of
+    /// comparing AIC across candidates fit on different effective sample sizes, not floating-point
+    /// noise. Sprint 15.2 fixed this in AdfStatistics.SelectLag (comparing AIC on a common,
+    /// lag-independent sample size, exactly like statsmodels' autolag='AIC'), which makes the lag
+    /// selection - and therefore this t-statistic - exactly scale-invariant across ALL four scales
+    /// below, not just within the two pre-existing pairs. This test is kept as a regression guard at
+    /// the AdfEvidence entry-point level (AdfLagSelectionScaleStabilityTests exercises
+    /// AdfValidation.RunOnSeries and AdfStatistics/AdfRegression directly, with the deeper root-cause
+    /// proof).
     /// </summary>
     private static void AssertAdfScaleStabilityWithinSafeRange()
     {
         decimal[] baseSeries = AdfGoldenDataset.RandomWalk(100);
+        decimal[] scales = [0.1m, 1m, 10m, 100m];
 
-        AdfResult scale1 = RunAdf(Scaled(baseSeries, 1m));
-        AdfResult scale01 = RunAdf(Scaled(baseSeries, 0.1m));
-        Assert(scale1.IsValid && scale01.IsValid, "ADF scale stability: scale=1 and scale=0.1 must both remain within the safe, computable range.");
-        Assert(scale1.LagUsed == scale01.LagUsed, "ADF scale stability: this specific pair (1x, 0.1x) is expected to select the same lag (pre-verified) - if this now fails, the AIC near-tie has shifted and this test's grouping needs re-verification, not a wider tolerance.");
-        AssertDecimalClose(scale1.Statistic, scale01.Statistic, "ADF scale stability (1x vs 0.1x, same lag): t-statistic must be exactly invariant to a uniform level rescaling when the same lag is selected.");
+        AdfResult? reference = null;
+        foreach (decimal scale in scales)
+        {
+            AdfResult result = RunAdf(Scaled(baseSeries, scale));
+            Assert(result.IsValid, $"ADF scale stability: scale={scale} must remain within the safe, computable range.");
 
-        AdfResult scale10 = RunAdf(Scaled(baseSeries, 10m));
-        AdfResult scale100 = RunAdf(Scaled(baseSeries, 100m));
-        Assert(scale10.IsValid && scale100.IsValid, "ADF scale stability: scale=10 and scale=100 must both remain within the safe, computable range.");
-        Assert(scale10.LagUsed == scale100.LagUsed, "ADF scale stability: this specific pair (10x, 100x) is expected to select the same lag (pre-verified).");
-        AssertDecimalClose(scale10.Statistic, scale100.Statistic, "ADF scale stability (10x vs 100x, same lag): t-statistic must be exactly invariant to a uniform level rescaling when the same lag is selected.");
+            if (reference is null)
+            {
+                reference = result;
+                continue;
+            }
+
+            Assert(result.LagUsed == reference.LagUsed, $"ADF scale stability: scale={scale} must select the same lag as scale=0.1 (Sprint 15.2: AIC candidates are now compared on a fixed sample size, making this exact across all four scales, not just within pairs). Expected={reference.LagUsed}, Actual={result.LagUsed}.");
+            AssertDecimalClose(reference.Statistic, result.Statistic, $"ADF scale stability (scale={scale} vs 0.1, same lag): t-statistic must be exactly invariant to a uniform level rescaling when the same lag is selected.");
+        }
     }
 
     private static decimal[] Scaled(decimal[] series, decimal scale)

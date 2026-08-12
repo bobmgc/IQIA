@@ -12,6 +12,7 @@ public sealed class VisualizationAssessmentBuilder
     private readonly List<string> _warnings = new();
     private DisplayStatus _displayStatus;
     private int _displayPriority;
+    private DirectionCandidate? _direction;
 
     public void Populate(EntryTriggerCandidate entryTriggerCandidate)
     {
@@ -20,6 +21,7 @@ public sealed class VisualizationAssessmentBuilder
         _warnings.Clear();
         _displayStatus = DisplayStatus.HIDDEN;
         _displayPriority = 0;
+        _direction = null;
 
         if (entryTriggerCandidate is null)
         {
@@ -30,6 +32,12 @@ public sealed class VisualizationAssessmentBuilder
 
         _displayStatus = ToDisplayStatus(entryTriggerCandidate.EntryCandidate.OpportunityStatus);
         _displayPriority = ToDisplayPriority(_displayStatus);
+
+        // Sprint 15.6 (BC-01): the ONLY source for Direction is EntryTriggerAssessment.Direction -
+        // the value EntryTrigger already computed under Sprint 15.5's decision-coherence gate
+        // (DecisionResult.Winner == MeanReverting, AmbiguityScore < 0.5, then DynamicZScore sign).
+        // Visualization must never re-derive or second-guess it from any raw metric.
+        _direction = entryTriggerCandidate.Assessment.Direction;
 
         if (entryTriggerCandidate.EntryCandidate.OpportunityReasons is not null && entryTriggerCandidate.EntryCandidate.OpportunityReasons.Count > 0)
         {
@@ -53,7 +61,8 @@ public sealed class VisualizationAssessmentBuilder
             _displayPriority,
             _displayReasons.AsReadOnly(),
             _warnings.AsReadOnly(),
-            _diagnostics.AsReadOnly());
+            _diagnostics.AsReadOnly(),
+            _direction);
 
     private static DisplayStatus ToDisplayStatus(OpportunityStatus opportunityStatus)
         => opportunityStatus switch

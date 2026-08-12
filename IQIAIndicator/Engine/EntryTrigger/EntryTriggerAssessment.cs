@@ -27,7 +27,14 @@ public enum EntryTriggerReason
     NOT_READY,
     WATCH,
     READY,
-    EXPIRED
+    EXPIRED,
+
+    // Sprint 15.7.1: granular reasons for a NO_ACTION direction reached while TriggerStatus is
+    // READY (see EntryTriggerBuilder.DetermineDirection). Observability only - none of these change
+    // when Direction resolves to NO_ACTION, only whether the operator can see why.
+    DYNAMIC_ZSCORE_UNAVAILABLE,
+    PRICE_AT_EQUILIBRIUM,
+    DECISION_AMBIGUOUS
 }
 
 public sealed record EntryTriggerAssessment(

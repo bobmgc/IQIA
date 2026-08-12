@@ -11,6 +11,7 @@ using IQIAIndicator.Engine.Methodology.Core;
 using IQIAIndicator.Engine.Presentation;
 using IQIAIndicator.Engine.Regime.Core;
 using IQIAIndicator.Engine.ScientificFusion;
+using IQIAIndicator.Engine.TradePlan;
 using IQIAIndicator.Engine.Visualization;
 using ScientificMarketContext = IQIAIndicator.Engine.ScientificModels.Abstractions.MarketContext;
 
@@ -45,6 +46,7 @@ internal sealed record DashboardContext
     public VisualizationCandidate? VisualizationCandidate { get; init; }
     public ChartAnnotationCandidate? ChartAnnotationCandidate { get; init; }
     public OpportunityPresentation? OpportunityPresentation { get; init; }
+    public TradePlan? TradePlan { get; init; }
 
     public bool RendererCalled { get; init; }
     public int AnnotationsRendered { get; init; }

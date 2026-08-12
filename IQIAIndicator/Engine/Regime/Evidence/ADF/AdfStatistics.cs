@@ -11,17 +11,48 @@ internal static class AdfStatistics
     /// Lag optimal minimisant l'AIC de Akaike.
     /// Borne supérieure : règle de Schwert conservatrice (n/4 - 2).
     /// Retourne 0 si aucun lag valide n'est calculable.
+    ///
+    /// Sprint 15.2 (ADF-SCALE): l'AIC de chaque candidat p est calculé sur un échantillon tronqué
+    /// à un nombre d'observations constant (n − maxLag − 1) pour tous les p, au lieu de l'échantillon
+    /// naturel (n − 1 − p, qui varie avec p car un lag plus grand consomme plus d'observations
+    /// initiales). Cette troncature commune ne change ni la formule AIC ni la régression OLS
+    /// elles-mêmes (AdfRegression.cs est inchangé) : c'est la pratique standard (cf. statsmodels
+    /// adfuller(autolag='AIC'), Ng &amp; Perron) pour rendre des AIC comparables entre modèles à p
+    /// différent, seule façon valide de les classer par argmin.
+    ///
+    /// Cette troncature élimine aussi, comme conséquence mathématique directe et non comme correctif
+    /// ad hoc, la scale-sensitivity trouvée au Sprint 15.1 (RandomWalk(100) : lag=0 à l'échelle 1,
+    /// lag=12 à l'échelle 10). Preuve : sous y' = c·y, SSR'(p) = c²·SSR(p) exactement (OLS), donc
+    /// AIC'(p) = nObs(p)·ln(c²) + AIC(p). Avec l'ancien nObs(p) = n−1−p (variable selon p), ce
+    /// décalage diffère d'un candidat à l'autre et peut inverser l'argmin. Avec nObs fixé à la même
+    /// valeur pour tous les p, le décalage nObs·ln(c²) est une CONSTANTE additive identique pour tous
+    /// les candidats : elle s'annule exactement dans la comparaison argmin, pour tout c &gt; 0 — pas
+    /// une tolérance, une propriété algébrique exacte. Vérifié empiriquement sur les 6 datasets
+    /// canoniques (aucun changement de lag à l'échelle 1) et sur un balayage d'échelle 0.01×–1000× sur
+    /// 5 familles de séries (voir AdfLagSelectionScaleStabilityTests).
+    ///
+    /// La régression finale du lag retenu (appelée séparément par AdfEvidence/AdfValidation avec la
+    /// série complète, pas cette troncature) est inchangée : Statistic/PValue/SampleSize restent
+    /// calculés exactement comme avant pour un lag donné.
     /// </summary>
     internal static int SelectLag(decimal[] y, int n)
     {
         int maxLag = ComputeMaxLag(n);
 
-        int    bestLag = 0;
+        int     bestLag = 0;
         decimal bestAic = decimal.MaxValue;
 
         for (int p = 0; p <= maxLag; p++)
         {
-            if (!AdfRegression.TryCompute(y, n, p, out _, out decimal aic, out _))
+            // Échantillon commun : on tronque le début de la série de sorte que la variable
+            // dépendante (Δy) couvre exactement les mêmes observations pour tout p — seules les
+            // p premières différences retardées utilisées comme régresseurs diffèrent.
+            int trim    = maxLag - p;
+            int nSliced = n - trim;
+            var sliced  = new decimal[nSliced];
+            Array.Copy(y, trim, sliced, 0, nSliced);
+
+            if (!AdfRegression.TryCompute(sliced, nSliced, p, out _, out decimal aic, out _))
                 break;  // observations insuffisantes pour ce lag → arrêter
             if (aic < bestAic) { bestAic = aic; bestLag = p; }
         }

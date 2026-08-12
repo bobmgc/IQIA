@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using IQIAIndicator.Core;
 using IQIAIndicator.Core.Observability;
@@ -207,14 +208,27 @@ public sealed class SignalEngine
             entryTriggerResult = _entryTriggerEngine.Process(new EntryTriggerContext(businessContext, scientificAssessment, entryCandidate.Assessment, entryCandidate, methodologySelection));
             if (trace is not null)
             {
+                // Sprint 15.7.1: DynamicZScore and Ambiguity are read straight from the pipeline (never
+                // recomputed) so a NO_ACTION bar can be diagnosed from the trace alone - e.g. Reason=
+                // PRICE_AT_EQUILIBRIUM with DynamicZScore=0.000000, or Reason=DECISION_AMBIGUOUS with
+                // the Ambiguity value that triggered it.
+                string dynamicZScoreText = businessContext.DynamicZScore is double dz && double.IsFinite(dz)
+                    ? dz.ToString("F6", CultureInfo.InvariantCulture)
+                    : "N/A";
+                string ambiguityText = methodologySelection?.DecisionResult is { } decisionResult
+                    ? decisionResult.AmbiguityScore.ToString("F3", CultureInfo.InvariantCulture)
+                    : "N/A";
+
                 triggerTrace.Complete(
                     PipelineTraceDetails.Create(
                         ("TriggerStatus", entryTriggerResult.Candidate.Assessment.TriggerStatus),
+                        ("DynamicZScore", dynamicZScoreText),
                         ("Direction", entryTriggerResult.Candidate.Assessment.Direction),
+                        ("Reason", entryTriggerResult.Candidate.Assessment.Reason),
+                        ("Ambiguity", ambiguityText),
                         ("EstimatedEquilibrium", entryTriggerResult.Candidate.Assessment.EstimatedEquilibrium),
                         ("DistanceToEquilibrium", entryTriggerResult.Candidate.Assessment.DistanceToEquilibrium),
-                        ("Confidence", entryTriggerResult.Candidate.Assessment.ScientificConfidence),
-                        ("TriggerExplanation", entryTriggerResult.Candidate.Assessment.Reason)),
+                        ("Confidence", entryTriggerResult.Candidate.Assessment.ScientificConfidence)),
                     entryTriggerResult.Candidate.Diagnostics.Count + entryTriggerResult.Candidate.Warnings.Count);
             }
         }
@@ -235,6 +249,11 @@ public sealed class SignalEngine
                     PipelineTraceDetails.Create(
                         ("DisplayStatus", visualizationCandidate.Assessment.DisplayStatus),
                         ("Visibility", visualizationCandidate.Assessment.DisplayStatus),
+                        // Sprint 15.6 (section 10): Direction carried through unchanged from
+                        // EntryTriggerAssessment.Direction - exposed here (the existing pipeline trace
+                        // mechanism) so it can be cross-checked against ATAS's rendered output during
+                        // manual runtime validation, without a separate debug surface.
+                        ("Direction", visualizationCandidate.Assessment.Direction?.ToString() ?? "None"),
                         ("Diagnostics", string.Join(", ", visualizationCandidate.Diagnostics))),
                     visualizationCandidate.Diagnostics.Count + visualizationCandidate.Warnings.Count);
             }
@@ -252,11 +271,21 @@ public sealed class SignalEngine
             chartAnnotationCandidate = _chartAnnotationEngine.Process(new ChartAnnotationContext(visualizationCandidate));
             if (trace is not null)
             {
+                // Sprint 15.6 (section 10): the primary (status) annotation is always Annotations[0];
+                // the directional Arrow, when present, is a second entry added by
+                // ChartAnnotationBuilder.TryCreateDirectionAnnotation - surfaced explicitly here so
+                // manual ATAS runtime validation can confirm Direction/BarIndex-anchor/ArrowDirection
+                // without a separate debug surface (reusing this existing trace mechanism).
+                ChartAnnotation? arrow = chartAnnotationCandidate.Annotations
+                    .FirstOrDefault(annotation => annotation.AnnotationType == AnnotationType.Arrow);
                 presentationTrace.Complete(
                     PipelineTraceDetails.Create(
                         ("AnnotationType", chartAnnotationCandidate.Annotations.Count == 0 ? "None" : chartAnnotationCandidate.Annotations[0].AnnotationType),
                         ("Visibility", chartAnnotationCandidate.Annotations.Count == 0 ? "None" : chartAnnotationCandidate.Annotations[0].Visibility),
-                        ("Annotations", chartAnnotationCandidate.Annotations.Count)),
+                        ("Annotations", chartAnnotationCandidate.Annotations.Count),
+                        ("HasDirectionArrow", arrow is not null),
+                        ("ArrowAnchor", arrow?.Anchor.ToString() ?? "None"),
+                        ("ArrowDirection", arrow is not null && arrow.Payload.Metrics.TryGetValue("ArrowDirection", out var arrowDirection) ? arrowDirection : "None")),
                     chartAnnotationCandidate.Diagnostics.Count + chartAnnotationCandidate.Warnings.Count);
             }
         }

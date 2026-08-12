@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using IQIAIndicator.Engine.Decision.Core;
+using IQIAIndicator.Engine.Decision.States;
 using IQIAIndicator.Engine.Entry;
 using IQIAIndicator.Engine.ScientificFusion;
 
@@ -15,6 +17,7 @@ public sealed class EntryTriggerBuilder
     private double _scientificConfidence;
     private double _opportunityPriority;
     private EntryTriggerReason _reason = EntryTriggerReason.UNKNOWN;
+    private EntryTriggerReason? _noActionReason;
     private double? _estimatedEquilibrium;
     private double? _distanceToEquilibrium;
     private decimal _currentPrice;
@@ -28,6 +31,7 @@ public sealed class EntryTriggerBuilder
         _scientificConfidence = 0.0;
         _opportunityPriority = 0.0;
         _reason = EntryTriggerReason.UNKNOWN;
+        _noActionReason = null;
         _estimatedEquilibrium = null;
         _distanceToEquilibrium = null;
         _currentPrice = 0m;
@@ -45,9 +49,14 @@ public sealed class EntryTriggerBuilder
         _currentPrice = context.BusinessContext.CurrentPrice;
         _estimatedEquilibrium = context.BusinessContext.EstimatedEquilibrium;
         _distanceToEquilibrium = context.BusinessContext.DistanceToEquilibrium;
-        _direction = DetermineDirection(context);
+        _direction = DetermineDirection(context, out string? directionSuppressionReason, out _noActionReason);
         _triggerStatus = DetermineTriggerStatus(context);
         _reason = BuildReason(context);
+
+        if (directionSuppressionReason is not null)
+        {
+            _diagnostics.Add(directionSuppressionReason);
+        }
 
         if (_currentPrice <= 0m)
         {
@@ -96,11 +105,54 @@ public sealed class EntryTriggerBuilder
     // Business data (current price, estimated equilibrium, dynamic z-score, distance, etc.)
     // are provided via EntryBusinessContext. EntryTrigger must not recompute scientific metrics.
 
-    private static DirectionCandidate DetermineDirection(EntryTriggerContext context)
+    /// <summary>
+    /// Sprint 15.5 (C1): Direction must be coherent with the regime the DecisionEngine actually
+    /// arbitrated, not computed independently of it (Sprint 15.4 audit finding BC-03 - previously this
+    /// method read only the raw DynamicZScore sign, with no access to DecisionResult at all). Per the
+    /// ScientificModelRegistry audit (C2, see ScientificModelRegistry.Resolve's own doc comment), the
+    /// ONLY methodology backed by real, non-placeholder scientific models capable of a directional read
+    /// is MeanReversionMethodology (DynamicZScoreModel, fed by KalmanFilterModel). No other regime
+    /// currently has a model that can support a reliable BUY/SELL call - producing one anyway would be
+    /// exactly the fabricated signal this sprint is required to avoid, so every other regime (and any
+    /// case where the decision itself cannot be verified) returns NO_ACTION regardless of any raw
+    /// metric. This does not add a new directional rule - the sign-of-DynamicZScore logic is unchanged
+    /// for the one regime it was already valid for; it only gates that existing logic behind proof that
+    /// the regime it depends on was actually the one arbitrated.
+    /// </summary>
+    private static DirectionCandidate DetermineDirection(EntryTriggerContext context, out string? suppressionReason, out EntryTriggerReason? noActionReason)
     {
+        suppressionReason = null;
+        noActionReason = null;
+
         if (context.EntryCandidate.OpportunityStatus == OpportunityStatus.WATCHLIST)
         {
             return DirectionCandidate.WATCH;
+        }
+
+        DecisionResult? decision = context.MethodologySelection?.DecisionResult;
+        if (decision is null)
+        {
+            suppressionReason = "Direction suppressed: no DecisionResult available to verify coherence with the arbitrated regime.";
+            return DirectionCandidate.NO_ACTION;
+        }
+
+        if (decision.Winner != MarketState.MeanReverting)
+        {
+            suppressionReason = $"Direction suppressed: regime={decision.Winner} has no scientific model capable of a directional read (only MeanReverting is currently supported).";
+            return DirectionCandidate.NO_ACTION;
+        }
+
+        // An ambiguous arbitration (winner barely ahead of the runner-up - see
+        // DecisionArbitrator.Arbitrate, AmbiguityScore = Clamp(1 - (winnerScore - runnerUpScore), 0, 1))
+        // means the regime call itself isn't reliably established. Trading a direction derived from a
+        // regime-specific model when the regime call is close to a coin flip would fabricate confidence
+        // the arbitration doesn't actually have. Threshold fixed at the midpoint of AmbiguityScore's
+        // [0,1] range: >=0.5 means the winner's score edge over the runner-up was under 0.5.
+        if (decision.AmbiguityScore >= 0.5)
+        {
+            suppressionReason = $"Direction suppressed: decision ambiguity {decision.AmbiguityScore:F3} >= 0.5 (regime arbitration not decisive enough to trust a directional call).";
+            noActionReason = EntryTriggerReason.DECISION_AMBIGUOUS;
+            return DirectionCandidate.NO_ACTION;
         }
 
         if (TryGetDynamicZScore(context, out double zScore))
@@ -114,8 +166,17 @@ public sealed class EntryTriggerBuilder
             {
                 return DirectionCandidate.BUY_CANDIDATE;
             }
+
+            // Sprint 15.7.1: zScore == 0 is the price sitting exactly at the estimated equilibrium -
+            // no mean-reversion deviation to trade. This is not a new trading rule; the sign-based
+            // BUY/SELL logic above is unchanged, this only names the case it already fell through to.
+            suppressionReason = "Direction suppressed: price is at the estimated equilibrium (DynamicZScore == 0); no directional mean-reversion deviation is present.";
+            noActionReason = EntryTriggerReason.PRICE_AT_EQUILIBRIUM;
+            return DirectionCandidate.NO_ACTION;
         }
 
+        suppressionReason = "Direction suppressed: DynamicZScore unavailable (not present in business context or scientific results).";
+        noActionReason = EntryTriggerReason.DYNAMIC_ZSCORE_UNAVAILABLE;
         return DirectionCandidate.NO_ACTION;
     }
     private static bool TryGetDynamicZScore(EntryTriggerContext context, out double zScore)
@@ -184,6 +245,17 @@ public sealed class EntryTriggerBuilder
 
     private EntryTriggerReason BuildReason(EntryTriggerContext context)
     {
+        // Sprint 15.7.1: when TriggerStatus is READY but Direction resolved to NO_ACTION, surface the
+        // specific reason DetermineDirection already computed instead of the generic READY reason -
+        // this does not change TriggerStatus, Direction, or any trading condition, only which
+        // EntryTriggerReason value is reported for a case that already existed.
+        if (_triggerStatus == EntryTriggerStatus.READY
+            && _direction == DirectionCandidate.NO_ACTION
+            && _noActionReason.HasValue)
+        {
+            return _noActionReason.Value;
+        }
+
         return _triggerStatus switch
         {
             EntryTriggerStatus.INVALID => EntryTriggerReason.INVALID_CONTEXT,

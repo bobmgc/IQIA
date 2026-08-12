@@ -9,6 +9,7 @@ using IQIAIndicator.Core.Observability;
 using IQIAIndicator.Core.Calibration;
 using IQIAIndicator.Engine.Decision.Core;
 using IQIAIndicator.Engine.Entry;
+using IQIAIndicator.Engine.EntryTrigger;
 using IQIAIndicator.Engine.Fusion;
 using IQIAIndicator.Engine.Fusion.Core;
 using IQIAIndicator.Engine.Fusion.Rules;
@@ -19,6 +20,7 @@ using IQIAIndicator.Engine.Regime;
 using IQIAIndicator.Engine.Regime.Core;
 using IQIAIndicator.Engine.Signal;
 using IQIAIndicator.Engine.ScientificFusion;
+using IQIAIndicator.Engine.TradePlan;
 using IQIAIndicator.Engine.Visualization;
 using IQIAIndicator.Infrastructure.ATAS;
 using IQIAIndicator.Visualization.Dashboards;
@@ -63,6 +65,7 @@ public sealed class IQIAIndicator : Indicator
     private readonly FusionStateManager     _fusionState  = new();
     private readonly MethodologyEngine       _methodologyEngine = new();
     private readonly SignalEngine            _signalEngine = new();
+    private readonly TradePlanEngine         _tradePlanEngine = new();
     private readonly DashboardManager        _dashboardManager = new();
     private readonly ATASRenderer            _atasRenderer = new();
 
@@ -77,6 +80,7 @@ public sealed class IQIAIndicator : Indicator
     private ScientificAssessment? _latestScientificAssessment;
     private EntryCandidate? _latestEntryCandidate;
     private VisualizationCandidate? _latestVisualizationCandidate;
+    private TradePlan? _latestTradePlan;
     private global::IQIAIndicator.Engine.ScientificModels.Abstractions.MarketContext? _latestScientificMarketContext;
     private bool _latestRendererCalled;
     private int _latestAnnotationsRendered;
@@ -274,6 +278,57 @@ public sealed class IQIAIndicator : Indicator
         _latestScientificAssessment = _signalEngine.LastScientificAssessment;
         _latestEntryCandidate = _signalEngine.LastEntryCandidate;
         _latestVisualizationCandidate = _signalEngine.LastVisualizationCandidate;
+
+        PipelineTraceScope tradePlanTrace = trace is null ? default : traceCollector!.BeginStage(trace, PipelineTraceStage.TradePlan);
+        try
+        {
+            EntryTriggerCandidate? entryTriggerCandidate = _signalEngine.LastEntryTriggerCandidate;
+            if (entryTriggerCandidate is not null)
+            {
+                var instrumentInfo = new Core.InstrumentInfo(
+                    InstrumentInfo?.Instrument ?? string.Empty,
+                    InstrumentInfo?.TickSize ?? 0m,
+                    TickValue,
+                    PointValue,
+                    PriceDecimals);
+
+                // Sprint 15.8 (Phase 1 audit): no Risk Engine / stop-loss methodology / account risk
+                // budget exists anywhere in the system yet, so RiskParameters is left null - the
+                // TradePlan will honestly report SIGNAL_ONLY rather than fabricate SL/sizing.
+                _latestTradePlan = _tradePlanEngine.Process(new TradePlanContext(entryTriggerCandidate, instrumentInfo));
+
+                if (trace is not null)
+                {
+                    tradePlanTrace.Complete(
+                        PipelineTraceDetails.Create(
+                            ("Status", _latestTradePlan.Status),
+                            ("Direction", _latestTradePlan.Direction),
+                            ("EntryPrice", _latestTradePlan.EntryPrice),
+                            ("StopLoss", _latestTradePlan.StopLoss),
+                            ("TakeProfit", _latestTradePlan.TakeProfit),
+                            ("RiskPerUnit", _latestTradePlan.RiskPerUnit),
+                            ("RiskAmount", _latestTradePlan.RiskAmount),
+                            ("PositionSize", _latestTradePlan.PositionSize),
+                            ("RiskRewardRatio", _latestTradePlan.RiskRewardRatio),
+                            ("InvalidationReason", _latestTradePlan.InvalidationReason)),
+                        _latestTradePlan.Diagnostics.Count);
+                }
+            }
+            else
+            {
+                _latestTradePlan = null;
+                if (trace is not null)
+                {
+                    tradePlanTrace.Complete(PipelineTraceDetails.Create(("Status", "N/A - no EntryTriggerCandidate")));
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            tradePlanTrace.Fail(exception);
+            throw;
+        }
+
         if (ActiveDashboard == DashboardKind.Debug)
         {
             LogPipelineDebug(context, _latestDecisionResult, _latestMethodologySelection, _latestOpportunityPresentation, _latestChartAnnotationCandidate);
@@ -397,6 +452,7 @@ public sealed class IQIAIndicator : Indicator
                 VisualizationCandidate = _latestVisualizationCandidate,
                 ChartAnnotationCandidate = _latestChartAnnotationCandidate,
                 OpportunityPresentation = _latestOpportunityPresentation,
+                TradePlan = _latestTradePlan,
                 RendererCalled = _latestRendererCalled,
                 AnnotationsRendered = _latestAnnotationsRendered,
                 LastRenderTime = _latestRenderTime,
