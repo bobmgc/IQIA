@@ -55,12 +55,25 @@ internal static class DashboardCanvas
             HealthState.Pass => (DashboardTheme.Green, "\U0001F7E2", "PASS"),
             HealthState.Warn => (DashboardTheme.Orange, "\U0001F7E1", "WARN"),
             HealthState.Fail => (DashboardTheme.Red, "\U0001F534", "FAIL"),
-            HealthState.Waiting => (DashboardTheme.Gray, "\U0001F7E1", "WAITING"),
+            HealthState.Waiting => (DashboardTheme.Gray, "○", "WAITING"),
             _ => (DashboardTheme.Gray, "⚪", "N/A")
         };
 
         renderContext.DrawString($"{dot} {label}", DashboardTheme.SmallFont, DashboardTheme.SecondaryTextColor, x, y);
         renderContext.DrawString(text, DashboardTheme.SmallFont, color, x + 90, y);
+    }
+
+    /// <summary>Message honnête affiché à la place d'un panneau qui ne tient pas dans la largeur de
+    /// chart réellement visible (ChartArea), plutôt que de le laisser déborder silencieusement sur
+    /// les chandeliers. N'invente aucune donnée : requiredWidth/visibleWidth sont les valeurs réelles.</summary>
+    public static void WidthWarning(RenderContext renderContext, string label, int requiredWidth, int visibleWidth, int x, int y)
+    {
+        renderContext.DrawString(
+            $"{label} : chart trop étroit ({visibleWidth}px visibles, {requiredWidth}px requis)",
+            DashboardTheme.SmallFont,
+            DashboardTheme.Orange,
+            x,
+            y + 4);
     }
 
     /// <summary>Barre horizontale de valeur 0..1 avec couleur d'état, style utilisé par le Market Profile.</summary>
@@ -133,6 +146,22 @@ internal static class DashboardCanvas
             return "N/A";
 
         return string.Join(" | ", values.Take(take).Select(entry => $"{entry.Key}={entry.Value}"));
+    }
+
+    /// <summary>Humanise un enum SCREAMING_SNAKE_CASE (ex. "READY_FOR_NEXT_STAGE") en "Ready For Next
+    /// Stage". Distinct de SplitPascalCase : les enums métier de ce projet utilisent soit du PascalCase
+    /// pur (ex. MarketState → SplitPascalCase), soit du SCREAMING_SNAKE_CASE (ex. EntryReadiness,
+    /// OpportunityStatus, EntryTriggerStatus/Reason, DirectionCandidate → cette méthode). Appliquer
+    /// SplitPascalCase à un enum à underscores produirait un résultat lettre par lettre illisible,
+    /// car toutes ses lettres sont déjà majuscules.</summary>
+    public static string HumanizeEnumName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "N/A";
+
+        string[] words = value.Split('_', StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(" ", words.Select(word =>
+            word.Length == 0 ? word : char.ToUpperInvariant(word[0]) + word[1..].ToLowerInvariant()));
     }
 
     public static string SplitPascalCase(string value)

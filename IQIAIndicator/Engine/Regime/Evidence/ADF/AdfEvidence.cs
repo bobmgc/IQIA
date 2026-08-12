@@ -26,6 +26,14 @@ public sealed class AdfEvidence
         for (int i = 0; i < n; i++)
             series[i] = context.Series[i];
 
+        // Sprint 15.1 (SCI15-01): explicit, specific diagnostic for the out-of-range-magnitude case,
+        // checked upfront so the Explanation names the real cause rather than the generic
+        // "regression failed" message that would otherwise result once AdfRegression.TryCompute's
+        // own guard (defense in depth, see AdfRegression.cs) rejects it anyway. No statistical
+        // formula, threshold, or critical value is touched by this check.
+        if (ADF.AdfRegression.HasOutOfRangeMagnitude(series, n))
+            return AdfResult.Invalid($"Valeur numerique hors limites representables pour la regression (|x| > {ADF.AdfRegression.SafeMagnitudeBound:E2}).");
+
         int lag = ADF.AdfStatistics.SelectLag(series, n);
 
         if (!ADF.AdfRegression.TryCompute(series, n, lag,

@@ -15,6 +15,7 @@ public sealed class VolatilityModel : IScientificModel
     private const int MinimumHistoryCount = 3;
     private const int CurrentVolatilityWindow = 20;
     private const int PercentileWindow = 20;
+    private const double ZeroVolatilityEpsilon = 1e-9;
 
     public ScientificModelResult Evaluate(ScientificModelContext context)
     {
@@ -64,7 +65,16 @@ public sealed class VolatilityModel : IScientificModel
             : 1.0;
 
         var volatilityPercentile = ComputeVolatilityPercentile(history, currentVolatility);
-        var volatilityRegime = ClassifyVolatilityRegime(relativeVolatility, volatilityPercentile);
+
+        // A genuinely zero current volatility (constant price history) is definitionally the LOW
+        // regime. The relativeVolatility ratio is 0/0-degenerate in this case (both current and
+        // reference volatility are zero), and its fallback value of 1.0 ("no change versus
+        // reference") previously fell through ClassifyVolatilityRegime's >=0.9 boundary into MEDIUM -
+        // misclassifying a flat/dead market as having medium volatility. This guard does not change
+        // the relativeVolatility-based thresholds used for every non-degenerate case.
+        var volatilityRegime = currentVolatility <= ZeroVolatilityEpsilon
+            ? "LOW"
+            : ClassifyVolatilityRegime(relativeVolatility, volatilityPercentile);
         double volatilityConfidence = ComputeVolatilityConfidence(relativeVolatility);
 
         var diagnostics = new Dictionary<string, object>(priorMetrics)

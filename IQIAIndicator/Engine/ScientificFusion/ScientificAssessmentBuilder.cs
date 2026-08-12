@@ -33,6 +33,8 @@ public sealed class ScientificAssessmentBuilder
 
     public string Diagnostics { get; private set; } = string.Empty;
 
+    public ScientificCoverageStatus CoverageStatus { get; private set; } = ScientificCoverageStatus.NoModelCoverage;
+
     public void Populate(IReadOnlyList<ScientificModelResult>? scientificResults)
     {
         OverallConfidence = 0.0;
@@ -44,6 +46,7 @@ public sealed class ScientificAssessmentBuilder
         FailedModels.Clear();
         ScientificResults.Clear();
         Diagnostics = string.Empty;
+        CoverageStatus = ScientificCoverageStatus.NoModelCoverage;
 
         if (scientificResults is null)
         {
@@ -51,6 +54,15 @@ public sealed class ScientificAssessmentBuilder
             Diagnostics = "ScientificResults list is null.";
             return;
         }
+
+        // A non-null but empty list means the model registry returned no models at all for the
+        // current methodology (ScientificModelRegistry.Resolve only wires models for
+        // "MeanReversionMethodology" as of this sprint - see audit finding ARC-003) - nothing was
+        // ever executed, which is a structurally different condition from models running and
+        // individually failing or reporting insufficient data.
+        CoverageStatus = scientificResults.Count == 0
+            ? ScientificCoverageStatus.NoModelCoverage
+            : ScientificCoverageStatus.ModelsExecuted;
 
         ScientificResults.AddRange(scientificResults);
         ExecutedModels.AddRange(scientificResults.Select(result => result.ModelName));
@@ -103,16 +115,20 @@ public sealed class ScientificAssessmentBuilder
             SuccessfulModels.AsReadOnly(),
             FailedModels.AsReadOnly(),
             ScientificResults.AsReadOnly(),
-            Diagnostics);
+            Diagnostics,
+            CoverageStatus);
     }
 
     private string BuildDiagnostics()
     {
         if (ScientificResults.Count == 0)
         {
-            return MissingEvidence.Count == 0
-                ? "No scientific results were provided."
-                : $"No scientific results were provided. Missing evidence: {string.Join(", ", MissingEvidence)}.";
+            // Reached only from the non-null scientificResults branch (the null case returns early
+            // with its own message above), so an empty ScientificResults here always means the model
+            // registry produced zero models for the current methodology - not that registered models
+            // ran and reported missing/insufficient data. See ScientificCoverageStatus for the
+            // distinction this message must not blur.
+            return "No scientific model coverage for the current methodology. No models are registered for this regime; none were executed.";
         }
 
         var diagnostics = new List<string>();

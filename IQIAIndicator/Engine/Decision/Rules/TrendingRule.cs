@@ -66,14 +66,22 @@ public sealed class TrendingRule : IDecisionRule
         }
 
         scores = new DimensionScores(
-            new DimensionScore(ClampScore(persistence.Value), ClampScore(persistence.Confidence)),
-            new DimensionScore(ClampScore(structuralStability.Value), ClampScore(structuralStability.Confidence)),
-            new DimensionScore(ClampScore(stationarity.Value), ClampScore(stationarity.Confidence)));
+            new DimensionScore(EffectiveValue(persistence), ClampScore(persistence.Confidence)),
+            new DimensionScore(EffectiveValue(structuralStability), ClampScore(structuralStability.Confidence)),
+            new DimensionScore(EffectiveValue(stationarity), ClampScore(stationarity.Confidence)));
 
         return true;
     }
 
     private static double ClampScore(double value) => Math.Clamp(value, 0.0, 1.0);
+
+    // See StableRangeRule.cs for the full rationale (Sprint 14 / DEC-01, FUS-02): missing evidence
+    // must contribute neutrally, never as fabricated directional support - including through this
+    // rule's (1 - Stationarity.Value) inversion term.
+    private const double NeutralMissingEvidenceValue = 0.5;
+
+    private static double EffectiveValue(FusionConfidence confidence) =>
+        confidence.IsAvailable ? ClampScore(confidence.Value) : NeutralMissingEvidenceValue;
 
     private static string BuildExplanation(
         double scientificScore,

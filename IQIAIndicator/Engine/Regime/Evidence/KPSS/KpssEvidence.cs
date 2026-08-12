@@ -25,6 +25,12 @@ public sealed class KpssEvidence
         for (int i = 0; i < n; i++)
             series[i] = context.Series[i];
 
+        // Sprint 15.1 (SCI15-02): explicit, specific diagnostic for the out-of-range-magnitude case -
+        // see AdfEvidence.ComputeAdf's identical guard for the full rationale. No statistical
+        // formula, threshold, or critical value is touched by this check.
+        if (KPSS.KpssRegression.HasOutOfRangeMagnitude(series, n))
+            return KpssResult.Invalid($"Valeur numerique hors limites representables pour le calcul KPSS (|x| > {KPSS.KpssRegression.SafeMagnitudeBound:E2}).");
+
         var residuals = new decimal[n];
 
         if (!KPSS.KpssRegression.TryDemean(series, n, residuals))

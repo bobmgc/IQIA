@@ -64,14 +64,22 @@ public sealed class RandomWalkRule : IDecisionRule
         }
 
         scores = new DimensionScores(
-            new DimensionScore(ClampScore(randomWalk.Value), ClampScore(randomWalk.Confidence)),
-            new DimensionScore(ClampScore(persistence.Value), ClampScore(persistence.Confidence)),
-            new DimensionScore(ClampScore(meanReversion.Value), ClampScore(meanReversion.Confidence)));
+            new DimensionScore(EffectiveValue(randomWalk), ClampScore(randomWalk.Confidence)),
+            new DimensionScore(EffectiveValue(persistence), ClampScore(persistence.Confidence)),
+            new DimensionScore(EffectiveValue(meanReversion), ClampScore(meanReversion.Confidence)));
 
         return true;
     }
 
     private static double ClampScore(double value) => Math.Clamp(value, 0.0, 1.0);
+
+    // See StableRangeRule.cs for the full rationale (Sprint 14 / DEC-01, FUS-02): missing evidence
+    // must contribute neutrally, never as fabricated directional support - including through this
+    // rule's (1 - Persistence.Value) and (1 - MeanReversion.Value) inversion terms.
+    private const double NeutralMissingEvidenceValue = 0.5;
+
+    private static double EffectiveValue(FusionConfidence confidence) =>
+        confidence.IsAvailable ? ClampScore(confidence.Value) : NeutralMissingEvidenceValue;
 
     private static string BuildExplanation(
         double scientificScore,

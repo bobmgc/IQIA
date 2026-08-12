@@ -13,6 +13,7 @@ public static class VolatilityModelTests
     public static void RunAll()
     {
         TestConstantHistoryProducesZeroVolatility();
+        TestConstantHistoryClassifiesAsLowRegimeExplicitly();
         TestVeryVolatileHistoryProducesHighVolatility();
         TestLowVolatilityProducesLowRelativeVolatility();
         TestInsufficientHistoryIsRejected();
@@ -31,6 +32,25 @@ public static class VolatilityModelTests
         var metrics = result.Metrics!;
         Assert(metrics["CurrentVolatility"] is double currentVolatility && Math.Abs(currentVolatility) < 1e-12, "CurrentVolatility should be zero for constant history.");
         Assert(metrics["VolatilityRegime"] is string regime && regime == "LOW", "Regime should be LOW for constant history.");
+    }
+
+    /// <summary>
+    /// Sprint 14 regression guard for the constant-history bug: with CurrentVolatility and
+    /// ReferenceVolatility both mathematically zero, RelativeVolatility is a 0/0 degeneracy whose
+    /// previous fallback (1.0, "no change vs reference") fell into ClassifyVolatilityRegime's MEDIUM
+    /// bucket instead of LOW. This test pins the explicit currentVolatility &lt;= epsilon -&gt; LOW guard
+    /// directly, independent of TestConstantHistoryProducesZeroVolatility, so a future regression in
+    /// either the guard or the fallback value is caught unambiguously.
+    /// </summary>
+    private static void TestConstantHistoryClassifiesAsLowRegimeExplicitly()
+    {
+        var context = CreateContext(new[] { 42.5m, 42.5m, 42.5m, 42.5m, 42.5m, 42.5m });
+        var result = new VolatilityModel().Evaluate(context);
+
+        Assert(result.Success, "Constant history should still be processed.");
+        var metrics = result.Metrics ?? throw new InvalidOperationException("Metrics must be present.");
+        Assert(metrics["CurrentVolatility"] is double zeroVolatility && zeroVolatility == 0.0, "CurrentVolatility must be exactly zero for a constant series.");
+        Assert(metrics["VolatilityRegime"] is string regime && regime == "LOW", "A constant history (volatility == 0) must classify as LOW, never MEDIUM or HIGH.");
     }
 
     private static void TestVeryVolatileHistoryProducesHighVolatility()
@@ -67,7 +87,13 @@ public static class VolatilityModelTests
 
     private static void TestInvalidDataIsRejected()
     {
-        var context = CreateContext(new[] { 100m, 100m, 100m }, includeInvalidPriorMetrics: true);
+        // includeInvalidPriorMetrics alone does not construct invalid data: invalidMetric defaults to
+        // 0.0, which is a perfectly finite (if degenerate) value, so TryGetPriorMetrics' finiteness
+        // guard never actually rejects it. This call was previously unreachable - VolatilityModelTests
+        // aborted at TestConstantHistoryProducesZeroVolatility, the first test in RunAll - so this
+        // authoring gap was never exercised. double.NaN is the value that makes the test's own name
+        // and intent (invalid prior metrics must be rejected) true.
+        var context = CreateContext(new[] { 100m, 100m, 100m }, includeInvalidPriorMetrics: true, invalidMetric: double.NaN);
         var result = new VolatilityModel().Evaluate(context);
 
         Assert(!result.Success, "Invalid data should be rejected.");
@@ -75,12 +101,17 @@ public static class VolatilityModelTests
 
     private static void TestNaNAndInfinityAreHandled()
     {
-        var contextNaN = CreateContext(new[] { 100m, 101m, 102m, 103m }, invalidMetric: double.NaN);
+        // includeInvalidPriorMetrics must be explicitly set to true, or CreateScientificResults
+        // silently falls back to the normal (valid) metrics dictionary and invalidMetric is never
+        // actually used - previously unreachable (masked by TestConstantHistoryProducesZeroVolatility
+        // failing first), so this omission was never exercised until this sprint's guard fix let
+        // RunAll() proceed past the first test.
+        var contextNaN = CreateContext(new[] { 100m, 101m, 102m, 103m }, includeInvalidPriorMetrics: true, invalidMetric: double.NaN);
         var resultNaN = new VolatilityModel().Evaluate(contextNaN);
 
         Assert(!resultNaN.Success, "NaN prior metric should be rejected.");
 
-        var contextInf = CreateContext(new[] { 100m, 101m, 102m, 103m }, invalidMetric: double.PositiveInfinity);
+        var contextInf = CreateContext(new[] { 100m, 101m, 102m, 103m }, includeInvalidPriorMetrics: true, invalidMetric: double.PositiveInfinity);
         var resultInf = new VolatilityModel().Evaluate(contextInf);
 
         Assert(!resultInf.Success, "Infinity prior metric should be rejected.");

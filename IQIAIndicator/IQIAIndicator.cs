@@ -24,6 +24,7 @@ using IQIAIndicator.Infrastructure.ATAS;
 using IQIAIndicator.Visualization.Dashboards;
 using IQIAIndicator.Visualization.State;
 using OFT.Rendering.Context;
+using OFT.Rendering.Control;
 using DecisionRules = IQIAIndicator.Engine.Decision.Rules;
 using FusionEngine = IQIAIndicator.Engine.Fusion.EvidenceFusionEngine;
 
@@ -107,9 +108,6 @@ public sealed class IQIAIndicator : Indicator
 
     [Display(Name = "Dashboard actif", GroupName = "Affichage", Order = 100)]
     public DashboardKind ActiveDashboard { get; set; } = DashboardKind.Trading;
-
-    [Display(Name = "Afficher les diagnostics scientifiques détaillés", GroupName = "Affichage", Order = 110)]
-    public bool ShowScientificDiagnostics { get; set; }
 
     [Display(Name = "Activer le tracing pipeline", GroupName = "Diagnostic", Order = 120)]
     public bool EnablePipelineTracing { get; set; }
@@ -299,6 +297,28 @@ public sealed class IQIAIndicator : Indicator
         }
     }
 
+    /// <summary>
+    /// Sprint 13.5 (H2) : point d'entrée réel du clic souris, validé en runtime au Sprint 13.4
+    /// (ProcessMouseClick reçu, coordonnées X/Y directement compatibles avec l'espace utilisé par
+    /// RenderContext dans OnRender — cf. rapport 13.4). Toute la résolution (quel Dashboard, quelle
+    /// carte, header ou contenu) reste dans DashboardManager/ScientificDashboard : IQIAIndicator ne
+    /// fait que transmettre l'événement et déclencher un redraw si le clic a été consommé.
+    /// Chaque clic (y compris ceux d'un double-clic, non traité séparément — Étape 15) déclenche un
+    /// toggle indépendant et déterministe : pas de debounce, pas de distinction simple/double-clic.
+    /// </summary>
+    public override bool ProcessMouseClick(RenderControlMouseEventArgs e)
+    {
+        bool handled = _dashboardManager.TryHandleMouseClick(e.X, e.Y, ActiveDashboard);
+        if (handled)
+        {
+            e.Handled = true;
+            RedrawChart(new RedrawArg(ChartArea));
+            return true;
+        }
+
+        return base.ProcessMouseClick(e);
+    }
+
     protected override void OnRender(RenderContext renderContext, DrawingLayouts layout)
     {
         base.OnRender(renderContext, layout);
@@ -390,7 +410,7 @@ public sealed class IQIAIndicator : Indicator
                 DatasetStartTime = _scientificDatasetCollector is null ? null : _scientificDatasetStartTime
             };
 
-            _dashboardManager.Draw(renderContext, dashboardContext, ActiveDashboard, ShowScientificDiagnostics);
+            _dashboardManager.Draw(renderContext, dashboardContext, ActiveDashboard, ChartArea.Width);
         }
     }
 

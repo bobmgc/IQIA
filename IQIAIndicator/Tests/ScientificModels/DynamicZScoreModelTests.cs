@@ -93,6 +93,14 @@ public static class DynamicZScoreModelTests
 
         foreach (var metric in result.Metrics!)
         {
+            // "Diagnostics" is documented (see AssertInnovationStdZeroIsHandled below) as an
+            // intentional string field on this model's metrics contract, not a numeric one.
+            if (metric.Key == "Diagnostics")
+            {
+                Assert(metric.Value is string, "Diagnostics must be a string.");
+                continue;
+            }
+
             Assert(metric.Value is double, $"Metric '{metric.Key}' must be a double.");
             AssertIsFinite((double)metric.Value, $"Metric '{metric.Key}' must be finite.");
         }
@@ -138,6 +146,12 @@ public static class DynamicZScoreModelTests
 
         foreach (var metric in result.Metrics!)
         {
+            if (metric.Key == "Diagnostics")
+            {
+                Assert(metric.Value is string, "Diagnostics must be a string.");
+                continue;
+            }
+
             Assert(metric.Value is double, $"Metric '{metric.Key}' must be a double.");
             AssertIsFinite((double)metric.Value, $"Metric '{metric.Key}' must be finite.");
         }
@@ -158,8 +172,13 @@ public static class DynamicZScoreModelTests
             "Synthetic Kalman result for DynamicZScoreModel tests.",
             kalmanMetrics);
 
+        // The model's real contract (DynamicZScoreModel.cs) derives the current price from
+        // History[History.Count - 1], not from CurrentBar. A market history containing only the
+        // intended current price as its last (and only) element is the minimal, realistic input
+        // that actually reaches the model's Z-score computation instead of tripping its
+        // "non-empty history required" guard.
         return new ScientificModelContext(
-            new Engine.ScientificModels.Abstractions.MarketContext(DateTime.UtcNow, currentBar, Array.Empty<decimal>()),
+            new Engine.ScientificModels.Abstractions.MarketContext(DateTime.UtcNow, currentBar, new[] { currentBar }),
             new DecisionResult { Winner = MarketState.MeanReverting, Confidence = 0.9 },
             new MethodologySelection(
                 new DecisionResult { Winner = MarketState.MeanReverting, Confidence = 0.9 },

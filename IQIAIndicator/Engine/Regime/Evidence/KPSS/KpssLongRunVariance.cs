@@ -21,7 +21,9 @@ internal static class KpssLongRunVariance
 {
     /// <summary>
     /// Calcule la variance de long terme des résidus (tableau oldest-first).
-    /// Retourne −1 si le calcul est impossible.
+    /// Retourne −1 si le calcul est impossible, y compris si l'accumulation numérique déborde
+    /// (Sprint 15.1, SCI15-02 - defense in depth; ni la formule Newey-West ni le noyau de Bartlett
+    /// ni la largeur de bande ne sont modifiés).
     /// </summary>
     internal static decimal Compute(decimal[] residuals, int n)
     {
@@ -29,29 +31,43 @@ internal static class KpssLongRunVariance
 
         int l = ComputeBandwidth(n);
 
-        // γ̂₀ = (1/T) · Σ ê_t²
-        decimal gamma0 = 0m;
-        for (int t = 0; t < n; t++)
-            gamma0 += residuals[t] * residuals[t];
-        gamma0 /= n;
-
-        if (gamma0 == 0m) return 0m;
-
-        // Ajouter les autocovariances pondérées
-        decimal lrv = gamma0;
-        for (int j = 1; j <= l; j++)
+        try
         {
-            decimal gammaJ = 0m;
-            for (int t = j; t < n; t++)
-                gammaJ += residuals[t] * residuals[t - j];
-            gammaJ /= n;
+            // γ̂₀ = (1/T) · Σ ê_t²
+            decimal gamma0 = 0m;
+            for (int t = 0; t < n; t++)
+                gamma0 += residuals[t] * residuals[t];
+            gamma0 /= n;
 
-            // Poids de Bartlett : w(j,l) = 1 − j/(l+1)
-            decimal weight = 1m - (decimal)j / (l + 1);
-            lrv += 2m * weight * gammaJ;
+            if (gamma0 == 0m) return 0m;
+
+            // Ajouter les autocovariances pondérées
+            decimal lrv = gamma0;
+            for (int j = 1; j <= l; j++)
+            {
+                decimal gammaJ = 0m;
+                for (int t = j; t < n; t++)
+                    gammaJ += residuals[t] * residuals[t - j];
+                gammaJ /= n;
+
+                // Poids de Bartlett : w(j,l) = 1 − j/(l+1)
+                decimal weight = 1m - (decimal)j / (l + 1);
+                lrv += 2m * weight * gammaJ;
+            }
+
+            return lrv > 0m ? lrv : gamma0;  // garde-fou : jamais négatif
         }
-
-        return lrv > 0m ? lrv : gamma0;  // garde-fou : jamais négatif
+        catch (OverflowException)
+        {
+            // This is the exact site of the originally-confirmed SCI15-02 crash: squaring a residual
+            // derived from an extreme series value (residuals[t]*residuals[t]) can overflow decimal's
+            // range even after KpssEvidence's upfront magnitude guard, because the mean absorbs part
+            // of the extreme value during demeaning and the residual at nearby indices can remain
+            // large. Converting to the method's existing "impossible" sentinel (-1m) routes through
+            // the same Invalid path every other numerical failure in this method already uses -
+            // no new DTO property, no crash.
+            return -1m;
+        }
     }
 
     /// <summary>

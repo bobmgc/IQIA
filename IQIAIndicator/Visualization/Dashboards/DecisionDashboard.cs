@@ -18,7 +18,9 @@ namespace IQIAIndicator.Visualization.Dashboards;
 internal sealed class DecisionDashboard
 {
     public const int Width = 980;
-    public const int Height = 700;
+    // Height couvre le pire cas réel mesuré (7 stages + dimensions + candidates + légende, Score/
+    // Confidence en BodyFont) : ~740px, + marge de sécurité — cf. audit M6 (marge de 19px insuffisante).
+    public const int Height = 800;
 
     private static readonly (FusionDimension Dimension, string Label)[] Dimensions =
     [
@@ -53,9 +55,15 @@ internal sealed class DecisionDashboard
             StageMs(context.PipelineTrace, PipelineTraceStage.ScientificFusion),
             leftX, ref leftY);
 
+        string fusionExplanation = context.FusionSnapshot is null
+            ? "N/A"
+            : $"{context.FusionSnapshot.UpdateCount} mise(s) à jour du profil. " +
+              $"Changement d'état : {(context.FusionSnapshot.StateChanged ? "oui" : "non")}. " +
+              $"Stabilité du profil : {context.FusionSnapshot.ProfileAnalysis.ProfileStability:F3}.";
+
         DrawStage(renderContext, "2) FUSION (régime)",
             "N/A", "N/A",
-            context.FusionSnapshot is null ? "N/A" : $"UpdateCount={context.FusionSnapshot.UpdateCount}  StateChanged={context.FusionSnapshot.StateChanged}  Stability={context.FusionSnapshot.ProfileAnalysis.ProfileStability:F3}",
+            fusionExplanation,
             null, // non tracé : EvidenceFusionEngine.Fuse n'est pas encapsulé dans un PipelineTraceScope
             leftX, ref leftY);
 
@@ -81,18 +89,26 @@ internal sealed class DecisionDashboard
             leftX, ref leftY);
 
         DrawStage(renderContext, "6) ENTRY",
-            context.EntryCandidate?.OpportunityStatus.ToString() ?? "N/A",
+            DashboardCanvas.HumanizeEnumName(context.EntryCandidate?.OpportunityStatus.ToString()),
             DashboardCanvas.FormatDouble(context.EntryCandidate?.OpportunityPriority),
-            context.EntryCandidate?.Assessment.EntryReadiness.ToString() ?? "N/A",
+            DashboardCanvas.HumanizeEnumName(context.EntryCandidate?.Assessment.EntryReadiness.ToString()),
             StageMs(context.PipelineTrace, PipelineTraceStage.Entry),
             leftX, ref leftY);
 
         DrawStage(renderContext, "7) TRIGGER",
-            context.EntryTriggerCandidate?.Assessment.TriggerStatus.ToString() ?? "N/A",
+            DashboardCanvas.HumanizeEnumName(context.EntryTriggerCandidate?.Assessment.TriggerStatus.ToString()),
             DashboardCanvas.FormatDouble(context.EntryTriggerCandidate?.Assessment.ScientificConfidence),
-            context.EntryTriggerCandidate?.Assessment.Reason.ToString() ?? "N/A",
+            DashboardCanvas.HumanizeEnumName(context.EntryTriggerCandidate?.Assessment.Reason.ToString()),
             StageMs(context.PipelineTrace, PipelineTraceStage.EntryTrigger),
             leftX, ref leftY);
+
+        leftY += 4;
+        renderContext.DrawString(
+            "Légende : Evidence = score du candidat · Quality = qualité des règles · Composite = score final arbitré (≡ Score composite du Trading, Score de l'étape 4).",
+            DashboardTheme.SmallFont,
+            DashboardTheme.MutedTextColor,
+            leftX,
+            leftY);
     }
 
     private static void DrawStage(
@@ -106,8 +122,8 @@ internal sealed class DecisionDashboard
         ref int y)
     {
         DashboardCanvas.SectionHeader(renderContext, title, x, ref y);
-        DashboardCanvas.SmallField(renderContext, "Score", score, x, ref y, valueOffset: 100);
-        DashboardCanvas.SmallField(renderContext, "Confidence", confidence, x, ref y, valueOffset: 100);
+        DashboardCanvas.Field(renderContext, "Score", score, x, ref y, valueOffset: 100);
+        DashboardCanvas.Field(renderContext, "Confidence", confidence, x, ref y, valueOffset: 100);
         DashboardCanvas.SmallField(renderContext, "Durée", DashboardCanvas.FormatMs(durationMs), x, ref y, valueOffset: 100);
         DashboardCanvas.SmallField(renderContext, "Explication", DashboardCanvas.Truncate(explanation, 110), x, ref y, valueOffset: 100);
         y += 6;
@@ -141,8 +157,8 @@ internal sealed class DecisionDashboard
             renderContext.DrawString(label, DashboardTheme.SmallFont, DashboardTheme.TextColor, x, y);
             renderContext.DrawString(
                 candidate is null
-                    ? "Scientific=n/a  Quality=n/a  Final=n/a"
-                    : $"Scientific={candidate.ScientificScore:F3}  Quality={candidate.QualityScore:F3}  Final={candidate.FinalScore:F3}",
+                    ? "Evidence=n/a  Quality=n/a  Composite=n/a"
+                    : $"Evidence={candidate.ScientificScore:F3}  Quality={candidate.QualityScore:F3}  Composite={candidate.FinalScore:F3}",
                 DashboardTheme.SmallFont,
                 candidate is null ? DashboardTheme.SecondaryTextColor : DashboardTheme.StateColor(candidate.FinalScore),
                 x + 130,

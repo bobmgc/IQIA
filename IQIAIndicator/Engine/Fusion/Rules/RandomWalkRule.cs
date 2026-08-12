@@ -28,7 +28,8 @@ public sealed class RandomWalkRule : IFusionRule
             {
                 Value = 0.0,
                 Confidence = 0.0,
-                Explanation = "Missing Evidence"
+                Explanation = "Missing Evidence",
+                IsAvailable = false
             }
             : EvaluateEvidence(varianceRatio);
 

@@ -66,14 +66,25 @@ public sealed class StableRangeRule : IDecisionRule
         }
 
         scores = new DimensionScores(
-            new DimensionScore(ClampScore(stationarity.Value), ClampScore(stationarity.Confidence)),
-            new DimensionScore(ClampScore(meanReversion.Value), ClampScore(meanReversion.Confidence)),
-            new DimensionScore(ClampScore(structuralStability.Value), ClampScore(structuralStability.Confidence)));
+            new DimensionScore(EffectiveValue(stationarity), ClampScore(stationarity.Confidence)),
+            new DimensionScore(EffectiveValue(meanReversion), ClampScore(meanReversion.Confidence)),
+            new DimensionScore(EffectiveValue(structuralStability), ClampScore(structuralStability.Confidence)));
 
         return true;
     }
 
     private static double ClampScore(double value) => Math.Clamp(value, 0.0, 1.0);
+
+    // Missing evidence (FusionConfidence.IsAvailable == false) must never read as directional
+    // information. A raw Value of 0.0 on an unavailable dimension means "unknown", not "measured
+    // zero" - using it directly (or via a (1 - Value) inversion elsewhere in this file's callers)
+    // would fabricate a signal from an absence of data (Sprint 14 / audit findings DEC-01, FUS-02).
+    // The neutral midpoint of the [0,1] range is used instead, so an unavailable dimension
+    // contributes neither for nor against any regime this rule scores. Weights are unchanged.
+    private const double NeutralMissingEvidenceValue = 0.5;
+
+    private static double EffectiveValue(FusionConfidence confidence) =>
+        confidence.IsAvailable ? ClampScore(confidence.Value) : NeutralMissingEvidenceValue;
 
     private static string BuildExplanation(
         double scientificScore,

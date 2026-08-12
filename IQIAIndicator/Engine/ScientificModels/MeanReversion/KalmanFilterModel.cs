@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Collections.Generic;
 using IQIAIndicator.Engine.Decision.States;
@@ -93,11 +94,11 @@ public sealed class KalmanFilterModel : IScientificModel
         double score = 1.0 - Math.Clamp(normalizedInnovation / InnovationScale, 0.0, 1.0);
 
         string explanation =
-            $"Estimated Mean={stateMean:F6}; " +
-            $"Innovation={innovationAtCurrent:F6}; " +
-            $"InnovationVariance={innovationCovarianceAtCurrent:F6}; " +
-            $"KalmanGain={lastKalmanGain:F6}; " +
-            $"FilterCovariance={stateCovariance:F6}.";
+            $"Estimated Mean={stateMean.ToString("F6", CultureInfo.InvariantCulture)}; " +
+            $"Innovation={innovationAtCurrent.ToString("F6", CultureInfo.InvariantCulture)}; " +
+            $"InnovationVariance={innovationCovarianceAtCurrent.ToString("F6", CultureInfo.InvariantCulture)}; " +
+            $"KalmanGain={lastKalmanGain.ToString("F6", CultureInfo.InvariantCulture)}; " +
+            $"FilterCovariance={stateCovariance.ToString("F6", CultureInfo.InvariantCulture)}.";
 
         var metrics = new Dictionary<string, object>
         {

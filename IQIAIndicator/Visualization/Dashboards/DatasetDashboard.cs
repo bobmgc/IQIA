@@ -17,7 +17,9 @@ namespace IQIAIndicator.Visualization.Dashboards;
 internal sealed class DatasetDashboard
 {
     public const int Width = 620;
-    public const int Height = 560;
+    // Height couvre le pire cas réel du contenu (STATUT..DIAGNOSTICS avec 5 corrélations) :
+    // ~709px mesurés, + marge de sécurité — cf. audit C1 (le panneau doit contenir son propre contenu).
+    public const int Height = 760;
     private const double EstimatedBytesPerRecord = 512.0; // approximation grossière, à but indicatif uniquement
 
     // État propre à ce dashboard : ne pas recalculer les statistiques (corrélations/outliers)
@@ -31,17 +33,24 @@ internal sealed class DatasetDashboard
         renderContext.FillRectangle(DashboardTheme.PanelBackground, new Rectangle(x, y, Width, Height));
         DashboardCanvas.Title(renderContext, "IQIA — DATASET", x + 10, y + 8);
 
-        if (!context.EnableScientificDataset)
+        ScientificDatasetCollector? collector = context.DatasetCollector;
+        DatasetState state = ResolveDatasetStatus(collector, context.EnableScientificDataset);
+
+        // Court-circuit uniquement si la collecte est désactivée ET qu'il n'existe réellement rien
+        // à montrer (état Idle). Si l'état résolu est Stopped, le collecteur détient encore de vraies
+        // données historiques : on continue d'afficher le panneau complet plutôt que de les masquer
+        // derrière ce message.
+        if (!context.EnableScientificDataset && state != DatasetState.Stopped)
         {
             renderContext.DrawString("Collecte désactivée (EnableScientificDataset = false).", DashboardTheme.BodyFont, DashboardTheme.SecondaryTextColor, x + 10, y + 44);
             return;
         }
 
-        ScientificDatasetCollector? collector = context.DatasetCollector;
         int fieldY = y + 42;
 
         DashboardCanvas.SectionHeader(renderContext, "STATUT", x + 10, ref fieldY);
-        DashboardCanvas.Field(renderContext, "Dataset Status", DatasetStatus(collector), x + 10, ref fieldY);
+        (string statusText, Color statusColor) = DescribeState(state);
+        DashboardCanvas.Field(renderContext, "Dataset Status", statusText, x + 10, ref fieldY, statusColor);
         DashboardCanvas.Field(renderContext, "Session ID", collector?.SessionId.ToString() ?? "N/A", x + 10, ref fieldY);
         DashboardCanvas.Field(renderContext, "Replay Status", context.Execution?.IsReplay == true ? "Replay" : "Live/Historical", x + 10, ref fieldY);
 
@@ -66,7 +75,9 @@ internal sealed class DatasetDashboard
         DashboardCanvas.SectionHeader(renderContext, "INTÉGRITÉ", x + 10, ref fieldY);
         DashboardCanvas.Field(renderContext, "Accepted", DashboardCanvas.FormatInt(collector?.RecordsAccepted ?? 0), x + 10, ref fieldY, DashboardTheme.Green);
         DashboardCanvas.Field(renderContext, "Rejected / Duplicates", DashboardCanvas.FormatInt(collector?.DuplicateRecordsRejected ?? 0), x + 10, ref fieldY, (collector?.DuplicateRecordsRejected ?? 0) > 0 ? DashboardTheme.Orange : DashboardTheme.Green);
-        DashboardCanvas.Field(renderContext, "Errors", DashboardCanvas.FormatInt(collector?.Errors ?? 0), x + 10, ref fieldY);
+        // Errors est un alias strict de DuplicateRecordsRejected (ScientificDatasetCollector.cs) : même
+        // traitement couleur que "Rejected / Duplicates" pour ne pas laisser croire à 2 compteurs distincts.
+        DashboardCanvas.Field(renderContext, "Errors", DashboardCanvas.FormatInt(collector?.Errors ?? 0), x + 10, ref fieldY, (collector?.Errors ?? 0) > 0 ? DashboardTheme.Orange : DashboardTheme.Green);
         DashboardCanvas.Field(renderContext, "Integrity", collector is null ? "N/A" : "OK (invariant vérifié)", x + 10, ref fieldY, DashboardTheme.Green);
         DashboardCanvas.Field(renderContext, "Coverage", collector is null || collector.TotalAddAttempts == 0 ? "N/A" : DashboardCanvas.FormatPercent((double)collector.RecordsAccepted / collector.TotalAddAttempts), x + 10, ref fieldY);
 
@@ -128,15 +139,46 @@ internal sealed class DatasetDashboard
         DashboardCanvas.Field(renderContext, "Dernière erreur", string.IsNullOrWhiteSpace(collector?.RejectedReason) ? "Aucune" : collector.RejectedReason, x + 10, ref fieldY, valueOffset: 130);
     }
 
-    private static string DatasetStatus(ScientificDatasetCollector? collector)
+    /// <summary>
+    /// Résout l'état honnête du Dataset à partir des seules données réellement exposées par
+    /// ScientificDatasetCollector.Status et DashboardContext.EnableScientificDataset. Aucun état
+    /// inventé, aucune state machine nouvelle : Exporting/Error restent hors périmètre car non
+    /// observables (cf. Sprint 13.2/13.3).
+    ///
+    /// Collecting/Debug ne sont retenus que si la collecte est actuellement activée : le Collector
+    /// ne connaît pas EnableScientificDataset, donc Collector.Status resterait "Collecting" même
+    /// après un arrêt (TotalAddAttempts ne redescend jamais à 0). Stopped n'est retenu que si des
+    /// données ont réellement été collectées avant l'arrêt — jamais sur une instance qui n'a jamais
+    /// collecté (dans ce cas : Idle).
+    /// </summary>
+    internal static DatasetState ResolveDatasetStatus(ScientificDatasetCollector? collector, bool enableScientificDataset)
     {
-        if (collector is null || collector.TotalAddAttempts == 0)
-            return "Idle";
+        if (collector is null)
+            return DatasetState.Idle;
 
-        // "Exporting" n'est pas distinguable de "Recording" : l'export est synchrone et
-        // ne laisse pas d'état intermédiaire observable dans ScientificDatasetCollector.
-        return "Recording";
+        if (enableScientificDataset && collector.Status == "Collecting")
+            return DatasetState.Collecting;
+
+        if (enableScientificDataset && collector.Status == "Debug")
+            return DatasetState.Debug;
+
+        if (collector.TotalAddAttempts > 0 && !enableScientificDataset)
+            return DatasetState.Stopped;
+
+        return DatasetState.Idle;
     }
+
+    /// <summary>Wording/couleur réutilisant la palette existante : Green = actif (comme "Accepted"),
+    /// Orange = diagnostic (comme les autres signaux Warn), Gray = neutre/inactif. Aucune nouvelle
+    /// couleur introduite.</summary>
+    private static (string Text, Color Color) DescribeState(DatasetState state) => state switch
+    {
+        DatasetState.Idle => ("IDLE", DashboardTheme.Gray),
+        DatasetState.Collecting => ("COLLECTING", DashboardTheme.Green),
+        DatasetState.Debug => ("DEBUG", DashboardTheme.Orange),
+        DatasetState.Stopped => ("STOPPED", DashboardTheme.Gray),
+        _ => ("N/A", DashboardTheme.Gray)
+    };
 
     private void RefreshStatisticsIfNeeded(ScientificDatasetCollector? collector)
     {
@@ -161,4 +203,16 @@ internal sealed class DatasetDashboard
 
         return $"{kb / 1024.0:F2} MB";
     }
+}
+
+/// <summary>État Dataset honnête affiché par le Dashboard, dérivé uniquement de
+/// ScientificDatasetCollector.Status et DashboardContext.EnableScientificDataset. Exporting/Error
+/// ne sont pas modélisés ici : ils ne sont pas observables avec l'infrastructure actuelle
+/// (cf. Sprint 13.2 — nécessite une évolution de ScientificDatasetSessionWriter).</summary>
+internal enum DatasetState
+{
+    Idle,
+    Collecting,
+    Debug,
+    Stopped
 }

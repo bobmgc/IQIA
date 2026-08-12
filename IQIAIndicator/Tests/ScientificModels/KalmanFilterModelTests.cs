@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Threading;
 using IQIAIndicator.Engine.Decision.Core;
 using IQIAIndicator.Engine.Decision.States;
 using IQIAIndicator.Engine.Methodology.Core;
@@ -18,6 +20,7 @@ public static class KalmanFilterModelTests
         AssertSeriesNoisyProducesValidResult();
         AssertInsufficientDataIsRejected();
         AssertNoNaNInOutput();
+        AssertExplanationFormattingIsCultureInvariant();
     }
 
     private static void AssertSeriesConstantProducesStableEstimate()
@@ -86,6 +89,36 @@ public static class KalmanFilterModelTests
             Assert(metric.Value is double, $"Metric '{metric.Key}' must be a double.");
             Assert(!double.IsNaN((double)metric.Value), $"Metric '{metric.Key}' must not be NaN.");
             Assert(!double.IsInfinity((double)metric.Value), $"Metric '{metric.Key}' must not be Infinity.");
+        }
+    }
+
+    /// <summary>
+    /// Reproduces the Sprint 14 baseline failure directly: on a machine whose thread culture uses a
+    /// comma decimal separator (e.g. fr-BE), a naive "{value:F6}" interpolation renders "100,000000"
+    /// instead of "100.000000". This pins the fix (CultureInfo.InvariantCulture) so the explanation
+    /// format never regresses back to depending on the executing machine's locale.
+    /// </summary>
+    private static void AssertExplanationFormattingIsCultureInvariant()
+    {
+        CultureInfo originalCulture = Thread.CurrentThread.CurrentCulture;
+        try
+        {
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("fr-BE");
+
+            var context = CreateContext(new decimal[] { 100m, 100m, 100m, 100m, 100m }, 100m);
+            var result = new KalmanFilterModel().Evaluate(context);
+
+            Assert(result.Success, "Constant series must return a successful result under a non-invariant thread culture.");
+            Assert(
+                result.Explanation.Contains("Estimated Mean=100.000000", StringComparison.Ordinal),
+                "Explanation must use invariant (period) decimal formatting regardless of thread culture.");
+            Assert(
+                !result.Explanation.Contains("100,000000", StringComparison.Ordinal),
+                "Explanation must not use the current culture's comma decimal separator.");
+        }
+        finally
+        {
+            Thread.CurrentThread.CurrentCulture = originalCulture;
         }
     }
 

@@ -125,7 +125,13 @@ public sealed class FusionStateManager
                 {
                     Value = valueChanged ? smoothedValue : previousConfidence.Value,
                     Confidence = confidenceChanged ? smoothedConfidence : previousConfidence.Confidence,
-                    Explanation = rawConfidence.Explanation
+                    Explanation = rawConfidence.Explanation,
+                    // Availability reflects THIS bar's raw evidence, independent of what the smoothed
+                    // Value/Confidence numbers carry forward. Without this, a missing-evidence bar's
+                    // IsAvailable=false would default back to true on the very next reconstruction,
+                    // silently defeating the Decision-layer fix downstream (see Sprint 14 / DEC-01,
+                    // FUS-02) even though DecisionEngine only ever reads this stable, smoothed result.
+                    IsAvailable = rawConfidence.IsAvailable
                 };
             }
 
@@ -147,7 +153,8 @@ public sealed class FusionStateManager
             {
                 Value = 0.0,
                 Confidence = 0.0,
-                Explanation = "Unavailable"
+                Explanation = "Unavailable",
+                IsAvailable = false
             };
 
     private sealed record StabilizationConfiguration
