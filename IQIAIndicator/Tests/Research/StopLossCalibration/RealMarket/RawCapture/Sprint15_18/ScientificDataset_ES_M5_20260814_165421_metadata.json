@@ -1,0 +1,17 @@
+{
+  "Source": "ATAS",
+  "SessionId": "967a640e-f224-4ffc-8dfc-13104179cf14",
+  "Symbol": "ES",
+  "TimeFrame": "M5",
+  "CollectionStart": "2026-08-14T14:54:21.0470606Z",
+  "CollectionEnd": "2026-08-14T14:58:23.4273306Z",
+  "BarsReceived": 3059,
+  "BarsWritten": 1732,
+  "Duplicates": 1327,
+  "InvalidRejected": 0,
+  "OutOfOrder": 0,
+  "FirstTimestamp": "2026-06-29T22:00:00",
+  "LastTimestamp": "2026-07-08T08:15:00",
+  "Timezone": "Unspecified (ATAS IndicatorCandle.Time passthrough, no conversion applied)",
+  "CollectorVersion": "1.0-real-ohlcv"
+}

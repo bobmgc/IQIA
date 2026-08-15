@@ -55,28 +55,39 @@ public static class OrnsteinUhlenbeckModelTests
     }
 
     /// <summary>
-    /// Corrected in Sprint 14. The original assertion ("noisy series should be able to produce a
-    /// negative theta") is mathematically impossible under the current, unmodified OU formula:
-    /// EstimatedTheta = 1.0 - Math.Clamp(normalizedInnovation / InnovationScale, -1.0, 1.0), where
-    /// normalizedInnovation (Kalman's NormalizedInnovation metric) is Math.Abs(innovation)/std - always
-    /// non-negative. Clamp(nonNegative, -1, 1) therefore always lands in [0,1], so theta is always in
-    /// [0,1] and can never go negative. This was never caught before because the test harness never
-    /// reached this line (see CreateContext) - it is a genuinely new finding from this sprint, not a
-    /// pre-existing known issue. Per the sprint's scope, the OU formula itself is not modified here;
-    /// this test is corrected to assert the real, achievable floor (theta driven to exactly 0.0 by a
-    /// large-enough shock) instead of an unreachable negative value, while preserving the original
-    /// intent: a strong shock should drive mean-reversion strength to zero.
+    /// Corrected in Sprint 14, RE-corrected in Sprint 15.22. The original assertion ("noisy series
+    /// should be able to produce a negative theta") is mathematically impossible under the OU formula
+    /// (EstimatedTheta = 1.0 - Clamp(normalizedInnovation/InnovationScale, -1, 1), always in [0,1]) -
+    /// that Sprint 14 correction still stands.
+    ///
+    /// Sprint 15.22 (QDE-012 InnovationStd correction) changed the premise of the Sprint 14 fix's own
+    /// exact-zero assertion. KalmanFilterModel now bounds the observations it uses to the most recent
+    /// ObservationWindowSize=20 (was: the WHOLE supplied history) - see KalmanFilterModel.cs's doc
+    /// comment and QDE-012_Sprint_15.21/15.22 reports. Sprint 14's "30 flat + 1 shock" construction
+    /// relied on padding the WHOLE-history variance estimate with arbitrarily many flat observations to
+    /// manufacture an arbitrarily large NormalizedInnovation (measured ~3.67, past the InnovationScale=
+    /// 3.0 boundary) - exactly the unbounded-history pathology Sprint 15.22 fixes. Re-measured directly
+    /// against the corrected model (Sprint 15.22 shock-magnitude/flat-count probe): NormalizedInnovation
+    /// for a single terminal outlier is now bounded by the 20-observation window and asymptotes to
+    /// ~2.97 as the window fills (19 flat + 1 shock) - it can no longer reach 3.0 via this construction,
+    /// for any shock magnitude (confirmed scale-invariant, unchanged property) or any number of leading
+    /// flat observations beyond the window size. This is not a defect: it is the direct, intended
+    /// consequence of no longer letting arbitrary amounts of stale history manufacture an unbounded
+    /// ratio. The test is corrected again to assert the real, achievable near-zero floor for a
+    /// window-filling shock, instead of the no-longer-reachable exact zero, while preserving the
+    /// original intent: a shock that fully dominates the observation window should drive mean-reversion
+    /// strength to (near) zero.
     /// </summary>
     private static void AssertLargeShockDrivesThetaAndStrengthToZero()
     {
-        // KalmanFilterModel estimates measurement noise from the sample variance of the WHOLE
-        // observation window, so NormalizedInnovation at the shock step is scale-invariant with
-        // respect to the shock's magnitude - it depends only on how many flat observations precede
-        // it (verified empirically by direct simulation of the model's exact arithmetic). Thirty flat
-        // observations followed by one shock reliably pushes NormalizedInnovation to ~3.67, safely
-        // past the InnovationScale=3.0 boundary that clamps EstimatedTheta to exactly zero.
+        // 19 flat observations + 1 final shock = 20 total, exactly filling KalmanFilterModel's
+        // ObservationWindowSize (Sprint 15.22) - the shock-dominance scenario that comes closest to the
+        // window's structural ceiling for NormalizedInnovation. NormalizedInnovation is scale-invariant
+        // in the shock's magnitude (verified: 200 through 5000 all produce the identical ratio), so the
+        // shock's absolute size is not the lever here - the flat-observation count relative to the
+        // window is.
         var history = new List<decimal>();
-        for (int i = 0; i < 30; i++)
+        for (int i = 0; i < 19; i++)
         {
             history.Add(100m);
         }
@@ -92,10 +103,12 @@ public static class OrnsteinUhlenbeckModelTests
         if (!result.Metrics.TryGetValue("EstimatedTheta", out var thetaValueObj) || thetaValueObj is not double thetaValue)
             throw new InvalidOperationException("Metrics must contain EstimatedTheta as a double.");
         Assert(thetaValue >= 0.0 && thetaValue <= 1.0, "EstimatedTheta must always stay within its real, provable range of [0, 1].");
-        Assert(thetaValue == 0.0, "A shock large enough to push NormalizedInnovation past the InnovationScale boundary must drive theta to its floor of exactly zero.");
+        Assert(
+            thetaValue < 0.05,
+            $"A shock filling the whole observation window must drive theta close to its practical floor for this construction (measured ~0.0096 empirically; 0.05 leaves headroom) - got {thetaValue:F4}.");
         if (!result.Metrics.TryGetValue("MeanReversionStrength", out var strengthValueObj) || strengthValueObj is not double strengthValue)
             throw new InvalidOperationException("Metrics must contain MeanReversionStrength as a double.");
-        Assert(strengthValue == 0.0, "Theta at its zero floor must produce zero mean reversion strength.");
+        Assert(strengthValue < 0.05, $"Theta near its practical floor must produce near-zero mean reversion strength - got {strengthValue:F4}.");
     }
 
     private static void AssertRandomSeriesRemainsNumericallyStable()

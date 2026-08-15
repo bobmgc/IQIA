@@ -1,0 +1,23 @@
+Metric,Value
+TotalBars,1732
+StructuralInvalidityCount,0
+NaNOrInfiniteCount,0
+NonPositivePriceCount,0
+NegativeVolumeCount,0
+ZeroVolumeCount,0
+IdenticalOhlcCount_ZeroRange,633
+ZeroRangeContiguousSegmentCount,1
+ZeroRangeBarsInLongestSegment,633
+ZeroRangeBarsTotal,633
+ZeroRangeBarsPercentOfTotal,36.5473441108545
+-- STRUCTURAL (invariant) vs STATISTICAL (extremeness) kept separate below --
+Range_Min,0.00
+Range_Max_StatisticalExtreme,26.50
+Range_Median,2.25
+Range_Mean,2.6993360277136258660508083141
+ConsecutiveReturn_Count,1725
+ConsecutiveReturn_Min,-0.0030868295273499737
+ConsecutiveReturn_Max_StatisticalExtreme,0.0020363199359059955
+ConsecutiveReturn_Median,0
+ConsecutiveReturn_Mean,4.12326947762725E-06
+ConsecutiveReturn_StdDev,0.00039146203102341005

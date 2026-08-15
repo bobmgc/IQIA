@@ -1,0 +1,11 @@
+Scope,Shape,OverallMeanReversionRate,OverallReversionRateCv,MaxReversionRate,MinReversionRate,WidestStableWindowPoints,WidestStableWindowStartK,WidestStableWindowEndK
+WhiteNoise,PlateauRobust,0.972847,0.0616682,0.998243,0.725835,40,0.25,10
+RandomWalk,PlateauRobust,0.80725,0.129968,0.864675,0.448155,38,0.75,10
+AR1_phi0.5,PlateauRobust,0.950483,0.0953737,0.99297,0.606327,39,0.5,10
+AR1_phi0.95,PlateauRobust,0.838796,0.147621,0.913884,0.427065,38,0.75,10
+Trending,NoSignal,0,0,0,0,40,0.25,10
+LowVolatility,PlateauRobust,0.972847,0.0616682,0.998243,0.725835,40,0.25,10
+HighVolatility,PlateauRobust,0.972847,0.0616682,0.998243,0.725835,40,0.25,10
+StructuralBreak,PlateauRobust,0.96964,0.0626453,0.994728,0.71529,40,0.25,10
+VarianceBreak,PlateauRobust,0.972452,0.061834,0.998243,0.725835,40,0.25,10
+POOLED,PlateauRobust,0.828574,0.0824534,0.862136,0.566686,40,0.25,10

@@ -70,7 +70,7 @@ public static class StableRegionAnalyzer
             }
         }
 
-        return MergeOverlapping(candidates);
+        return MergeOverlapping(candidates, curveOrderedByK);
     }
 
     private static double CoefficientOfVariation(IEnumerable<double> values)
@@ -86,7 +86,21 @@ public static class StableRegionAnalyzer
         return Math.Sqrt(variance) / Math.Abs(mean);
     }
 
-    private static IReadOnlyList<StableWindow> MergeOverlapping(List<StableWindow> windows)
+    /// <summary>
+    /// Sprint 15.15 fix (bug found during Sprint 15.14): merging previously only extended
+    /// EndKIndex/EndK on the running StableWindow - it never recomputed MeanReversionRate/
+    /// ReversionRateCv/MeanFalseInvalidationRate/FalseInvalidationRateCv for the merged region, so
+    /// those four fields on any merged (wider than WindowSize) window silently kept the values of
+    /// whichever individual candidate window happened to be `current` at that point in the fold -
+    /// normally the first one in the chain, not a summary of the final merged range. Window bounds
+    /// (StartK/EndK/StartKIndex/EndKIndex) were never affected by that bug - only these four
+    /// descriptive fields. Fixed by determining the final index range first, then recomputing every
+    /// descriptive field from curveOrderedByK.Skip(StartKIndex).Take(EndKIndex-StartKIndex+1) - the
+    /// same slice-and-average approach already used for a single, unmerged window above, just applied
+    /// again after the final range is known. WindowSize, CvThreshold, and the initial window-detection
+    /// loop above are unchanged.
+    /// </summary>
+    private static IReadOnlyList<StableWindow> MergeOverlapping(List<StableWindow> windows, IReadOnlyList<CandidateAggregateResult> curveOrderedByK)
     {
         if (windows.Count == 0)
         {
@@ -94,27 +108,38 @@ public static class StableRegionAnalyzer
         }
 
         windows = windows.OrderBy(w => w.StartKIndex).ToList();
-        var merged = new List<StableWindow>();
-        StableWindow current = windows[0];
+        var mergedRanges = new List<(int StartKIndex, int EndKIndex)>();
+        (int StartKIndex, int EndKIndex) current = (windows[0].StartKIndex, windows[0].EndKIndex);
 
         foreach (StableWindow w in windows.Skip(1))
         {
             if (w.StartKIndex <= current.EndKIndex + 1)
             {
-                current = current with
-                {
-                    EndKIndex = Math.Max(current.EndKIndex, w.EndKIndex),
-                    EndK = Math.Max(current.EndK, w.EndK),
-                };
+                current = (current.StartKIndex, Math.Max(current.EndKIndex, w.EndKIndex));
             }
             else
             {
-                merged.Add(current);
-                current = w;
+                mergedRanges.Add(current);
+                current = (w.StartKIndex, w.EndKIndex);
             }
         }
 
-        merged.Add(current);
-        return merged;
+        mergedRanges.Add(current);
+
+        return mergedRanges.Select(range => Recompute(range.StartKIndex, range.EndKIndex, curveOrderedByK)).ToList();
+    }
+
+    private static StableWindow Recompute(int startKIndex, int endKIndex, IReadOnlyList<CandidateAggregateResult> curveOrderedByK)
+    {
+        List<CandidateAggregateResult> slice = curveOrderedByK.Skip(startKIndex).Take(endKIndex - startKIndex + 1).ToList();
+
+        bool hasFalseInvalidationData = slice.All(r => !double.IsNaN(r.FalseInvalidationRate));
+        double meanFalseInvalidation = hasFalseInvalidationData ? slice.Average(r => r.FalseInvalidationRate) : double.NaN;
+        double falseCv = hasFalseInvalidationData ? CoefficientOfVariation(slice.Select(r => r.FalseInvalidationRate)) : double.NaN;
+
+        return new StableWindow(
+            startKIndex, endKIndex, slice[0].K, slice[^1].K,
+            slice.Average(r => r.ReversionRate), CoefficientOfVariation(slice.Select(r => r.ReversionRate)),
+            meanFalseInvalidation, falseCv);
     }
 }

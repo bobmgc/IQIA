@@ -96,6 +96,16 @@ public sealed class IQIAIndicator : Indicator
     private Guid _scientificDatasetSessionId;
     private DateTime _scientificDatasetStartTime;
     private ScientificDatasetSession? _lastScientificDatasetSession;
+    private ExportResult? _lastExportResult;
+    private bool _scientificDatasetAutoExportAttempted;
+    private readonly DatasetLifecycleLog _datasetLifecycleLog = new();
+    private string? _lastLifecycleSnapshotPath;
+    private string? _lastLifecycleSnapshotError;
+
+    // Sprint 15.17.2: throttles the mid-session periodic snapshot write in OnCalculate - writing on
+    // every single bar would add disk I/O to the hot ATAS calculation path; every 50 attempts is
+    // frequent enough to keep the on-disk snapshot recent without measurable overhead.
+    private const int LifecycleSnapshotWriteEveryNBars = 50;
 
     // --- Parametres instrument -----------------------------------------------
     [Display(Name = "Valeur du Tick (€/$)", GroupName = "Instrument", Order = 10)]
@@ -129,22 +139,99 @@ public sealed class IQIAIndicator : Indicator
 
     public string LastScientificDatasetReport => _lastScientificDatasetSession?.BuildReport() ?? string.Empty;
 
-    public string ExportScientificDataset()
-    {
-        if (_scientificDatasetCollector is null || _scientificDatasetCollector.Count == 0)
-            return string.Empty;
+    public ExportResult? LastExportResult => _lastExportResult;
 
+    public DatasetLifecycleLog DatasetLifecycleLog => _datasetLifecycleLog;
+
+    /// <summary>Real, live path of the persistent lifecycle snapshot for the current session, or
+    /// null before EnableScientificDataset has ever created a collector. See WriteLifecycleSnapshot.</summary>
+    public string? LastLifecycleSnapshotPath => _lastLifecycleSnapshotPath;
+
+    /// <summary>Non-null only if the most recent attempt to persist the lifecycle snapshot itself
+    /// failed (e.g. disk full, permissions) - kept per Sprint 15.17.2 Phase 5's requirement to never
+    /// lose this even though the write failure itself must never break the indicator.</summary>
+    public string? LastLifecycleSnapshotError => _lastLifecycleSnapshotError;
+
+    /// <summary>
+    /// Sprint 15.17.1: thin wrapper around ScientificDatasetExporter.Export (the actually-testable,
+    /// ATAS-independent piece) that also updates DatasetLifecycleLog and the indicator's own cached
+    /// fields for backward compatibility (LastScientificDatasetSession/LastScientificDatasetReport).
+    /// Never throws - every outcome (Success/NoData/Failed) is captured in the returned ExportResult
+    /// and cached in _lastExportResult, so a caller (OnDispose, or a future manual trigger) never has
+    /// to guess whether "nothing happened" meant no data, a swallowed exception, or genuine success -
+    /// this is exactly the ambiguity Sprint 15.17.1 was opened to close.
+    /// </summary>
+    public ExportResult ExportScientificDataset()
+    {
         _scientificDatasetWriter ??= new ScientificDatasetSessionWriter();
-        DateTime endTime = DateTime.UtcNow;
-        _lastScientificDatasetSession = _scientificDatasetWriter.Export(
+        _datasetLifecycleLog.MarkExportStarted(DateTime.UtcNow);
+        WriteLifecycleSnapshot();
+
+        ExportResult result = ScientificDatasetExporter.Export(
             _scientificDatasetCollector,
+            _scientificDatasetWriter,
             ScientificDatasetOutputDirectory,
-            _scientificDatasetCollector.Records[0].Symbol,
-            _scientificDatasetCollector.Records[0].TimeFrame,
             _scientificDatasetSessionId,
             _scientificDatasetStartTime,
-            endTime);
-        return _lastScientificDatasetSession.BuildReport();
+            DateTime.UtcNow);
+
+        _lastExportResult = result;
+        if (result.Session is not null)
+            _lastScientificDatasetSession = result.Session;
+
+        switch (result.Outcome)
+        {
+            case ExportOutcome.Success:
+                _datasetLifecycleLog.MarkExportCompleted(DateTime.UtcNow);
+                break;
+            case ExportOutcome.Failed:
+                _datasetLifecycleLog.MarkExportFailed(DateTime.UtcNow);
+                break;
+        }
+
+        // Final state (Completed/Failed/still-NoData) captured on disk even if something goes wrong
+        // immediately after this call returns (e.g. ATAS tears the process down right after Dispose).
+        WriteLifecycleSnapshot();
+
+        return result;
+    }
+
+    /// <summary>
+    /// Sprint 15.17.2 (QDE-012 real-market capture - persistent ATAS lifecycle diagnostics). Persists
+    /// DatasetLifecycleLog's current state to "*_lifecycle.json" next to the eventual export files
+    /// (DatasetLifecycleSnapshotWriter, itself never-throwing). Called: once when the collector is
+    /// first created (so the file exists from session start, per Phase 2 - "AVANT que l'indicateur
+    /// soit détaché"), periodically while bars arrive (throttled, see
+    /// LifecycleSnapshotWriteEveryNBars), and unconditionally at the very start of OnDispose() BEFORE
+    /// any export is attempted - so proof that OnDispose fired survives on disk even if export itself
+    /// never completes.
+    ///
+    /// No-op (does nothing, throws nothing) if no collector exists yet - there being nothing
+    /// meaningful to persist before EnableScientificDataset has actually created a session.
+    /// </summary>
+    private void WriteLifecycleSnapshot()
+    {
+        if (_scientificDatasetCollector is null)
+            return;
+
+        string symbol = InstrumentInfo?.Instrument ?? string.Empty;
+        string timeFrame = ChartInfo?.TimeFrame ?? string.Empty;
+
+        bool success = DatasetLifecycleSnapshotWriter.TryWrite(
+            ScientificDatasetOutputDirectory,
+            _scientificDatasetSessionId,
+            symbol,
+            timeFrame,
+            _scientificDatasetStartTime,
+            _datasetLifecycleLog,
+            _scientificDatasetCollector.TotalAddAttempts,
+            _scientificDatasetCollector.RecordsAccepted,
+            _lastExportResult?.ErrorMessage,
+            out string path,
+            out string? errorMessage);
+
+        _lastLifecycleSnapshotPath = path;
+        _lastLifecycleSnapshotError = success ? null : errorMessage;
     }
 
     public IQIAIndicator() : base(true)
@@ -153,6 +240,7 @@ public sealed class IQIAIndicator : Indicator
         ((ValueDataSeries)DataSeries[0]).VisualType = VisualMode.Hide;
         EnableCustomDrawing = true;
         SubscribeToDrawingEvents(DrawingLayouts.Final);
+        _datasetLifecycleLog.MarkConstructed(DateTime.UtcNow);
     }
 
     protected override void OnCalculate(int bar, decimal value)
@@ -165,6 +253,11 @@ public sealed class IQIAIndicator : Indicator
             _scientificDatasetSessionId = Guid.NewGuid();
             _scientificDatasetCollector = new ScientificDatasetCollector(_scientificDatasetSessionId);
             _scientificDatasetStartTime = DateTime.UtcNow;
+            _datasetLifecycleLog.MarkDatasetEnabled(_scientificDatasetStartTime);
+            // Sprint 15.17.2: the lifecycle file must exist from session start, before any bar has
+            // even been collected - so it survives on disk even if the indicator is torn down before
+            // a single Add() succeeds.
+            WriteLifecycleSnapshot();
         }
 
         PipelineTraceRun? trace = null;
@@ -340,15 +433,100 @@ public sealed class IQIAIndicator : Indicator
         _latestPipelineTraceCollector = traceCollector;
         _latestPipelineTraceReport = trace is null ? string.Empty : traceCollector!.BuildReport(trace);
 
+        // Sprint 15.17 (QDE-012 real-market capture): pure OBSERVER, placed after every trading engine
+        // above has already produced its result for this bar. Reads context/pipeline outputs; never
+        // writes back into anything the pipeline reads. Wrapped in try/catch so that a failure in this
+        // diagnostic/data-collection path can never propagate into OnCalculate and disrupt trading -
+        // the same guarantee EnableScientificDataset=false already gives by construction (this block
+        // doesn't run at all), extended to cover unexpected exceptions while it's on.
         if (EnableScientificDataset)
         {
-            _scientificDatasetCollector!.Add(ScientificDatasetRecord.From(
-                _scientificDatasetSessionId,
-                bar,
-                _latestScientificMarketContext,
-                _latestScientificAssessment!,
-                _latestDecisionResult,
-                trace));
+            try
+            {
+                _datasetLifecycleLog.MarkAdd(DateTime.UtcNow);
+                _scientificDatasetCollector!.Add(ScientificDatasetRecord.From(
+                    _scientificDatasetSessionId,
+                    bar,
+                    _latestScientificMarketContext,
+                    _latestScientificAssessment!,
+                    _latestDecisionResult,
+                    open: context.Price.Open,
+                    high: context.Price.High,
+                    low: context.Price.Low,
+                    volume: context.Volume.Volume,
+                    trace: trace));
+
+                // Sprint 15.17.2: throttled so the persistent lifecycle snapshot stays reasonably
+                // current without adding per-bar disk I/O to the ATAS calculation hot path.
+                if (_scientificDatasetCollector.TotalAddAttempts % LifecycleSnapshotWriteEveryNBars == 0)
+                    WriteLifecycleSnapshot();
+            }
+            catch (Exception)
+            {
+                // Diagnostic-only path: never let a collection failure disrupt the trading pipeline
+                // above. ScientificDatasetCollector.RejectedReason/InvalidRecordsRejected already
+                // surface expected rejections (invalid OHLCV, duplicates) without throwing - reaching
+                // this catch means something unexpected happened; it is intentionally swallowed here
+                // rather than crashing the indicator, and is visible only via the collector's own
+                // counters not increasing for this bar.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sprint 15.17 (QDE-012 real-market capture): ATAS's own BaseIndicator exposes a real,
+    /// protected virtual OnDispose() hook (confirmed by reflection against the installed
+    /// ATAS.Indicators.dll - Indicator implements IDisposable via BaseIndicator/ExtendedIndicator,
+    /// both of which declare "public virtual void Dispose()" calling into this). This is the one
+    /// reliable "indicator is being removed from the chart" signal available anywhere in the ATAS
+    /// SDK surface this project references - there is no OnStop/OnClose/OnReplayFinished callback.
+    /// Exporting here closes the gap the Sprint 15.17 audit found: without it, EnableScientificDataset
+    /// accumulates records in memory with no automatic flush, and ExportScientificDataset() has no
+    /// caller anywhere in the live UI.
+    ///
+    /// Sprint 15.17.1: whether ATAS actually calls this on indicator removal (vs. only on
+    /// application shutdown, or some other lifecycle event) is still NOT proven by this override
+    /// existing - see DatasetLifecycleLog.OnDisposeEnteredAt, set unconditionally as the very first
+    /// statement below, specifically so a real ATAS session can answer that question by checking
+    /// whether this timestamp got set at all. ExportScientificDataset() itself no longer swallows
+    /// failures (Core/Calibration/ScientificDatasetExporter.cs catches and records them into
+    /// ExportResult) - the try/catch here is a last-resort safety net for anything failing OUTSIDE
+    /// that boundary, so base.OnDispose() is still guaranteed to run no matter what.
+    /// </summary>
+    protected override void OnDispose()
+    {
+        _datasetLifecycleLog.MarkOnDisposeEntered(DateTime.UtcNow);
+        // Sprint 15.19 (QDE-012 forming-bar-capture fix): the collector may still be holding a
+        // still-forming bar that no later callback has ever proven closed (ATAS gives no advance
+        // warning that the indicator is about to be removed). Flush() applies the documented
+        // EXCLUDE_CURRENT_FORMING_BAR policy - that bar is never committed to the exported dataset -
+        // and must run BEFORE ExportScientificDataset() below so the export it produces reflects the
+        // decision. See ScientificDatasetCollector.Flush()'s doc comment and the QDE-012_Sprint_15.19
+        // report §7 for why exporting a still-forming bar as if it were closed is exactly the defect
+        // this sprint fixes.
+        _scientificDatasetCollector?.Flush();
+        // Sprint 15.17.2: persisted BEFORE any export attempt below, exactly per the brief's Phase 4
+        // ordering requirement - this is what lets a real ATAS session prove OnDispose fired even if
+        // the export that follows crashes in some way this sprint's try/catch didn't anticipate.
+        WriteLifecycleSnapshot();
+        try
+        {
+            if (EnableScientificDataset && !_scientificDatasetAutoExportAttempted)
+            {
+                _scientificDatasetAutoExportAttempted = true;
+                ExportScientificDataset();
+            }
+        }
+        catch (Exception)
+        {
+            // Last-resort safety net only: ExportScientificDataset()/ScientificDatasetExporter.Export
+            // already catch and record every export failure into _lastExportResult
+            // (ExportOutcome.Failed) without throwing. Reaching this catch means something failed
+            // outside that boundary - still must never block base.OnDispose() below.
+        }
+        finally
+        {
+            base.OnDispose();
         }
     }
 
@@ -463,7 +641,11 @@ public sealed class IQIAIndicator : Indicator
                 DatasetCollector = _scientificDatasetCollector,
                 DatasetSession = _lastScientificDatasetSession,
                 DatasetOutputDirectory = ScientificDatasetOutputDirectory,
-                DatasetStartTime = _scientificDatasetCollector is null ? null : _scientificDatasetStartTime
+                DatasetStartTime = _scientificDatasetCollector is null ? null : _scientificDatasetStartTime,
+                LastExportResult = _lastExportResult,
+                DatasetLifecycleLog = _datasetLifecycleLog,
+                LifecycleSnapshotPath = _lastLifecycleSnapshotPath,
+                LifecycleSnapshotError = _lastLifecycleSnapshotError
             };
 
             _dashboardManager.Draw(renderContext, dashboardContext, ActiveDashboard, ChartArea.Width);

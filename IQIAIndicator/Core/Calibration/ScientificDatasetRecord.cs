@@ -12,6 +12,12 @@ namespace IQIAIndicator.Core.Calibration;
 
 using ScientificMarketContext = global::IQIAIndicator.Engine.ScientificModels.Abstractions.MarketContext;
 
+// Sprint 15.17 (QDE-012 real-market capture): Open/High/Low/Volume added as trailing OPTIONAL
+// positional parameters (default 0m) specifically so the two pre-existing call sites that construct
+// this record positionally (Tests/Calibration/ScientificDatasetCollectorTests.cs,
+// Tests/Dashboards/DatasetDashboardStatusTests.cs) keep compiling unchanged. CurrentPrice is kept as
+// the historical field name (it already carries the bar's Close - see From() below) rather than
+// renamed, for the same reason. Do not reorder existing parameters.
 public sealed record ScientificDatasetRecord(
     Guid SessionId,
     DateTime Timestamp,
@@ -21,14 +27,27 @@ public sealed record ScientificDatasetRecord(
     int HistoryLength,
     int CurrentBar,
     IReadOnlyDictionary<string, double?> Metrics,
-    IReadOnlyDictionary<string, string> Categories)
+    IReadOnlyDictionary<string, string> Categories,
+    decimal Open = 0m,
+    decimal High = 0m,
+    decimal Low = 0m,
+    decimal Volume = 0m)
 {
+    /// <summary>Close is CurrentPrice under its historical name - see the ScientificDatasetRecord doc
+    /// comment above. Exposed under its OHLCV name too so consumers (e.g. the OHLCV CSV export) never
+    /// have to know about the historical alias.</summary>
+    public decimal Close => CurrentPrice;
+
     public static ScientificDatasetRecord From(
         Guid sessionId,
         int currentBar,
         ScientificMarketContext marketContext,
         ScientificAssessment scientificAssessment,
         DecisionResult decisionResult,
+        decimal open,
+        decimal high,
+        decimal low,
+        decimal volume,
         PipelineTraceRun? trace = null)
     {
         if (sessionId == Guid.Empty)
@@ -88,7 +107,11 @@ public sealed record ScientificDatasetRecord(
             marketContext.History.Count,
             currentBar,
             metrics,
-            categories);
+            categories,
+            open,
+            high,
+            low,
+            volume);
     }
 
     private static DecisionCandidate? FirstCandidate(DecisionResult result) =>

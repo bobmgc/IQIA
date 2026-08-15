@@ -62,6 +62,10 @@ internal sealed record DashboardContext
     public ScientificDatasetSession? DatasetSession { get; init; }
     public string DatasetOutputDirectory { get; init; } = string.Empty;
     public DateTime? DatasetStartTime { get; init; }
+    public ExportResult? LastExportResult { get; init; }
+    public DatasetLifecycleLog? DatasetLifecycleLog { get; init; }
+    public string? LifecycleSnapshotPath { get; init; }
+    public string? LifecycleSnapshotError { get; init; }
 
     /// <summary>Vrai une fois que les artefacts principaux du pipeline sont disponibles pour ce bar.</summary>
     public bool HasPipelineOutput =>

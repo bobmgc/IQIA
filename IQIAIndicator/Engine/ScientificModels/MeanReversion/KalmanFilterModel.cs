@@ -7,6 +7,23 @@ using IQIAIndicator.Engine.ScientificModels.Abstractions;
 
 namespace IQIAIndicator.Engine.ScientificModels.MeanReversion;
 
+/// <summary>
+/// Sprint 15.22 (QDE-012 InnovationStd correction): before this sprint, <see cref="Evaluate"/> fed
+/// EVERY observation in <c>context.MarketContext.History</c> (cumulative since the start of the
+/// series) into <see cref="EstimateMeasurementNoise"/>/<see cref="EstimateInitialVariance"/> and the
+/// Kalman recursion. On a stationary process (bounded around a fixed level - every synthetic
+/// QDE-012 golden dataset except RandomWalk) the resulting <c>InnovationStd</c> stays roughly flat
+/// regardless of history length, but on a NON-stationary process (a real ES price level, or a
+/// synthetic RandomWalk) it grows with the amount of history supplied - proven on the real Sprint
+/// 15.19 ES/M5 capture (3.79 -&gt; 40.65 as history grew from 61 to 4279 bars, Spearman(index,
+/// InnovationStd)=0.971 - QDE-012_Sprint_15.21 report) and reproduced byte-for-byte in character on a
+/// synthetic RandomWalk of the same length (5.02 -&gt; 42.84), while WhiteNoise/MeanRevertingOu/
+/// AR1(0.95) stayed flat. <see cref="ObservationWindowSize"/> bounds the observation window this
+/// class uses internally to the most recent observations only, restoring independence from total
+/// session length - see QDE-012_Sprint_15.21/15.22 reports for the full evidence trail. Nothing
+/// outside this class changes: <c>context.MarketContext.History</c> itself, and every other consumer
+/// of it, are untouched.
+/// </summary>
 public sealed class KalmanFilterModel : IScientificModel
 {
     public string Name => "KalmanFilterModel";
@@ -16,6 +33,22 @@ public sealed class KalmanFilterModel : IScientificModel
     private const double MinimumVariance = 1e-6;
     private const double MinimumNoise = 1e-6;
     private const double InnovationScale = 3.0;
+
+    /// <summary>Sprint 15.22: bounds how many of the most recent observations feed noise estimation
+    /// and the Kalman recursion - see class doc comment. Fewer observations than this available (but
+    /// still &gt;=2, the pre-existing minimum) means all of them are used, unchanged from pre-15.22
+    /// behavior for short histories (QDE-012_Sprint_15.22 report, documented warmup decision - Test 4).
+    /// Selected by an 8-candidate empirical sweep (N=10/15/20/25/30/40/60/80) on the real Sprint 15.19
+    /// ES/M5 capture plus synthetic RandomWalk at 3 protocol seeds (42/43/44) and 3 stationary families
+    /// (WhiteNoise/MeanRevertingOu/AR1(0.95)) - see QDE-012_Sprint_15.22 report §5-11 for the full
+    /// multi-criteria table. N=20 and N=25 were the two strongest, closely-matched candidates (N=25
+    /// marginally ahead on regime/HalfLife correlation and AR1(0.95) sub-period stability; N=20
+    /// marginally ahead on market/Range correlation); N=20 is kept as the tie-break because it already
+    /// matches an existing, independent convention elsewhere in this same codebase's local-window
+    /// models (VolatilityModel.CurrentVolatilityWindow=20; HalfLifeEvidence/VarianceRatioEvidence/
+    /// CusumEvidence's MinimumSampleSize=20) - not derived from QDE-012's Horizon=40 by coincidence of
+    /// naming, and not chosen from correlation-with-Range alone (Sprint 15.22 report §14 rule).</summary>
+    private const int ObservationWindowSize = 20;
 
     public ScientificModelResult Evaluate(ScientificModelContext context)
     {
@@ -42,9 +75,17 @@ public sealed class KalmanFilterModel : IScientificModel
                 "KalmanFilterModel requires at least two historical observations to estimate an equilibrium.");
         }
 
-        // Use the last element of the provided history as the current observation.
-        double currentPrice = (double)history[history.Count - 1];
-        double[] observations = history.Select(x => (double)x).ToArray();
+        // Sprint 15.22: bound the observation window to the most recent ObservationWindowSize
+        // observations (or all of them if fewer are available - "warmup" behavior, unchanged from
+        // pre-15.22 for short histories). MarketContext.History itself is never touched - this slice
+        // is local to this method only. See class doc comment for why.
+        int windowStart = Math.Max(0, history.Count - ObservationWindowSize);
+        IReadOnlyList<decimal> windowedHistory = windowStart == 0 ? history : history.Skip(windowStart).ToList();
+
+        // Use the last element of the windowed history as the current observation (always the same
+        // value as history[history.Count-1] - the window always ends at the most recent bar).
+        double currentPrice = (double)windowedHistory[windowedHistory.Count - 1];
+        double[] observations = windowedHistory.Select(x => (double)x).ToArray();
         if (observations.Any(double.IsNaN) || observations.Any(double.IsInfinity) || double.IsNaN(currentPrice) || double.IsInfinity(currentPrice))
         {
             return new ScientificModelResult(
@@ -111,7 +152,12 @@ public sealed class KalmanFilterModel : IScientificModel
             ["KalmanGain"] = lastKalmanGain,
             ["FilterCovariance"] = stateCovariance,
             ["MeasurementNoise"] = measurementNoise,
-            ["ProcessNoise"] = processNoise
+            ["ProcessNoise"] = processNoise,
+            // Sprint 15.22: diagnostic-only, additive metric - how many observations actually fed
+            // this estimate (<= ObservationWindowSize; equals history.Count during warmup). Exists so
+            // the window boundary is independently observable/testable, not just implied - see
+            // KalmanFilterModelWindowTests.cs Test 3.
+            ["ObservationsUsed"] = (double)observations.Length
         };
 
         return new ScientificModelResult(

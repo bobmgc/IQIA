@@ -1,0 +1,18 @@
+QualityDimension,Status,Reason
+Instrument,NOT_APPLICABLE,No real dataset exists to identify an instrument for.
+ExchangeMarket,NOT_APPLICABLE,No real dataset exists.
+Provider,NOT_APPLICABLE,No provider integration or exported real dataset exists in this repository - see real_market_data_inventory.csv.
+PeriodCovered,NOT_APPLICABLE,No real dataset exists.
+Timeframe,NOT_APPLICABLE,No real dataset exists.
+BarCount,NOT_APPLICABLE,No real dataset exists.
+Timezone,NOT_APPLICABLE,"No real dataset exists. Separately noted: the harness itself has no timezone-normalization layer today - BarMetricsComputer stamps DateTime.UtcNow as a placeholder timestamp because synthetic series carry no real timestamps at all. This would need to be built once real bar timestamps become available; it is a gap to close in a future sprint, not something this audit can assess against real data today."
+PriceUsed,NOT_APPLICABLE,No real dataset exists.
+Gaps,NOT_APPLICABLE,No real dataset exists.
+Duplicates,NOT_APPLICABLE,No real dataset exists.
+NullValues,NOT_APPLICABLE,No real dataset exists.
+NonMonotonicTimestamps,NOT_APPLICABLE,No real dataset exists.
+Outliers,NOT_APPLICABLE,No real dataset exists.
+ContractRollEvents,NOT_APPLICABLE,No real dataset exists.
+Sessions,NOT_APPLICABLE,No real dataset exists.
+OvernightPeriods,NOT_APPLICABLE,No real dataset exists.
+OverallQuality,BLOCKED,"Data-quality audit cannot be performed because no real market dataset exists anywhere in the repository or in any location accessible to this audit. See real_market_data_inventory.csv for the exhaustive search performed and QDE-012_Sprint_15.16_Real_Market_Validation_Report.md for the required data format to unblock a future sprint."

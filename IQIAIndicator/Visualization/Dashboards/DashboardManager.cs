@@ -76,7 +76,8 @@ internal sealed class DashboardManager
                 ScientificCollectionMonitorWidget.Draw(
                     renderContext,
                     context.DatasetCollector,
-                    context.DatasetSession,
+                    context.LastExportResult,
+                    context.EnableScientificDataset,
                     context.BarIndex,
                     DashboardLayout.OriginX,
                     barY,

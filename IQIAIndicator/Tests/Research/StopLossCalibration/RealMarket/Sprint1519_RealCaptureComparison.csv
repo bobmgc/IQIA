@@ -1,0 +1,13 @@
+Metric,Before_MeasuredFromRealSession165421,After_Sprint1519,Basis
+TotalCallbacks(BarsReceived),3059,NOT_COMPUTABLE_REQUIRES_NEW_CAPTURE,"165421_metadata.json (real, unchanged). AFTER cannot be computed: needs a fresh ATAS session run with the Sprint 15.19 collector."
+FinalizedBars(BarsWritten),1732,NOT_COMPUTABLE_REQUIRES_NEW_CAPTURE,"same - the pre-15.19 export never persisted rejected duplicates' raw OHLCV, so there is no per-callback data left to replay through the new rule for this real session."
+ZeroRangeSingleTickTailBars,633,NOT_COMPUTABLE_REQUIRES_NEW_CAPTURE,"same limitation - expected to shrink toward 0 on a fresh capture (see Synthetic Replay rows below for the proven mechanism), but the actual number can only come from re-running ATAS."
+ZeroRangeTailMedianVolume,1,NOT_COMPUTABLE_REQUIRES_NEW_CAPTURE,same limitation
+
+-- Synthetic replay (Session 165335 pattern reproduction - NOT a new real capture; see class doc comment) --
+Metric,Before_LegacyFirstAddWinsSimulation,After_Sprint1519RealCollector,Basis
+TotalCallbacks,71,71,"synthetic sequence modeled on Session 165335's documented pattern (71 callbacks, 1 bar, ~43s span)"
+FinalizedRecordsForThisBar,1,1,"both correctly commit exactly 1 record for the 1 bar - the difference is WHICH snapshot"
+CommittedClose,7815.05,7818.55,"legacy = 1st callback's Close; new = 71st (final) callback's Close"
+CommittedVolume,1,71,"legacy = 1 (single tick, matches the real session's signature); new = 71 (full accumulated volume)"
+MatchesRealSession165335Signature,YES,N/A,"legacy result reproduces the documented real Volume=1/first-tick signature exactly"
