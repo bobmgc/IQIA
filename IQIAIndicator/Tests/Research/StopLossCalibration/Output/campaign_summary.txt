@@ -1,6 +1,6 @@
 SPRINT 15.10 CAMPAIGN SUMMARY
 TotalEntriesAnalyzed=112662
-Elapsed=00:04:50.5986838
+Elapsed=00:03:53.0571984
 
 === Entry counts per (dataset, split), scale=1 ===
 WhiteNoise             TRAIN       entries=569
@@ -39,42 +39,42 @@ VarianceBreak          TEST        entries=569
 
 === Stable windows for A1 (TRAIN + VALIDATION, scale=1) ===
 Gated on ReversionRate CV<=10% only (protocol-defined metric, QDE-012 §17). falseInvalidRate shown below is DESCRIPTIVE ONLY - it never affects whether a window qualifies as stable.
-WhiteNoise             TRAIN       [k=0,25-10,00, revRate=97,6 % (CV=6,0 %), falseInvalidRate(descriptive)=2,2 %]
-WhiteNoise             VALIDATION  [k=0,25-10,00, revRate=97,6 % (CV=6,1 %), falseInvalidRate(descriptive)=2,4 %]
-RandomWalk             TRAIN       [k=0,50-10,00, revRate=85,0 % (CV=4,6 %), falseInvalidRate(descriptive)=1,3 %]
-RandomWalk             VALIDATION  [k=0,25-10,00, revRate=80,0 % (CV=4,6 %), falseInvalidRate(descriptive)=1,5 %]
-AR1_phi0.5             TRAIN       [k=0,50-10,00, revRate=96,8 % (CV=6,7 %), falseInvalidRate(descriptive)=2,5 %]
-AR1_phi0.5             VALIDATION  [k=0,50-10,00, revRate=96,0 % (CV=7,3 %), falseInvalidRate(descriptive)=2,9 %]
-AR1_phi0.95            TRAIN       [k=0,75-10,00, revRate=89,8 % (CV=5,2 %), falseInvalidRate(descriptive)=1,9 %]
-AR1_phi0.95            VALIDATION  [k=0,50-10,00, revRate=86,9 % (CV=5,6 %), falseInvalidRate(descriptive)=1,9 %]
-MeanRevertingOu_k0.5   TRAIN       [k=0,50-10,00, revRate=96,8 % (CV=6,7 %), falseInvalidRate(descriptive)=2,5 %]
-MeanRevertingOu_k0.5   VALIDATION  [k=0,50-10,00, revRate=96,0 % (CV=7,3 %), falseInvalidRate(descriptive)=2,9 %]
-MeanRevertingOu_k0.05  TRAIN       [k=0,75-10,00, revRate=89,8 % (CV=5,2 %), falseInvalidRate(descriptive)=1,9 %]
-MeanRevertingOu_k0.05  VALIDATION  [k=0,50-10,00, revRate=86,9 % (CV=5,6 %), falseInvalidRate(descriptive)=1,9 %]
+WhiteNoise             TRAIN       [k=0,25-10,00, revRate=97,3 % (CV=6,2 %), falseInvalidRate(descriptive)=2,5 %]
+WhiteNoise             VALIDATION  [k=0,25-10,00, revRate=97,5 % (CV=6,0 %), falseInvalidRate(descriptive)=2,5 %]
+RandomWalk             TRAIN       [k=0,75-10,00, revRate=82,4 % (CV=9,1 %), falseInvalidRate(descriptive)=4,6 %]
+RandomWalk             VALIDATION  [k=0,25-10,00, revRate=76,5 % (CV=9,0 %), falseInvalidRate(descriptive)=5,8 %]
+AR1_phi0.5             TRAIN       [k=0,50-10,00, revRate=95,9 % (CV=7,6 %), falseInvalidRate(descriptive)=3,4 %]
+AR1_phi0.5             VALIDATION  [k=0,50-10,00, revRate=95,7 % (CV=7,5 %), falseInvalidRate(descriptive)=3,3 %]
+AR1_phi0.95            TRAIN       [k=0,75-10,00, revRate=85,9 % (CV=10,6 %), falseInvalidRate(descriptive)=6,0 %]
+AR1_phi0.95            VALIDATION  [k=0,50-10,00, revRate=83,7 % (CV=9,6 %), falseInvalidRate(descriptive)=5,5 %]
+MeanRevertingOu_k0.5   TRAIN       [k=0,50-10,00, revRate=95,9 % (CV=7,6 %), falseInvalidRate(descriptive)=3,4 %]
+MeanRevertingOu_k0.5   VALIDATION  [k=0,50-10,00, revRate=95,7 % (CV=7,5 %), falseInvalidRate(descriptive)=3,3 %]
+MeanRevertingOu_k0.05  TRAIN       [k=0,75-10,00, revRate=85,9 % (CV=10,6 %), falseInvalidRate(descriptive)=6,0 %]
+MeanRevertingOu_k0.05  VALIDATION  [k=0,50-10,00, revRate=83,7 % (CV=9,6 %), falseInvalidRate(descriptive)=5,5 %]
 Trending               TRAIN       [k=0,25-10,00, revRate=0,0 % (CV=0,0 %), falseInvalidRate(descriptive)=NaN]
 Trending               VALIDATION  [k=0,25-10,00, revRate=0,0 % (CV=0,0 %), falseInvalidRate(descriptive)=NaN]
-LowVolatility          TRAIN       [k=0,25-10,00, revRate=97,6 % (CV=6,0 %), falseInvalidRate(descriptive)=2,2 %]
-LowVolatility          VALIDATION  [k=0,25-10,00, revRate=97,6 % (CV=6,1 %), falseInvalidRate(descriptive)=2,4 %]
-HighVolatility         TRAIN       [k=0,25-10,00, revRate=97,6 % (CV=6,0 %), falseInvalidRate(descriptive)=2,2 %]
-HighVolatility         VALIDATION  [k=0,25-10,00, revRate=97,6 % (CV=6,1 %), falseInvalidRate(descriptive)=2,4 %]
-StructuralBreak        TRAIN       [k=0,25-10,00, revRate=97,9 % (CV=4,7 %), falseInvalidRate(descriptive)=1,5 %]
-StructuralBreak        VALIDATION  [k=0,25-10,00, revRate=97,9 % (CV=4,4 %), falseInvalidRate(descriptive)=1,6 %]
-VarianceBreak          TRAIN       [k=0,25-10,00, revRate=96,4 % (CV=6,8 %), falseInvalidRate(descriptive)=3,4 %]
-VarianceBreak          VALIDATION  [k=0,25-10,00, revRate=96,6 % (CV=6,9 %), falseInvalidRate(descriptive)=3,4 %]
+LowVolatility          TRAIN       [k=0,25-10,00, revRate=97,3 % (CV=6,2 %), falseInvalidRate(descriptive)=2,5 %]
+LowVolatility          VALIDATION  [k=0,25-10,00, revRate=97,5 % (CV=6,0 %), falseInvalidRate(descriptive)=2,5 %]
+HighVolatility         TRAIN       [k=0,25-10,00, revRate=97,3 % (CV=6,2 %), falseInvalidRate(descriptive)=2,5 %]
+HighVolatility         VALIDATION  [k=0,25-10,00, revRate=97,5 % (CV=6,0 %), falseInvalidRate(descriptive)=2,5 %]
+StructuralBreak        TRAIN       [k=0,25-10,00, revRate=97,0 % (CV=6,3 %), falseInvalidRate(descriptive)=2,5 %]
+StructuralBreak        VALIDATION  [k=0,25-10,00, revRate=97,0 % (CV=5,9 %), falseInvalidRate(descriptive)=2,4 %]
+VarianceBreak          TRAIN       [k=0,25-10,00, revRate=97,2 % (CV=6,2 %), falseInvalidRate(descriptive)=2,6 %]
+VarianceBreak          VALIDATION  [k=0,25-10,00, revRate=97,4 % (CV=6,0 %), falseInvalidRate(descriptive)=2,6 %]
 
 === Stable windows for A2 (TRAIN + VALIDATION, scale=1) ===
 Gated on ReversionRate CV<=10% only (protocol-defined metric, QDE-012 §17). falseInvalidRate shown below is DESCRIPTIVE ONLY - it never affects whether a window qualifies as stable.
 WhiteNoise             TRAIN       [k=0,25-10,00, revRate=97,9 % (CV=5,3 %), falseInvalidRate(descriptive)=1,9 %]
 WhiteNoise             VALIDATION  [k=0,25-10,00, revRate=98,1 % (CV=5,2 %), falseInvalidRate(descriptive)=1,9 %]
-RandomWalk             TRAIN       [k=0,50-10,00, revRate=75,7 % (CV=15,8 %), falseInvalidRate(descriptive)=12,1 %]
-RandomWalk             VALIDATION  [k=0,25-10,00, revRate=74,1 % (CV=11,7 %), falseInvalidRate(descriptive)=8,7 %]
+RandomWalk             TRAIN       [k=0,50-10,00, revRate=76,1 % (CV=15,8 %), falseInvalidRate(descriptive)=12,0 %]
+RandomWalk             VALIDATION  [k=0,25-10,00, revRate=74,2 % (CV=11,6 %), falseInvalidRate(descriptive)=8,7 %]
 AR1_phi0.5             TRAIN       [k=0,50-10,00, revRate=95,7 % (CV=8,0 %), falseInvalidRate(descriptive)=3,6 %]
-AR1_phi0.5             VALIDATION  [k=0,50-10,00, revRate=95,6 % (CV=7,7 %), falseInvalidRate(descriptive)=3,4 %]
-AR1_phi0.95            TRAIN       [k=0,75-10,00, revRate=80,0 % (CV=15,5 %), falseInvalidRate(descriptive)=12,6 %]
+AR1_phi0.5             VALIDATION  [k=0,50-10,00, revRate=95,6 % (CV=7,6 %), falseInvalidRate(descriptive)=3,3 %]
+AR1_phi0.95            TRAIN       [k=0,75-10,00, revRate=79,8 % (CV=15,5 %), falseInvalidRate(descriptive)=12,7 %]
 AR1_phi0.95            VALIDATION  [k=0,25-10,00, revRate=80,1 % (CV=14,4 %), falseInvalidRate(descriptive)=9,6 %]
 MeanRevertingOu_k0.5   TRAIN       [k=0,50-10,00, revRate=95,7 % (CV=8,0 %), falseInvalidRate(descriptive)=3,6 %]
-MeanRevertingOu_k0.5   VALIDATION  [k=0,50-10,00, revRate=95,6 % (CV=7,7 %), falseInvalidRate(descriptive)=3,4 %]
-MeanRevertingOu_k0.05  TRAIN       [k=0,75-10,00, revRate=80,0 % (CV=15,5 %), falseInvalidRate(descriptive)=12,6 %]
+MeanRevertingOu_k0.5   VALIDATION  [k=0,50-10,00, revRate=95,6 % (CV=7,6 %), falseInvalidRate(descriptive)=3,3 %]
+MeanRevertingOu_k0.05  TRAIN       [k=0,75-10,00, revRate=79,8 % (CV=15,5 %), falseInvalidRate(descriptive)=12,7 %]
 MeanRevertingOu_k0.05  VALIDATION  [k=0,25-10,00, revRate=80,1 % (CV=14,4 %), falseInvalidRate(descriptive)=9,6 %]
 Trending               TRAIN       [k=0,25-10,00, revRate=0,0 % (CV=0,0 %), falseInvalidRate(descriptive)=NaN]
 Trending               VALIDATION  [k=0,25-10,00, revRate=0,0 % (CV=0,0 %), falseInvalidRate(descriptive)=NaN]
@@ -89,175 +89,175 @@ VarianceBreak          VALIDATION  [k=0,25-10,00, revRate=98,1 % (CV=5,2 %), fal
 
 === Stable windows for D1 (TRAIN + VALIDATION, scale=1) ===
 Gated on ReversionRate CV<=10% only (protocol-defined metric, QDE-012 §17). falseInvalidRate shown below is DESCRIPTIVE ONLY - it never affects whether a window qualifies as stable.
-WhiteNoise             TRAIN       [k=0,75-10,00, revRate=97,7 % (CV=5,9 %), falseInvalidRate(descriptive)=2,1 %]
-WhiteNoise             VALIDATION  [k=0,75-10,00, revRate=97,5 % (CV=6,7 %), falseInvalidRate(descriptive)=2,5 %]
-RandomWalk             TRAIN       [k=0,75-10,00, revRate=85,0 % (CV=4,4 %), falseInvalidRate(descriptive)=1,3 %]
-RandomWalk             VALIDATION  [k=0,25-10,00, revRate=79,5 % (CV=5,6 %), falseInvalidRate(descriptive)=2,1 %]
-AR1_phi0.5             TRAIN       [k=1,00-10,00, revRate=96,9 % (CV=6,6 %), falseInvalidRate(descriptive)=2,4 %]
-AR1_phi0.5             VALIDATION  [k=1,00-10,00, revRate=96,0 % (CV=7,3 %), falseInvalidRate(descriptive)=3,0 %]
-AR1_phi0.95            TRAIN       [k=1,00-10,00, revRate=89,6 % (CV=6,0 %), falseInvalidRate(descriptive)=2,1 %]
-AR1_phi0.95            VALIDATION  [k=0,75-10,00, revRate=86,6 % (CV=5,9 %), falseInvalidRate(descriptive)=2,2 %]
-MeanRevertingOu_k0.5   TRAIN       [k=1,00-10,00, revRate=96,9 % (CV=6,6 %), falseInvalidRate(descriptive)=2,4 %]
-MeanRevertingOu_k0.5   VALIDATION  [k=1,00-10,00, revRate=96,0 % (CV=7,3 %), falseInvalidRate(descriptive)=3,0 %]
-MeanRevertingOu_k0.05  TRAIN       [k=1,00-10,00, revRate=89,6 % (CV=6,0 %), falseInvalidRate(descriptive)=2,1 %]
-MeanRevertingOu_k0.05  VALIDATION  [k=0,75-10,00, revRate=86,6 % (CV=5,9 %), falseInvalidRate(descriptive)=2,2 %]
-Trending               TRAIN       [k=0,25-10,00, revRate=0,0 % (CV=0,0 %), falseInvalidRate(descriptive)=NaN]
-Trending               VALIDATION  [k=0,25-10,00, revRate=0,0 % (CV=0,0 %), falseInvalidRate(descriptive)=NaN]
-LowVolatility          TRAIN       [k=0,75-10,00, revRate=97,7 % (CV=5,9 %), falseInvalidRate(descriptive)=2,1 %]
-LowVolatility          VALIDATION  [k=0,75-10,00, revRate=97,5 % (CV=6,7 %), falseInvalidRate(descriptive)=2,5 %]
-HighVolatility         TRAIN       [k=0,75-10,00, revRate=97,7 % (CV=5,9 %), falseInvalidRate(descriptive)=2,1 %]
-HighVolatility         VALIDATION  [k=0,75-10,00, revRate=97,5 % (CV=6,7 %), falseInvalidRate(descriptive)=2,5 %]
-StructuralBreak        TRAIN       [k=0,50-10,00, revRate=97,8 % (CV=4,4 %), falseInvalidRate(descriptive)=1,7 %]
-StructuralBreak        VALIDATION  [k=0,50-10,00, revRate=97,8 % (CV=4,8 %), falseInvalidRate(descriptive)=1,8 %]
-VarianceBreak          TRAIN       [k=0,75-10,00, revRate=96,0 % (CV=7,7 %), falseInvalidRate(descriptive)=3,8 %]
-VarianceBreak          VALIDATION  [k=0,50-10,00, revRate=95,1 % (CV=9,6 %), falseInvalidRate(descriptive)=4,9 %]
+WhiteNoise             TRAIN       [k=0,75-10,00, revRate=97,2 % (CV=6,5 %), falseInvalidRate(descriptive)=2,6 %]
+WhiteNoise             VALIDATION  [k=0,75-10,00, revRate=97,4 % (CV=6,5 %), falseInvalidRate(descriptive)=2,6 %]
+RandomWalk             TRAIN       [k=0,25-10,00, revRate=79,1 % (CV=14,3 %), falseInvalidRate(descriptive)=8,7 %]
+RandomWalk             VALIDATION  [k=0,25-10,00, revRate=75,5 % (CV=9,0 %), falseInvalidRate(descriptive)=7,4 %]
+AR1_phi0.5             TRAIN       [k=0,75-10,00, revRate=94,8 % (CV=9,6 %), falseInvalidRate(descriptive)=4,5 %]
+AR1_phi0.5             VALIDATION  [k=1,25-10,00, revRate=96,3 % (CV=6,2 %), falseInvalidRate(descriptive)=2,7 %]
+AR1_phi0.95            TRAIN       [k=0,25-10,00, revRate=81,7 % (CV=16,9 %), falseInvalidRate(descriptive)=10,7 %]
+AR1_phi0.95            VALIDATION  [k=0,25-10,00, revRate=81,0 % (CV=13,7 %), falseInvalidRate(descriptive)=8,6 %]
+MeanRevertingOu_k0.5   TRAIN       [k=0,75-10,00, revRate=94,8 % (CV=9,6 %), falseInvalidRate(descriptive)=4,5 %]
+MeanRevertingOu_k0.5   VALIDATION  [k=1,25-10,00, revRate=96,3 % (CV=6,2 %), falseInvalidRate(descriptive)=2,7 %]
+MeanRevertingOu_k0.05  TRAIN       [k=0,25-10,00, revRate=81,7 % (CV=16,9 %), falseInvalidRate(descriptive)=10,7 %]
+MeanRevertingOu_k0.05  VALIDATION  [k=0,25-10,00, revRate=81,0 % (CV=13,7 %), falseInvalidRate(descriptive)=8,6 %]
+Trending               TRAIN       [k=0,50-10,00, revRate=0,0 % (CV=0,0 %), falseInvalidRate(descriptive)=NaN]
+Trending               VALIDATION  [k=0,50-10,00, revRate=0,0 % (CV=0,0 %), falseInvalidRate(descriptive)=NaN]
+LowVolatility          TRAIN       [k=0,75-10,00, revRate=97,2 % (CV=6,5 %), falseInvalidRate(descriptive)=2,6 %]
+LowVolatility          VALIDATION  [k=0,75-10,00, revRate=97,4 % (CV=6,5 %), falseInvalidRate(descriptive)=2,6 %]
+HighVolatility         TRAIN       [k=0,75-10,00, revRate=97,2 % (CV=6,5 %), falseInvalidRate(descriptive)=2,6 %]
+HighVolatility         VALIDATION  [k=0,75-10,00, revRate=97,4 % (CV=6,5 %), falseInvalidRate(descriptive)=2,6 %]
+StructuralBreak        TRAIN       [k=0,75-10,00, revRate=96,9 % (CV=6,4 %), falseInvalidRate(descriptive)=2,6 %]
+StructuralBreak        VALIDATION  [k=0,50-10,00, revRate=96,2 % (CV=8,1 %), falseInvalidRate(descriptive)=3,3 %]
+VarianceBreak          TRAIN       [k=0,75-10,00, revRate=97,2 % (CV=6,5 %), falseInvalidRate(descriptive)=2,7 %]
+VarianceBreak          VALIDATION  [k=0,75-10,00, revRate=97,3 % (CV=6,5 %), falseInvalidRate(descriptive)=2,7 %]
 
 === Scale invariance check for A1 at k=2,00 (TRAIN) ===
-WhiteNoise             scale=0.01     applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,022906
-WhiteNoise             scale=0.1      applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,22906
-WhiteNoise             scale=1        applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2,290602
-WhiteNoise             scale=10       applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=22,906016
-WhiteNoise             scale=100      applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=229,060163
-WhiteNoise             scale=1000     applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2290,601633
-RandomWalk             scale=0.01     applicable=569   revRate=85.9 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,089209
-RandomWalk             scale=0.1      applicable=569   revRate=85.9 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,89209
-RandomWalk             scale=1        applicable=569   revRate=85.9 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=8,920898
-RandomWalk             scale=10       applicable=569   revRate=85.9 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=89,208982
-RandomWalk             scale=100      applicable=569   revRate=85.9 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=892,089819
-RandomWalk             scale=1000     applicable=569   revRate=85.9 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=8920,898191
-AR1_phi0.5             scale=0.01     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,02719
-AR1_phi0.5             scale=0.1      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,271903
-AR1_phi0.5             scale=1        applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2,719033
-AR1_phi0.5             scale=10       applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=27,190332
-AR1_phi0.5             scale=100      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=271,903321
-AR1_phi0.5             scale=1000     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2719,033212
-AR1_phi0.95            scale=0.01     applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,063097
-AR1_phi0.95            scale=0.1      applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,63097
-AR1_phi0.95            scale=1        applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=6,309696
-AR1_phi0.95            scale=10       applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=63,096963
-AR1_phi0.95            scale=100      applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=630,969633
-AR1_phi0.95            scale=1000     applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=6309,696328
-MeanRevertingOu_k0.5   scale=0.01     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,02719
-MeanRevertingOu_k0.5   scale=0.1      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,271903
-MeanRevertingOu_k0.5   scale=1        applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2,719033
-MeanRevertingOu_k0.5   scale=10       applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=27,190332
-MeanRevertingOu_k0.5   scale=100      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=271,903321
-MeanRevertingOu_k0.5   scale=1000     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2719,033212
-MeanRevertingOu_k0.05  scale=0.01     applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,063097
-MeanRevertingOu_k0.05  scale=0.1      applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,63097
-MeanRevertingOu_k0.05  scale=1        applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=6,309696
-MeanRevertingOu_k0.05  scale=10       applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=63,096963
-MeanRevertingOu_k0.05  scale=100      applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=630,969633
-MeanRevertingOu_k0.05  scale=1000     applicable=569   revRate=89.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=6309,696328
-Trending               scale=0.01     applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=38,433707
-Trending               scale=0.1      applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=384,337068
-Trending               scale=1        applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3843,370683
-Trending               scale=10       applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=38433,706833
-Trending               scale=100      applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=384337,06833
-Trending               scale=1000     applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3843370,683296
+WhiteNoise             scale=0.01     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,021567
+WhiteNoise             scale=0.1      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,215671
+WhiteNoise             scale=1        applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2,156706
+WhiteNoise             scale=10       applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=21,567064
+WhiteNoise             scale=100      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=215,670636
+WhiteNoise             scale=1000     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2156,706357
+RandomWalk             scale=0.01     applicable=569   revRate=75.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,038644
+RandomWalk             scale=0.1      applicable=569   revRate=75.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,38644
+RandomWalk             scale=1        applicable=569   revRate=75.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3,864403
+RandomWalk             scale=10       applicable=569   revRate=75.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=38,64403
+RandomWalk             scale=100      applicable=569   revRate=75.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=386,440302
+RandomWalk             scale=1000     applicable=569   revRate=75.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3864,403019
+AR1_phi0.5             scale=0.01     applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,023916
+AR1_phi0.5             scale=0.1      applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,239155
+AR1_phi0.5             scale=1        applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2,391551
+AR1_phi0.5             scale=10       applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=23,915511
+AR1_phi0.5             scale=100      applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=239,155113
+AR1_phi0.5             scale=1000     applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2391,551126
+AR1_phi0.95            scale=0.01     applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,037138
+AR1_phi0.95            scale=0.1      applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,371377
+AR1_phi0.95            scale=1        applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3,713771
+AR1_phi0.95            scale=10       applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=37,137705
+AR1_phi0.95            scale=100      applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=371,377052
+AR1_phi0.95            scale=1000     applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3713,770521
+MeanRevertingOu_k0.5   scale=0.01     applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,023916
+MeanRevertingOu_k0.5   scale=0.1      applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,239155
+MeanRevertingOu_k0.5   scale=1        applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2,391551
+MeanRevertingOu_k0.5   scale=10       applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=23,915511
+MeanRevertingOu_k0.5   scale=100      applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=239,155113
+MeanRevertingOu_k0.5   scale=1000     applicable=569   revRate=93.5 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2391,551126
+MeanRevertingOu_k0.05  scale=0.01     applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,037138
+MeanRevertingOu_k0.05  scale=0.1      applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,371377
+MeanRevertingOu_k0.05  scale=1        applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3,713771
+MeanRevertingOu_k0.05  scale=10       applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=37,137705
+MeanRevertingOu_k0.05  scale=100      applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=371,377052
+MeanRevertingOu_k0.05  scale=1000     applicable=569   revRate=76.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3713,770521
+Trending               scale=0.01     applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=8,240392
+Trending               scale=0.1      applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=82,403916
+Trending               scale=1        applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=824,03916
+Trending               scale=10       applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=8240,391602
+Trending               scale=100      applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=82403,916022
+Trending               scale=1000     applicable=569   revRate=0.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=824039,160217
 LowVolatility          scale=0.01     applicable=569   revRate=100.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,002828
-LowVolatility          scale=0.1      applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,002859
-LowVolatility          scale=1        applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,022906
-LowVolatility          scale=10       applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,22906
-LowVolatility          scale=100      applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2,290602
-LowVolatility          scale=1000     applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=22,906016
-HighVolatility         scale=0.01     applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,11453
-HighVolatility         scale=0.1      applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=1,145301
-HighVolatility         scale=1        applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=11,453008
-HighVolatility         scale=10       applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=114,530082
-HighVolatility         scale=100      applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=1145,300817
-HighVolatility         scale=1000     applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=11453,008166
-StructuralBreak        scale=0.01     applicable=569   revRate=98.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,039272
-StructuralBreak        scale=0.1      applicable=569   revRate=98.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,392724
-StructuralBreak        scale=1        applicable=569   revRate=98.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3,927243
-StructuralBreak        scale=10       applicable=569   revRate=98.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=39,272432
-StructuralBreak        scale=100      applicable=569   revRate=98.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=392,724322
-StructuralBreak        scale=1000     applicable=569   revRate=98.4 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3927,243223
-VarianceBreak          scale=0.01     applicable=569   revRate=93.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,031913
-VarianceBreak          scale=0.1      applicable=569   revRate=93.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,319132
-VarianceBreak          scale=1        applicable=569   revRate=93.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3,191322
-VarianceBreak          scale=10       applicable=569   revRate=93.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=31,913219
-VarianceBreak          scale=100      applicable=569   revRate=93.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=319,132192
-VarianceBreak          scale=1000     applicable=569   revRate=93.1 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=3191,321921
+LowVolatility          scale=0.1      applicable=569   revRate=98.6 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,002894
+LowVolatility          scale=1        applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,021567
+LowVolatility          scale=10       applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,215671
+LowVolatility          scale=100      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2,156706
+LowVolatility          scale=1000     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=21,567064
+HighVolatility         scale=0.01     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,107835
+HighVolatility         scale=0.1      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=1,078353
+HighVolatility         scale=1        applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=10,783532
+HighVolatility         scale=10       applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=107,835318
+HighVolatility         scale=100      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=1078,353178
+HighVolatility         scale=1000     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=10783,531783
+StructuralBreak        scale=0.01     applicable=569   revRate=96.8 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,022654
+StructuralBreak        scale=0.1      applicable=569   revRate=96.8 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,226543
+StructuralBreak        scale=1        applicable=569   revRate=96.8 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2,265428
+StructuralBreak        scale=10       applicable=569   revRate=96.8 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=22,654279
+StructuralBreak        scale=100      applicable=569   revRate=96.8 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=226,542791
+StructuralBreak        scale=1000     applicable=569   revRate=96.8 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=2265,427914
+VarianceBreak          scale=0.01     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,042866
+VarianceBreak          scale=0.1      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=0,428663
+VarianceBreak          scale=1        applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=4,286627
+VarianceBreak          scale=10       applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=42,866267
+VarianceBreak          scale=100      applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=428,662671
+VarianceBreak          scale=1000     applicable=569   revRate=97.0 % meanStopRatio=2,0000 (expect ~2,00 if invariant) meanStopDistance=4286,626706
 
 === Scale invariance check for D1 at k=5,00 (TRAIN) ===
-WhiteNoise             scale=0.01     applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=0,051156
-WhiteNoise             scale=0.1      applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=0,511564
-WhiteNoise             scale=1        applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=5,115638
-WhiteNoise             scale=10       applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=51,156377
-WhiteNoise             scale=100      applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=511,56377
-WhiteNoise             scale=1000     applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=5115,637702
-RandomWalk             scale=0.01     applicable=569   revRate=86.1 % meanStopRatio=4,8003 (expect ~5,00 if invariant) meanStopDistance=0,214324
-RandomWalk             scale=0.1      applicable=569   revRate=86.1 % meanStopRatio=4,8003 (expect ~5,00 if invariant) meanStopDistance=2,143235
-RandomWalk             scale=1        applicable=569   revRate=86.1 % meanStopRatio=4,8003 (expect ~5,00 if invariant) meanStopDistance=21,432354
-RandomWalk             scale=10       applicable=569   revRate=86.1 % meanStopRatio=4,8003 (expect ~5,00 if invariant) meanStopDistance=214,323535
-RandomWalk             scale=100      applicable=569   revRate=86.1 % meanStopRatio=4,8003 (expect ~5,00 if invariant) meanStopDistance=2143,235352
-RandomWalk             scale=1000     applicable=569   revRate=86.1 % meanStopRatio=4,8003 (expect ~5,00 if invariant) meanStopDistance=21432,353521
-AR1_phi0.5             scale=0.01     applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=0,061646
-AR1_phi0.5             scale=0.1      applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=0,616463
-AR1_phi0.5             scale=1        applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=6,164626
-AR1_phi0.5             scale=10       applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=61,646265
-AR1_phi0.5             scale=100      applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=616,462648
-AR1_phi0.5             scale=1000     applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=6164,626477
-AR1_phi0.95            scale=0.01     applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=0,149241
-AR1_phi0.95            scale=0.1      applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=1,492414
-AR1_phi0.95            scale=1        applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=14,924144
-AR1_phi0.95            scale=10       applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=149,241439
-AR1_phi0.95            scale=100      applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=1492,414392
-AR1_phi0.95            scale=1000     applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=14924,14392
-MeanRevertingOu_k0.5   scale=0.01     applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=0,061646
-MeanRevertingOu_k0.5   scale=0.1      applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=0,616463
-MeanRevertingOu_k0.5   scale=1        applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=6,164626
-MeanRevertingOu_k0.5   scale=10       applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=61,646265
-MeanRevertingOu_k0.5   scale=100      applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=616,462648
-MeanRevertingOu_k0.5   scale=1000     applicable=569   revRate=99.3 % meanStopRatio=4,5352 (expect ~5,00 if invariant) meanStopDistance=6164,626477
-MeanRevertingOu_k0.05  scale=0.01     applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=0,149241
-MeanRevertingOu_k0.05  scale=0.1      applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=1,492414
-MeanRevertingOu_k0.05  scale=1        applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=14,924144
-MeanRevertingOu_k0.05  scale=10       applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=149,241439
-MeanRevertingOu_k0.05  scale=100      applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=1492,414392
-MeanRevertingOu_k0.05  scale=1000     applicable=569   revRate=91.6 % meanStopRatio=4,7305 (expect ~5,00 if invariant) meanStopDistance=14924,14392
-Trending               scale=0.01     applicable=569   revRate=0.0 % meanStopRatio=4,8940 (expect ~5,00 if invariant) meanStopDistance=94,261361
-Trending               scale=0.1      applicable=569   revRate=0.0 % meanStopRatio=4,8940 (expect ~5,00 if invariant) meanStopDistance=942,613612
-Trending               scale=1        applicable=569   revRate=0.0 % meanStopRatio=4,8940 (expect ~5,00 if invariant) meanStopDistance=9426,136117
-Trending               scale=10       applicable=569   revRate=0.0 % meanStopRatio=4,8940 (expect ~5,00 if invariant) meanStopDistance=94261,361171
-Trending               scale=100      applicable=569   revRate=0.0 % meanStopRatio=4,8940 (expect ~5,00 if invariant) meanStopDistance=942613,611708
-Trending               scale=1000     applicable=569   revRate=0.0 % meanStopRatio=4,8940 (expect ~5,00 if invariant) meanStopDistance=9426136,117075
+WhiteNoise             scale=0.01     applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=0,047809
+WhiteNoise             scale=0.1      applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=0,478086
+WhiteNoise             scale=1        applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=4,780857
+WhiteNoise             scale=10       applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=47,808566
+WhiteNoise             scale=100      applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=478,085662
+WhiteNoise             scale=1000     applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=4780,856621
+RandomWalk             scale=0.01     applicable=569   revRate=85.8 % meanStopRatio=4,5155 (expect ~5,00 if invariant) meanStopDistance=0,087908
+RandomWalk             scale=0.1      applicable=569   revRate=85.8 % meanStopRatio=4,5155 (expect ~5,00 if invariant) meanStopDistance=0,87908
+RandomWalk             scale=1        applicable=569   revRate=85.8 % meanStopRatio=4,5155 (expect ~5,00 if invariant) meanStopDistance=8,7908
+RandomWalk             scale=10       applicable=569   revRate=85.8 % meanStopRatio=4,5155 (expect ~5,00 if invariant) meanStopDistance=87,907998
+RandomWalk             scale=100      applicable=569   revRate=85.8 % meanStopRatio=4,5155 (expect ~5,00 if invariant) meanStopDistance=879,079984
+RandomWalk             scale=1000     applicable=569   revRate=85.8 % meanStopRatio=4,5155 (expect ~5,00 if invariant) meanStopDistance=8790,799841
+AR1_phi0.5             scale=0.01     applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=0,053458
+AR1_phi0.5             scale=0.1      applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=0,534579
+AR1_phi0.5             scale=1        applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=5,345786
+AR1_phi0.5             scale=10       applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=53,457857
+AR1_phi0.5             scale=100      applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=534,578567
+AR1_phi0.5             scale=1000     applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=5345,785673
+AR1_phi0.95            scale=0.01     applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=0,084339
+AR1_phi0.95            scale=0.1      applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=0,843392
+AR1_phi0.95            scale=1        applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=8,433918
+AR1_phi0.95            scale=10       applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=84,339175
+AR1_phi0.95            scale=100      applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=843,391754
+AR1_phi0.95            scale=1000     applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=8433,917544
+MeanRevertingOu_k0.5   scale=0.01     applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=0,053458
+MeanRevertingOu_k0.5   scale=0.1      applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=0,534579
+MeanRevertingOu_k0.5   scale=1        applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=5,345786
+MeanRevertingOu_k0.5   scale=10       applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=53,457857
+MeanRevertingOu_k0.5   scale=100      applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=534,578567
+MeanRevertingOu_k0.5   scale=1000     applicable=569   revRate=99.3 % meanStopRatio=4,4629 (expect ~5,00 if invariant) meanStopDistance=5345,785673
+MeanRevertingOu_k0.05  scale=0.01     applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=0,084339
+MeanRevertingOu_k0.05  scale=0.1      applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=0,843392
+MeanRevertingOu_k0.05  scale=1        applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=8,433918
+MeanRevertingOu_k0.05  scale=10       applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=84,339175
+MeanRevertingOu_k0.05  scale=100      applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=843,391754
+MeanRevertingOu_k0.05  scale=1000     applicable=569   revRate=89.5 % meanStopRatio=4,5096 (expect ~5,00 if invariant) meanStopDistance=8433,917544
+Trending               scale=0.01     applicable=569   revRate=0.0 % meanStopRatio=4,5593 (expect ~5,00 if invariant) meanStopDistance=18,784906
+Trending               scale=0.1      applicable=569   revRate=0.0 % meanStopRatio=4,5593 (expect ~5,00 if invariant) meanStopDistance=187,849062
+Trending               scale=1        applicable=569   revRate=0.0 % meanStopRatio=4,5593 (expect ~5,00 if invariant) meanStopDistance=1878,490619
+Trending               scale=10       applicable=569   revRate=0.0 % meanStopRatio=4,5593 (expect ~5,00 if invariant) meanStopDistance=18784,906188
+Trending               scale=100      applicable=569   revRate=0.0 % meanStopRatio=4,5593 (expect ~5,00 if invariant) meanStopDistance=187849,06188
+Trending               scale=1000     applicable=569   revRate=0.0 % meanStopRatio=4,5593 (expect ~5,00 if invariant) meanStopDistance=1878490,618804
 LowVolatility          scale=0.01     applicable=569   revRate=100.0 % meanStopRatio=4,9775 (expect ~5,00 if invariant) meanStopDistance=0,007039
-LowVolatility          scale=0.1      applicable=569   revRate=100.0 % meanStopRatio=4,7715 (expect ~5,00 if invariant) meanStopDistance=0,00682
-LowVolatility          scale=1        applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=0,051156
-LowVolatility          scale=10       applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=0,511564
-LowVolatility          scale=100      applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=5,115638
-LowVolatility          scale=1000     applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=51,156377
-HighVolatility         scale=0.01     applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=0,255782
-HighVolatility         scale=0.1      applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=2,557819
-HighVolatility         scale=1        applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=25,578189
-HighVolatility         scale=10       applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=255,781885
-HighVolatility         scale=100      applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=2557,818851
-HighVolatility         scale=1000     applicable=569   revRate=99.8 % meanStopRatio=4,4675 (expect ~5,00 if invariant) meanStopDistance=25578,18851
-StructuralBreak        scale=0.01     applicable=569   revRate=99.5 % meanStopRatio=4,6071 (expect ~5,00 if invariant) meanStopDistance=0,091881
-StructuralBreak        scale=0.1      applicable=569   revRate=99.5 % meanStopRatio=4,6071 (expect ~5,00 if invariant) meanStopDistance=0,918811
-StructuralBreak        scale=1        applicable=569   revRate=99.5 % meanStopRatio=4,6071 (expect ~5,00 if invariant) meanStopDistance=9,188111
-StructuralBreak        scale=10       applicable=569   revRate=99.5 % meanStopRatio=4,6071 (expect ~5,00 if invariant) meanStopDistance=91,881113
-StructuralBreak        scale=100      applicable=569   revRate=99.5 % meanStopRatio=4,6071 (expect ~5,00 if invariant) meanStopDistance=918,811132
-StructuralBreak        scale=1000     applicable=569   revRate=99.5 % meanStopRatio=4,6071 (expect ~5,00 if invariant) meanStopDistance=9188,111318
-VarianceBreak          scale=0.01     applicable=568   revRate=99.5 % meanStopRatio=4,2778 (expect ~5,00 if invariant) meanStopDistance=0,067677
-VarianceBreak          scale=0.1      applicable=568   revRate=99.5 % meanStopRatio=4,2778 (expect ~5,00 if invariant) meanStopDistance=0,676769
-VarianceBreak          scale=1        applicable=568   revRate=99.5 % meanStopRatio=4,2778 (expect ~5,00 if invariant) meanStopDistance=6,767695
-VarianceBreak          scale=10       applicable=568   revRate=99.5 % meanStopRatio=4,2778 (expect ~5,00 if invariant) meanStopDistance=67,676947
-VarianceBreak          scale=100      applicable=568   revRate=99.5 % meanStopRatio=4,2778 (expect ~5,00 if invariant) meanStopDistance=676,769466
-VarianceBreak          scale=1000     applicable=568   revRate=99.5 % meanStopRatio=4,2778 (expect ~5,00 if invariant) meanStopDistance=6767,694658
+LowVolatility          scale=0.1      applicable=569   revRate=100.0 % meanStopRatio=4,7681 (expect ~5,00 if invariant) meanStopDistance=0,006897
+LowVolatility          scale=1        applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=0,047809
+LowVolatility          scale=10       applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=0,478086
+LowVolatility          scale=100      applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=4,780857
+LowVolatility          scale=1000     applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=47,808566
+HighVolatility         scale=0.01     applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=0,239043
+HighVolatility         scale=0.1      applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=2,390428
+HighVolatility         scale=1        applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=23,904283
+HighVolatility         scale=10       applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=239,042831
+HighVolatility         scale=100      applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=2390,42831
+HighVolatility         scale=1000     applicable=569   revRate=99.8 % meanStopRatio=4,4355 (expect ~5,00 if invariant) meanStopDistance=23904,283104
+StructuralBreak        scale=0.01     applicable=569   revRate=99.5 % meanStopRatio=4,4362 (expect ~5,00 if invariant) meanStopDistance=0,050335
+StructuralBreak        scale=0.1      applicable=569   revRate=99.5 % meanStopRatio=4,4362 (expect ~5,00 if invariant) meanStopDistance=0,503351
+StructuralBreak        scale=1        applicable=569   revRate=99.5 % meanStopRatio=4,4362 (expect ~5,00 if invariant) meanStopDistance=5,033512
+StructuralBreak        scale=10       applicable=569   revRate=99.5 % meanStopRatio=4,4362 (expect ~5,00 if invariant) meanStopDistance=50,335122
+StructuralBreak        scale=100      applicable=569   revRate=99.5 % meanStopRatio=4,4362 (expect ~5,00 if invariant) meanStopDistance=503,351216
+StructuralBreak        scale=1000     applicable=569   revRate=99.5 % meanStopRatio=4,4362 (expect ~5,00 if invariant) meanStopDistance=5033,512156
+VarianceBreak          scale=0.01     applicable=569   revRate=99.6 % meanStopRatio=4,4264 (expect ~5,00 if invariant) meanStopDistance=0,09491
+VarianceBreak          scale=0.1      applicable=569   revRate=99.6 % meanStopRatio=4,4264 (expect ~5,00 if invariant) meanStopDistance=0,9491
+VarianceBreak          scale=1        applicable=569   revRate=99.6 % meanStopRatio=4,4264 (expect ~5,00 if invariant) meanStopDistance=9,491004
+VarianceBreak          scale=10       applicable=569   revRate=99.6 % meanStopRatio=4,4264 (expect ~5,00 if invariant) meanStopDistance=94,910036
+VarianceBreak          scale=100      applicable=569   revRate=99.6 % meanStopRatio=4,4264 (expect ~5,00 if invariant) meanStopDistance=949,10036
+VarianceBreak          scale=1000     applicable=569   revRate=99.6 % meanStopRatio=4,4264 (expect ~5,00 if invariant) meanStopDistance=9491,0036
 
 === D2 R-squared ablation at k=5,00 (TRAIN, scale=1, aggregated across datasets) ===
-R2>=0,00-5 totalApplicable=5635   revRate=96.6 % stoppedOutRate=0.1 % undeterminedRate=3.3 %
-R2>=0,05-5 totalApplicable=5197   revRate=97.1 % stoppedOutRate=0.1 % undeterminedRate=2.8 %
-R2>=0,10-5 totalApplicable=4623   revRate=98.2 % stoppedOutRate=0.1 % undeterminedRate=1.7 %
-R2>=0,15-5 totalApplicable=4183   revRate=98.9 % stoppedOutRate=0.1 % undeterminedRate=1.0 %
-R2>=0,20-5 totalApplicable=3861   revRate=99.3 % stoppedOutRate=0.1 % undeterminedRate=0.6 %
-R2>=0,25-5 totalApplicable=3542   revRate=99.4 % stoppedOutRate=0.1 % undeterminedRate=0.5 %
-R2>=0,30-5 totalApplicable=3241   revRate=99.4 % stoppedOutRate=0.1 % undeterminedRate=0.5 %
+R2>=0,00-5 totalApplicable=5636   revRate=96.1 % stoppedOutRate=1.4 % undeterminedRate=2.4 %
+R2>=0,05-5 totalApplicable=5198   revRate=96.7 % stoppedOutRate=1.4 % undeterminedRate=1.9 %
+R2>=0,10-5 totalApplicable=4624   revRate=97.8 % stoppedOutRate=1.2 % undeterminedRate=1.0 %
+R2>=0,15-5 totalApplicable=4184   revRate=98.5 % stoppedOutRate=0.8 % undeterminedRate=0.7 %
+R2>=0,20-5 totalApplicable=3862   revRate=99.0 % stoppedOutRate=0.5 % undeterminedRate=0.5 %
+R2>=0,25-5 totalApplicable=3543   revRate=99.4 % stoppedOutRate=0.3 % undeterminedRate=0.4 %
+R2>=0,30-5 totalApplicable=3241   revRate=99.4 % stoppedOutRate=0.2 % undeterminedRate=0.4 %
 R2>=0,35-5 totalApplicable=3006   revRate=99.5 % stoppedOutRate=0.1 % undeterminedRate=0.4 %
-R2>=0,40-5 totalApplicable=2534   revRate=99.6 % stoppedOutRate=0.1 % undeterminedRate=0.3 %
+R2>=0,40-5 totalApplicable=2534   revRate=99.7 % stoppedOutRate=0.1 % undeterminedRate=0.2 %
 R2>=0,45-5 totalApplicable=2086   revRate=99.7 % stoppedOutRate=0.0 % undeterminedRate=0.2 %
 R2>=0,50-5 totalApplicable=1609   revRate=99.7 % stoppedOutRate=0.0 % undeterminedRate=0.3 %
 R2>=0,55-5 totalApplicable=1111   revRate=99.5 % stoppedOutRate=0.0 % undeterminedRate=0.5 %
@@ -270,30 +270,30 @@ R2>=0,85-5 totalApplicable=0      revRate=N/A stoppedOutRate=N/A undeterminedRat
 R2>=0,90-5 totalApplicable=0      revRate=N/A stoppedOutRate=N/A undeterminedRate=N/A
 
 === D1 degenerate (k <= |entry z-score|) rate by k, TRAIN, scale=1, aggregated across datasets ===
-k=0,25   degenerateRate=54.2 % (3391/6259)
-k=0,50   degenerateRate=29.5 % (1847/6259)
-k=0,75   degenerateRate=15.9 % (996/6259)
-k=1,00   degenerateRate=8.2 % (512/6259)
-k=1,25   degenerateRate=4.5 % (283/6259)
-k=1,50   degenerateRate=2.2 % (136/6259)
-k=1,75   degenerateRate=1.4 % (87/6259)
-k=2,00   degenerateRate=0.6 % (37/6259)
-k=2,25   degenerateRate=0.3 % (21/6259)
-k=2,50   degenerateRate=0.2 % (11/6259)
-k=2,75   degenerateRate=0.1 % (7/6259)
-k=3,00   degenerateRate=0.1 % (5/6259)
-k=3,25   degenerateRate=0.0 % (3/6259)
-k=3,50   degenerateRate=0.0 % (2/6259)
-k=3,75   degenerateRate=0.0 % (1/6259)
-k=4,00   degenerateRate=0.0 % (1/6259)
-k=4,25   degenerateRate=0.0 % (1/6259)
-k=4,50   degenerateRate=0.0 % (1/6259)
-k=4,75   degenerateRate=0.0 % (1/6259)
-k=5,00   degenerateRate=0.0 % (1/6259)
-k=5,25   degenerateRate=0.0 % (1/6259)
-k=5,50   degenerateRate=0.0 % (1/6259)
-k=5,75   degenerateRate=0.0 % (1/6259)
-k=6,00   degenerateRate=0.0 % (1/6259)
+k=0,25   degenerateRate=73.0 % (4568/6259)
+k=0,50   degenerateRate=41.0 % (2566/6259)
+k=0,75   degenerateRate=24.2 % (1513/6259)
+k=1,00   degenerateRate=12.4 % (779/6259)
+k=1,25   degenerateRate=6.1 % (382/6259)
+k=1,50   degenerateRate=2.6 % (161/6259)
+k=1,75   degenerateRate=0.9 % (55/6259)
+k=2,00   degenerateRate=0.3 % (17/6259)
+k=2,25   degenerateRate=0.1 % (5/6259)
+k=2,50   degenerateRate=0.0 % (1/6259)
+k=2,75   degenerateRate=0.0 % (0/6259)
+k=3,00   degenerateRate=0.0 % (0/6259)
+k=3,25   degenerateRate=0.0 % (0/6259)
+k=3,50   degenerateRate=0.0 % (0/6259)
+k=3,75   degenerateRate=0.0 % (0/6259)
+k=4,00   degenerateRate=0.0 % (0/6259)
+k=4,25   degenerateRate=0.0 % (0/6259)
+k=4,50   degenerateRate=0.0 % (0/6259)
+k=4,75   degenerateRate=0.0 % (0/6259)
+k=5,00   degenerateRate=0.0 % (0/6259)
+k=5,25   degenerateRate=0.0 % (0/6259)
+k=5,50   degenerateRate=0.0 % (0/6259)
+k=5,75   degenerateRate=0.0 % (0/6259)
+k=6,00   degenerateRate=0.0 % (0/6259)
 k=6,25   degenerateRate=0.0 % (0/6259)
 k=6,50   degenerateRate=0.0 % (0/6259)
 k=6,75   degenerateRate=0.0 % (0/6259)
@@ -310,3 +310,4 @@ k=9,25   degenerateRate=0.0 % (0/6259)
 k=9,50   degenerateRate=0.0 % (0/6259)
 k=9,75   degenerateRate=0.0 % (0/6259)
 k=10,00  degenerateRate=0.0 % (0/6259)
+

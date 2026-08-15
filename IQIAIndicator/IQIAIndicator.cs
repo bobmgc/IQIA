@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using ATAS.Indicators;
 using IQIAIndicator.Core;
 using IQIAIndicator.Core.Observability;
@@ -18,6 +19,7 @@ using IQIAIndicator.Engine.Methodology.Core;
 using IQIAIndicator.Engine.Presentation;
 using IQIAIndicator.Engine.Regime;
 using IQIAIndicator.Engine.Regime.Core;
+using IQIAIndicator.Engine.ScientificModels.MeanReversion;
 using IQIAIndicator.Engine.Signal;
 using IQIAIndicator.Engine.ScientificFusion;
 using IQIAIndicator.Engine.TradePlan;
@@ -135,6 +137,16 @@ public sealed class IQIAIndicator : Indicator
     public string ScientificDatasetOutputDirectory { get; set; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "IQIA", "ScientificDataset");
 
+    /// <summary>Sprint 15.23.1 (QDE-012 ATAS N=20 integration trace audit): activable, off by default.
+    /// Mirrors <see cref="KalmanFilterModel.DiagnosticsEnabled"/> into the static flag that class reads
+    /// - see its doc comment for why this can never change any Metrics/Score/decision. Captures at
+    /// most the first 10 eligible KalmanFilterModel.Evaluate() calls of the session and writes them to
+    /// "..._kalman_window_diagnostic.json" next to the scientific dataset export on OnDispose().</summary>
+    [Display(Name = "Activer le diagnostic fenêtre Kalman (N=20)", GroupName = "Diagnostic", Order = 150)]
+    public bool EnableKalmanWindowDiagnostic { get; set; }
+
+    public string? LastKalmanWindowDiagnosticPath { get; private set; }
+
     public ScientificDatasetSession? LastScientificDatasetSession => _lastScientificDatasetSession;
 
     public string LastScientificDatasetReport => _lastScientificDatasetSession?.BuildReport() ?? string.Empty;
@@ -247,6 +259,10 @@ public sealed class IQIAIndicator : Indicator
     {
         if (bar == 0 || _builder is null)
             _builder = CreateBuilder();
+
+        // Sprint 15.23.1: cheap, idempotent sync of the diagnostic toggle - see
+        // EnableKalmanWindowDiagnostic's doc comment. Does not alter any Kalman calculation.
+        KalmanFilterModel.DiagnosticsEnabled = EnableKalmanWindowDiagnostic;
 
         if (EnableScientificDataset && _scientificDatasetCollector is null)
         {
@@ -515,6 +531,18 @@ public sealed class IQIAIndicator : Indicator
             {
                 _scientificDatasetAutoExportAttempted = true;
                 ExportScientificDataset();
+            }
+
+            // Sprint 15.23.1: write the capped Kalman window diagnostic (see
+            // EnableKalmanWindowDiagnostic) next to the scientific dataset export, once, at session
+            // end - never mid-session, matching ExportScientificDataset()'s own timing.
+            if (EnableKalmanWindowDiagnostic && KalmanFilterModel.Diagnostics.Count > 0)
+            {
+                Directory.CreateDirectory(ScientificDatasetOutputDirectory);
+                string fileName = $"KalmanWindowDiagnostic_{_scientificDatasetSessionId:N}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.json";
+                string path = Path.Combine(ScientificDatasetOutputDirectory, fileName);
+                File.WriteAllText(path, JsonSerializer.Serialize(KalmanFilterModel.Diagnostics, new JsonSerializerOptions { WriteIndented = true }));
+                LastKalmanWindowDiagnosticPath = path;
             }
         }
         catch (Exception)

@@ -50,6 +50,45 @@ public sealed class KalmanFilterModel : IScientificModel
     /// naming, and not chosen from correlation-with-Range alone (Sprint 15.22 report §14 rule).</summary>
     private const int ObservationWindowSize = 20;
 
+    /// <summary>Sprint 15.23.1 (QDE-012 ATAS N=20 integration trace audit): diagnostic-only, off by
+    /// default, additive instrumentation. Never read by <see cref="Evaluate"/>'s own math and never
+    /// added to <see cref="ScientificModelResult.Metrics"/> - flipping this flag cannot change any
+    /// exported metric, score, or business decision. Exists solely so a real ATAS run can prove which
+    /// exact observations fed <see cref="EstimateMeasurementNoise"/> for a handful of evaluations,
+    /// without dumping a log line per bar. See QDE-012_Sprint_15.23.1 report §16 for removal/retention
+    /// rationale.</summary>
+    public static bool DiagnosticsEnabled { get; set; }
+
+    /// <summary>Hard cap on recorded entries - "first N eligible evaluations", not "every bar" - see
+    /// class doc comment above.</summary>
+    private const int DiagnosticsCapacity = 10;
+
+    private static readonly List<KalmanWindowDiagnostic> _diagnostics = new();
+
+    /// <summary>The diagnostic trace captured so far this process (at most <see cref="DiagnosticsCapacity"/>
+    /// entries), oldest first. Empty unless <see cref="DiagnosticsEnabled"/> was set to true before the
+    /// corresponding <see cref="Evaluate"/> calls.</summary>
+    public static IReadOnlyList<KalmanWindowDiagnostic> Diagnostics => _diagnostics.AsReadOnly();
+
+    public static void ResetDiagnostics() => _diagnostics.Clear();
+
+    /// <summary>One captured evaluation's window - see <see cref="DiagnosticsEnabled"/>.</summary>
+    public readonly record struct KalmanWindowDiagnostic(
+        DateTime Timestamp,
+        int HistoryLength,
+        int ObservationWindowSizeConfigured,
+        int ObservationsUsed,
+        double FirstObservation,
+        double LastObservation,
+        double WindowMin,
+        double WindowMax,
+        double WindowMean,
+        double WindowVariance,
+        double MeasurementNoise,
+        double ProcessNoise,
+        double InnovationVariance,
+        double InnovationStd);
+
     public ScientificModelResult Evaluate(ScientificModelContext context)
     {
         bool compatible =
@@ -133,6 +172,33 @@ public sealed class KalmanFilterModel : IScientificModel
             : Math.Abs(innovationAtCurrent) / innovationStd;
 
         double score = 1.0 - Math.Clamp(normalizedInnovation / InnovationScale, 0.0, 1.0);
+
+        // Sprint 15.23.1: diagnostic-only capture, see DiagnosticsEnabled doc comment. Reads values
+        // already computed above; writes nothing back into them.
+        if (DiagnosticsEnabled && _diagnostics.Count < DiagnosticsCapacity)
+        {
+            // Independently recomputed here (not reused from EstimateMeasurementNoise) so the
+            // diagnostic self-verifies: WindowVariance should equal MeasurementNoise whenever the
+            // variance floor (MinimumNoise) isn't hit - see QDE-012_Sprint_15.23.1 report Phase 5.
+            double diagMean = observations.Average();
+            double diagVariance = observations.Sum(v => (v - diagMean) * (v - diagMean)) / observations.Length;
+
+            _diagnostics.Add(new KalmanWindowDiagnostic(
+                Timestamp: context.MarketContext.Timestamp,
+                HistoryLength: history.Count,
+                ObservationWindowSizeConfigured: ObservationWindowSize,
+                ObservationsUsed: observations.Length,
+                FirstObservation: observations[0],
+                LastObservation: observations[^1],
+                WindowMin: observations.Min(),
+                WindowMax: observations.Max(),
+                WindowMean: diagMean,
+                WindowVariance: diagVariance,
+                MeasurementNoise: measurementNoise,
+                ProcessNoise: processNoise,
+                InnovationVariance: innovationCovarianceAtCurrent,
+                InnovationStd: innovationStd));
+        }
 
         string explanation =
             $"Estimated Mean={stateMean.ToString("F6", CultureInfo.InvariantCulture)}; " +
