@@ -68,6 +68,7 @@ public sealed class IQIAIndicator : Indicator
     private readonly MethodologyEngine       _methodologyEngine = new();
     private readonly SignalEngine            _signalEngine = new();
     private readonly TradePlanEngine         _tradePlanEngine = new();
+    private readonly TradePlanAnnotationEngine _tradePlanAnnotationEngine = new();
     private readonly DashboardManager        _dashboardManager = new();
     private readonly ATASRenderer            _atasRenderer = new();
 
@@ -83,6 +84,7 @@ public sealed class IQIAIndicator : Indicator
     private EntryCandidate? _latestEntryCandidate;
     private VisualizationCandidate? _latestVisualizationCandidate;
     private TradePlan? _latestTradePlan;
+    private TradePlanAnnotationCandidate? _latestTradePlanAnnotationCandidate;
     private global::IQIAIndicator.Engine.ScientificModels.Abstractions.MarketContext? _latestScientificMarketContext;
     private bool _latestRendererCalled;
     private int _latestAnnotationsRendered;
@@ -438,6 +440,12 @@ public sealed class IQIAIndicator : Indicator
             throw;
         }
 
+        // Sprint 15.24 (Lot 1 - chart display): always recomputed from _latestTradePlan, the same
+        // object TradingDashboard reads (see IQIAIndicator.cs's DashboardContext.TradePlan assignment
+        // below) - guarantees the chart and the HUD panel can never show two different Entry/SL/TP
+        // values for the same bar.
+        _latestTradePlanAnnotationCandidate = _tradePlanAnnotationEngine.Process(new TradePlanAnnotationContext(_latestTradePlan));
+
         if (ActiveDashboard == DashboardKind.Debug)
         {
             LogPipelineDebug(context, _latestDecisionResult, _latestMethodologySelection, _latestOpportunityPresentation, _latestChartAnnotationCandidate);
@@ -634,6 +642,16 @@ public sealed class IQIAIndicator : Indicator
                         ("AnnotationCount", 0),
                         ("RenderSuccess", false)));
                 }
+            }
+
+            // Sprint 15.24 (Lot 1 - chart display): draws Entry/TakeProfit/StopLoss directly on the
+            // price chart, using ATAS's real price-to-pixel conversion (IChartContainer.GetYByPrice) -
+            // reads only the same _latestTradePlanAnnotationCandidate the dashboard section below is
+            // built from a few lines down (both ultimately trace back to _latestTradePlan). Guarded the
+            // same way _atasRenderer.Render(...) above is: skipped if ATAS hasn't attached a chart yet.
+            if (_latestTradePlanAnnotationCandidate is not null && ChartInfo?.PriceChartContainer is IChartContainer priceContainer)
+            {
+                _atasRenderer.RenderTradePlan(renderContext, priceContainer, ChartArea, _latestTradePlanAnnotationCandidate);
             }
 
             if (_latestPipelineTrace is not null)
