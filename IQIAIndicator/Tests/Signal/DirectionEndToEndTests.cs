@@ -57,7 +57,9 @@ public static class DirectionEndToEndTests
     /// <summary>Decision ambiguë (AmbiguityScore élevé) sur un régime par ailleurs supporté -&gt; NO_ACTION -&gt; aucune Arrow, même si DynamicZScore seul suggérerait BUY.</summary>
     private static void AssertNoActionScenarioReachesNoArrow()
     {
-        ChartAnnotationCandidate result = RunChain(MarketState.MeanReverting, ambiguityScore: 0.9, dynamicZScore: -2.0);
+        // Sprint 15.25 (Lot 9): bumped from 0.9 to 0.97 - AmbiguityGateThreshold moved 0.5 -> 0.95, and
+        // 0.9 would no longer be suppressed under the new threshold.
+        ChartAnnotationCandidate result = RunChain(MarketState.MeanReverting, ambiguityScore: 0.97, dynamicZScore: -2.0);
 
         ChartAnnotation? arrow = FindArrow(result);
         Assert(arrow is null, "Ambiguous-decision scenario: no Arrow annotation may reach ChartAnnotation, even though DynamicZScore alone would suggest BUY.");

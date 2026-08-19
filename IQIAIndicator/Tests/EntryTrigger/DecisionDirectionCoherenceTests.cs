@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using IQIAIndicator.Core;
 using IQIAIndicator.Engine.Decision.Core;
 using IQIAIndicator.Engine.Decision.States;
 using IQIAIndicator.Engine.Entry;
@@ -7,6 +8,7 @@ using IQIAIndicator.Engine.EntryTrigger;
 using IQIAIndicator.Engine.Methodology.Core;
 using IQIAIndicator.Engine.ScientificFusion;
 using IQIAIndicator.Engine.ScientificModels.Abstractions;
+using IQIAIndicator.Engine.TradePlan;
 
 namespace IQIAIndicator.Tests.EntryTrigger;
 
@@ -34,6 +36,11 @@ public static class DecisionDirectionCoherenceTests
         AssertWatchlistStatusStillReturnsWatchRegardlessOfDecision();
         AssertSuppressionReasonIsRecordedForAmbiguousDecision();
         AssertSuppressionReasonIsRecordedForUnsupportedRegime();
+
+        // Sprint 15.25 (Lot 9) — AmbiguityGateThreshold moved from 0.5 to 0.95 (Difference > 0.05).
+        AssertRelaxedThresholdAllowsDirectionWhenDifferenceExceedsZeroPointZeroFive();
+        AssertGateStillBlocksExactlyAtZeroPointZeroFiveDifferenceBoundary();
+        AssertTradePlanBuilderReceivesEntryPriceOnceGateIsOpen();
 
         // Sprint 15.7.1 — NO_ACTION diagnostic transparency (observability only, no trading behaviour
         // change: TEST 1-6 from the sprint spec).
@@ -91,9 +98,12 @@ public static class DecisionDirectionCoherenceTests
 
     private static void AssertAmbiguousMeanRevertingDecisionProducesNoActionEvenWithAValidZScore()
     {
-        EntryTriggerCandidate candidate = Trigger(MarketState.MeanReverting, ambiguityScore: 0.7, dynamicZScore: -2.0);
+        // Sprint 15.25 (Lot 9): 0.7 was above the pre-Lot-9 threshold (0.5) but is now BELOW
+        // AmbiguityGateThreshold (0.95) - bumped to 0.97 to keep testing "still ambiguous enough to be
+        // suppressed" against the current threshold, not the old one.
+        EntryTriggerCandidate candidate = Trigger(MarketState.MeanReverting, ambiguityScore: 0.97, dynamicZScore: -2.0);
         Assert(candidate.Assessment.Direction == DirectionCandidate.NO_ACTION,
-            $"An ambiguous decision (AmbiguityScore>=0.5) must suppress Direction even when the DynamicZScore sign is clear. Actual={candidate.Assessment.Direction}.");
+            $"An ambiguous decision (AmbiguityScore>=0.95) must suppress Direction even when the DynamicZScore sign is clear. Actual={candidate.Assessment.Direction}.");
     }
 
     private static void AssertNonMeanRevertingWinnerNeverProducesDirectionEvenWithAValidZScore()
@@ -120,7 +130,9 @@ public static class DecisionDirectionCoherenceTests
 
     private static void AssertSuppressionReasonIsRecordedForAmbiguousDecision()
     {
-        EntryTriggerCandidate candidate = Trigger(MarketState.MeanReverting, ambiguityScore: 0.9, dynamicZScore: -2.0);
+        // Sprint 15.25 (Lot 9): bumped from 0.9 to 0.97 - 0.9 is now below AmbiguityGateThreshold (0.95)
+        // and would no longer be suppressed. See AssertAmbiguousMeanRevertingDecisionProducesNoActionEvenWithAValidZScore.
+        EntryTriggerCandidate candidate = Trigger(MarketState.MeanReverting, ambiguityScore: 0.97, dynamicZScore: -2.0);
         bool hasReason = ContainsSubstring(candidate.Diagnostics, "ambiguity");
         Assert(hasReason, "Suppressing Direction for an ambiguous decision must leave a traceable diagnostic, not a silent NO_ACTION.");
     }
@@ -130,6 +142,48 @@ public static class DecisionDirectionCoherenceTests
         EntryTriggerCandidate candidate = Trigger(MarketState.RandomWalk, ambiguityScore: 0.0, dynamicZScore: -2.0);
         bool hasReason = ContainsSubstring(candidate.Diagnostics, "RandomWalk");
         Assert(hasReason, "Suppressing Direction for an unsupported regime must name the regime in a traceable diagnostic.");
+    }
+
+    // ── Sprint 15.25 (Lot 9): AmbiguityGateThreshold moved 0.5 -> 0.95 (Difference > 0.05) ─────────
+
+    private static void AssertRelaxedThresholdAllowsDirectionWhenDifferenceExceedsZeroPointZeroFive()
+    {
+        // AmbiguityScore = 0.94 <=> Difference = 0.06 > 0.05 (the new gate threshold) - must now pass
+        // the gate and let DynamicZScore determine direction. Before Lot 9 (threshold 0.5), 0.94 would
+        // have been blocked exactly like every real bar analyzed in Lots 2-3.
+        EntryTriggerCandidate candidate = Trigger(MarketState.MeanReverting, ambiguityScore: 0.94, dynamicZScore: -2.0);
+        Assert(candidate.Assessment.Direction == DirectionCandidate.BUY_CANDIDATE,
+            $"AmbiguityScore=0.94 (Difference=0.06 > 0.05) must pass the relaxed gate and produce BUY_CANDIDATE. Actual={candidate.Assessment.Direction}.");
+    }
+
+    private static void AssertGateStillBlocksExactlyAtZeroPointZeroFiveDifferenceBoundary()
+    {
+        // AmbiguityScore = 0.95 <=> Difference = 0.05 exactly (NOT > 0.05) - must still be blocked,
+        // matching the strict "Difference > 0.05" (not >=) convention used throughout the Lots 4-8
+        // offline study.
+        EntryTriggerCandidate candidate = Trigger(MarketState.MeanReverting, ambiguityScore: 0.95, dynamicZScore: -2.0);
+        Assert(candidate.Assessment.Direction == DirectionCandidate.NO_ACTION,
+            $"AmbiguityScore=0.95 (Difference=0.05 exactly) must still be blocked by the gate. Actual={candidate.Assessment.Direction}.");
+        Assert(candidate.Assessment.Reason == EntryTriggerReason.DECISION_AMBIGUOUS,
+            $"Reason must be DECISION_AMBIGUOUS at the boundary. Actual={candidate.Assessment.Reason}.");
+    }
+
+    private static void AssertTradePlanBuilderReceivesEntryPriceOnceGateIsOpen()
+    {
+        // Sprint 15.25 (Lot 9): proves the fix reaches TradePlan without touching TradePlanBuilder.cs
+        // itself (unmodified by this lot - see Lot 9 report). CurrentPrice=100m is the same value
+        // EntryTriggerCandidate.CurrentPrice already carries through unchanged (Sprint 15.8's contract).
+        EntryTriggerCandidate candidate = Trigger(MarketState.MeanReverting, ambiguityScore: 0.94, dynamicZScore: -2.0);
+        Assert(candidate.Assessment.Direction == DirectionCandidate.BUY_CANDIDATE, "Precondition: gate must be open here.");
+
+        var instrumentInfo = new InstrumentInfo("TEST", TickSize: 0.25m, TickValue: 12.5m, PointValue: 50m, Decimals: 2);
+        TradePlan plan = new TradePlanEngine().Process(new TradePlanContext(candidate, instrumentInfo));
+
+        Assert(plan.EntryPrice == candidate.CurrentPrice,
+            $"TradePlan must carry the same EntryPrice as EntryTriggerCandidate.CurrentPrice, unchanged by this lot. Actual={plan.EntryPrice}.");
+        Assert(plan.Status == TradePlanStatus.SIGNAL_ONLY,
+            $"With no RiskParameters supplied (Risk Engine untouched by this lot), Status must stay SIGNAL_ONLY, never PLAN_READY. Actual={plan.Status}.");
+        Assert(plan.StopLoss is null, "StopLoss must remain null - Risk Engine is out of scope for this lot.");
     }
 
     // ── Sprint 15.7.1: NO_ACTION diagnostic transparency ────────────────────────────────────────────
@@ -169,9 +223,10 @@ public static class DecisionDirectionCoherenceTests
     // existing ambiguity diagnostic through the structured Reason field too.
     private static void AssertAmbiguousDecisionProducesNoActionWithDecisionAmbiguousReason()
     {
-        EntryTriggerCandidate candidate = Trigger(MarketState.MeanReverting, ambiguityScore: 0.8, dynamicZScore: -2.0);
+        // Sprint 15.25 (Lot 9): bumped from 0.8 to 0.97 - 0.8 is now below AmbiguityGateThreshold (0.95).
+        EntryTriggerCandidate candidate = Trigger(MarketState.MeanReverting, ambiguityScore: 0.97, dynamicZScore: -2.0);
         Assert(candidate.Assessment.Direction == DirectionCandidate.NO_ACTION,
-            $"AmbiguityScore >= 0.5 must still suppress Direction to NO_ACTION, unchanged by Sprint 15.7.1. Actual={candidate.Assessment.Direction}.");
+            $"AmbiguityScore >= 0.95 must still suppress Direction to NO_ACTION. Actual={candidate.Assessment.Direction}.");
         Assert(candidate.Assessment.Reason == EntryTriggerReason.DECISION_AMBIGUOUS,
             $"Ambiguous decision with TriggerStatus READY must report Reason=DECISION_AMBIGUOUS. Actual={candidate.Assessment.Reason}.");
     }

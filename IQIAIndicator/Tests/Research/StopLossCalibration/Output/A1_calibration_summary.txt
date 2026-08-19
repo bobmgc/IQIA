@@ -1,6 +1,6 @@
 SPRINT 15.14 — A1 K-CALIBRATION SUMMARY
 TotalEntriesAnalyzed=112662
-Elapsed=00:02:27.6752799
+Elapsed=00:05:10.7918920
 
 === TRAIN-discovered candidate regions (StableRegionAnalyzer, CV<=10%, exploratory diagnostic) ===
 AR1_phi0.5       k=[0,50-10,00] TRAIN revRate=95,9 % (CV=7,6 %) stopHitRate=11,2 % degenerateNearZero=False

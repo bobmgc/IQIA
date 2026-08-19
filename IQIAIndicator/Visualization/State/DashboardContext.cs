@@ -10,6 +10,7 @@ using IQIAIndicator.Engine.Fusion.State;
 using IQIAIndicator.Engine.Methodology.Core;
 using IQIAIndicator.Engine.Presentation;
 using IQIAIndicator.Engine.Regime.Core;
+using IQIAIndicator.Engine.Risk;
 using IQIAIndicator.Engine.ScientificFusion;
 using IQIAIndicator.Engine.TradePlan;
 using IQIAIndicator.Engine.Visualization;
@@ -47,6 +48,30 @@ internal sealed record DashboardContext
     public ChartAnnotationCandidate? ChartAnnotationCandidate { get; init; }
     public OpportunityPresentation? OpportunityPresentation { get; init; }
     public TradePlan? TradePlan { get; init; }
+
+    /// <summary>Sprint 15.25 (Lot 12): the same _latestRiskAssessment IQIAIndicator.cs's Risk stage
+    /// already produced this bar (Lot 11) - null whenever no assessable TradePlan candidate existed.</summary>
+    public RiskAssessment? RiskAssessment { get; init; }
+
+    /// <summary>Sprint 15.25 (Lot 12): AccountState/InstrumentRiskSpecification as actually supplied to
+    /// RiskEngine this bar, kept for display only (Lot 12, Section 11) - so Capital/Equity/Instrument
+    /// remain observable even on a bar with no assessable candidate (RiskAssessment null).</summary>
+    public AccountState? RiskAccount { get; init; }
+
+    public InstrumentRiskSpecification? RiskInstrument { get; init; }
+
+    /// <summary>Sprint 15.25 (Lot 12.12, Problem A/C): the resolved Live/Replay context (see
+    /// AtasDataContext.cs) - wraps the SAME decision already used to select Equity's source
+    /// (Lot 12.6/12.11), never a second one. Every consumer that needs "are we in Replay" reads this
+    /// instead of the raw, independently unreliable Execution.IsReplay heuristic.</summary>
+    public AtasDataContext AtasContext { get; init; }
+
+    /// <summary>Sprint 15.25 (Lot 12.12, Problem B): non-null only when the Risk stage's ATAS-owned
+    /// reads threw on the most recent bar - see IQIAIndicator.cs's Risk stage catch clause. Lets the
+    /// dashboard distinguish "no assessable TradePlan candidate this bar" from "an ATAS binding
+    /// exception prevented the Risk stage from running at all" - both otherwise look identical
+    /// (RiskAssessment/RiskAccount/RiskInstrument all null).</summary>
+    public string? RiskStageError { get; init; }
 
     public bool RendererCalled { get; init; }
     public int AnnotationsRendered { get; init; }

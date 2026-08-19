@@ -18,6 +18,7 @@ public enum PipelineTraceStage
     Entry,
     EntryTrigger,
     TradePlan,
+    Risk,
     Visualization,
     ChartAnnotation,
     Presentation,

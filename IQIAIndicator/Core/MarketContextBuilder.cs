@@ -13,12 +13,13 @@ public sealed class MarketContextBuilder
     // Seul couplage avec l'API ATAS
     private readonly Func<int, IndicatorCandle> _getBar;
 
-    private readonly string  _symbol;
-    private readonly decimal _tickSize;
-    private readonly decimal _tickValue;
-    private readonly decimal _pointValue;
-    private readonly int     _decimals;
-    private readonly string  _timeFrame;
+    // Sprint 15.25 (Lot 12.12, Problem B): no longer readonly - see RefreshInstrument's doc comment.
+    private string  _symbol;
+    private decimal _tickSize;
+    private decimal _tickValue;
+    private decimal _pointValue;
+    private int     _decimals;
+    private string  _timeFrame;
 
     // Seul etat conserve : heure du premier bar pour ElapsedMinutes
     private DateTime _firstBarTime;
@@ -37,6 +38,41 @@ public sealed class MarketContextBuilder
         string  timeFrame)
     {
         _getBar     = getBar;
+        _symbol     = symbol;
+        _tickSize   = tickSize;
+        _tickValue  = tickValue;
+        _pointValue = pointValue;
+        _decimals   = decimals;
+        _timeFrame  = timeFrame;
+    }
+
+    /// <summary>Sprint 15.25 (Lot 12.12, Problem B): exposes the currently-cached TickSize so the caller
+    /// (IQIAIndicator.cs) can detect a builder constructed before ATAS's InstrumentInfo.TickSize was
+    /// actually populated - see RefreshInstrument's doc comment for the full rationale.</summary>
+    public decimal TickSize => _tickSize;
+
+    /// <summary>
+    /// Sprint 15.25 (Lot 12.12, Problem B). Re-applies the instrument snapshot ATAS reports THIS bar,
+    /// without touching any other builder state (_firstBarTime/_maxRealtimeBar - the Replay-heuristic
+    /// bookkeeping Build() below relies on). Exists solely to self-heal a builder constructed at bar 0
+    /// before ATAS's own InstrumentInfo.TickSize was actually populated: IQIAIndicator.cs only ever
+    /// (re)constructs this builder once, at bar==0 (documented contract: "Doit etre appele en sequence
+    /// croissante"); if TickSize was 0 at that single moment (plausible during ATAS's initial
+    /// historical-load pass, before per-instrument metadata is fully resolved), MarketContextValidator
+    /// .CheckInstrument would otherwise reject EVERY subsequent bar for the rest of the session -
+    /// including live bars long after the instrument metadata became available - freezing the entire
+    /// downstream pipeline (Risk stage, dataset collection, BarIndex) with no diagnostic trace (Lot
+    /// 12.12 report, Problem B). Never invents a value: only re-reads the SAME ATAS-provided fields
+    /// CreateBuilder() already reads, whenever the caller detects TickSize is still non-positive.
+    /// </summary>
+    public void RefreshInstrument(
+        string  symbol,
+        decimal tickSize,
+        decimal tickValue,
+        decimal pointValue,
+        int     decimals,
+        string  timeFrame)
+    {
         _symbol     = symbol;
         _tickSize   = tickSize;
         _tickValue  = tickValue;

@@ -9,12 +9,16 @@ namespace IQIAIndicator.Visualization.Dashboards;
 
 /// <summary>
 /// Vue trader : régime, confiance globale, score final, décision, risque, signal,
-/// méthodologie, opportunité, plan de trade. Aucune donnée scientifique détaillée.
+/// méthodologie, opportunité, plan de trade, Risk Engine. Aucune donnée scientifique détaillée.
 /// </summary>
 internal sealed class TradingDashboard
 {
-    public const int Width = 340;
-    public const int Height = 600;
+    public const int Width = 740;
+
+    // Sprint 15.25 (Lot 12): 600 (Lot <15.24 baseline) + ~232 for the new RISK ENGINE section (header +
+    // 13 fields) below TRADE PLAN.
+    // Sprint 15.25 (Lot 12.12, Problem E): +16px for the new "Balance" field (14 fields total).
+    public const int Height = 836;
 
     public void Draw(RenderContext renderContext, DashboardContext context, int x, int y)
     {
@@ -74,6 +78,38 @@ internal sealed class TradingDashboard
 
         (Color statusColor, string statusMarker) = TradePlanStatusVisual(plan?.Status);
         DashboardCanvas.Field(renderContext, "Status", $"{statusMarker} {DashboardCanvas.HumanizeEnumName(plan?.Status.ToString())}", x + 10, ref fieldY, statusColor);
+
+        // Sprint 15.25 (Lot 12): RISK ENGINE panel. Pure display - every value below is a direct read
+        // from RiskDashboardPresenter.Present's output (itself a direct, unrecomputed read of
+        // RiskAssessment/AccountState/InstrumentRiskSpecification - see that file's doc comment). No
+        // risk/sizing/R:R formula lives here or is duplicated from Engine/Risk.
+        fieldY += 6;
+        DashboardCanvas.SectionHeader(renderContext, "RISK ENGINE", x + 10, ref fieldY);
+        RiskDashboardView riskView = RiskDashboardPresenter.Present(
+            context.RiskAssessment, context.RiskAccount, context.RiskInstrument, context.Timestamp, context.RiskStageError);
+
+        Color riskStatusColor = riskView.StatusKind switch
+        {
+            RiskDashboardStatusKind.Accepted => DashboardTheme.Green,
+            RiskDashboardStatusKind.Rejected => DashboardTheme.Red,
+            _ => DashboardTheme.Gray
+        };
+        DashboardCanvas.Field(renderContext, "Status", riskView.StatusText, x + 10, ref fieldY, riskStatusColor);
+        DashboardCanvas.Field(renderContext, "Instrument", riskView.Instrument, x + 10, ref fieldY);
+        DashboardCanvas.Field(renderContext, "Capital", riskView.Capital, x + 10, ref fieldY);
+        // Sprint 15.25 (Lot 12.12, Problem E): shown separately from Capital (=InitialCapital, manual
+        // configuration) and Equity - see RiskDashboardPresenter.Present's doc comment.
+        DashboardCanvas.Field(renderContext, "Balance", riskView.Balance, x + 10, ref fieldY);
+        DashboardCanvas.Field(renderContext, "Equity", riskView.Equity, x + 10, ref fieldY);
+        DashboardCanvas.Field(renderContext, "Risk Budget", riskView.RiskBudget, x + 10, ref fieldY);
+        DashboardCanvas.Field(renderContext, "Trade Risk", riskView.TradeRisk, x + 10, ref fieldY);
+        DashboardCanvas.Field(renderContext, "Position Size", riskView.PositionSize, x + 10, ref fieldY);
+        DashboardCanvas.Field(renderContext, "Entry", riskView.Entry, x + 10, ref fieldY);
+        DashboardCanvas.Field(renderContext, "Stop Loss", riskView.StopLoss, x + 10, ref fieldY);
+        DashboardCanvas.Field(renderContext, "Take Profit", riskView.TakeProfit, x + 10, ref fieldY);
+        DashboardCanvas.Field(renderContext, "R:R", riskView.RiskReward, x + 10, ref fieldY);
+        DashboardCanvas.Field(renderContext, "Reason", riskView.Reason, x + 10, ref fieldY, riskView.StatusKind == RiskDashboardStatusKind.Rejected ? DashboardTheme.Red : null, valueOffset: 120);
+        DashboardCanvas.Field(renderContext, "Last Update", riskView.LastUpdate, x + 10, ref fieldY);
     }
 
     /// <summary>Sprint 15.8: money fields (RiskPerUnit/RiskAmount) are account-currency amounts, distinct

@@ -1,3 +1,4 @@
+using IQIAIndicator.Core;
 using IQIAIndicator.Visualization.Rendering;
 using IQIAIndicator.Visualization.State;
 using IQIAIndicator.Visualization.Widgets;
@@ -54,7 +55,13 @@ internal sealed class DashboardManager
             DashboardCanvas.WidthWarning(renderContext, "System Health", barsRequiredWidth, visibleChartWidth, DashboardLayout.OriginX, DashboardLayout.OriginY);
         }
 
-        bool showReplay = context.Execution?.IsReplay == true;
+        // Sprint 15.25 (Lot 12.12, Problem A/C): gated on the resolved AtasContext (wraps the SAME
+        // decision already used to select Equity's source, Lot 12.6/12.11), not the raw
+        // Execution.IsReplay heuristic - a real capture proved that heuristic can read False during an
+        // actual Chart Replay session and True during a genuine live session (Lot 12.12 report,
+        // Problem A). ReplayMonitorWidget itself still reads context.Execution for its own
+        // CurrentBar/Progress fields (unrelated to which context we are in) - only the gating changed.
+        bool showReplay = context.AtasContext == AtasDataContext.Replay;
         bool showCollection = context.EnableScientificDataset;
 
         int barY = DashboardLayout.OriginY + DashboardLayout.BarHeight + DashboardLayout.BarSpacing;

@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Linq;
+using IQIAIndicator.Core;
 using IQIAIndicator.Core.Calibration;
 using IQIAIndicator.Visualization.Rendering;
 using IQIAIndicator.Visualization.State;
@@ -60,7 +61,11 @@ internal sealed class DatasetDashboard
         (string statusText, Color statusColor) = DescribeState(state);
         DashboardCanvas.Field(renderContext, "Dataset Status", statusText, x + 10, ref fieldY, statusColor);
         DashboardCanvas.Field(renderContext, "Session ID", collector?.SessionId.ToString() ?? "N/A", x + 10, ref fieldY);
-        DashboardCanvas.Field(renderContext, "Replay Status", context.Execution?.IsReplay == true ? "Replay" : "Live/Historical", x + 10, ref fieldY);
+        // Sprint 15.25 (Lot 12.12, Problem A/C): reads the resolved AtasContext (wraps the same
+        // decision already used to select Equity's source, Lot 12.6/12.11), not the raw, independently
+        // unreliable Execution.IsReplay heuristic - see DashboardManager.cs's identical fix for the
+        // Replay Monitor widget's gating.
+        DashboardCanvas.Field(renderContext, "Replay Status", DescribeAtasContext(context.AtasContext), x + 10, ref fieldY);
 
         int expectedBars = Math.Max(context.Execution?.CurrentBar ?? 0, 1);
         int barsCollected = collector?.BarsCollected ?? 0;
@@ -310,6 +315,15 @@ internal sealed class DatasetDashboard
         _cachedStatistics = collector.Describe();
         _cachedAtCount = collector.Count;
     }
+
+    /// <summary>Sprint 15.25 (Lot 12.12): presentation only - never a second decision, mirrors
+    /// AtasDataContext's own three states verbatim.</summary>
+    private static string DescribeAtasContext(AtasDataContext context) => context switch
+    {
+        AtasDataContext.Replay => "Replay",
+        AtasDataContext.Live => "Live",
+        _ => "Unknown"
+    };
 
     private static string FormatBytes(long bytes)
     {

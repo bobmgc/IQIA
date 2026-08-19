@@ -4,13 +4,36 @@
     <IsPackable>false</IsPackable>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    
+
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ATAS_BASE>C:\Program Files (x86)\ATAS Platform</ATAS_BASE>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.0" />
+  </ItemGroup>
+
+  <!-- Sprint 15.25 (Lot 12.2): needed so ATASRuntimeBindingTests.cs can construct real ATAS domain
+       types (Portfolio/Security/EquityValue/IMutableEnumerable) as fixtures - mirrors the main
+       project's own References below. -->
+  <ItemGroup>
+    <Reference Include="ATAS.DataFeedsCore">
+      <HintPath>$(ATAS_BASE)\ATAS.DataFeedsCore.dll</HintPath>
+    </Reference>
+    <Reference Include="Utils.Common">
+      <HintPath>$(ATAS_BASE)\Utils.Common.dll</HintPath>
+    </Reference>
+    <!-- Sprint 15.25 (Lot 12.12): needed so MarketContextBuilderSelfHealingTests.cs can reference
+         ATAS.Indicators.IndicatorCandle (MarketContextBuilder's getBar delegate type) - the
+         ProjectReference to IQIAIndicator.csproj below does not transitively expose its own private
+         HintPath-based References, so this mirrors the main project's identical Reference entry. -->
+    <Reference Include="ATAS.Indicators">
+      <HintPath>$(ATAS_BASE)\ATAS.Indicators.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

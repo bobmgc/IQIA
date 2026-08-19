@@ -10,6 +10,14 @@ namespace IQIAIndicator.Engine.EntryTrigger;
 
 public sealed class EntryTriggerBuilder
 {
+    // Sprint 15.25 (Lot 9 - QDE-012 offline OOS threshold study, Lots 4-8): candidate value from the
+    // offline calibration/backtest/OOS-validation study (Difference > 0.05, i.e. AmbiguityScore < 0.95 -
+    // see AmbiguityScore = Clamp(1 - Difference, 0, 1) in DecisionArbitrator.Arbitrate). Was 0.5
+    // (Difference > 0.5) before this lot; that value produced zero BUY/SELL candidates on every real
+    // ATAS capture analyzed (Lots 2-3 audit). Live ATAS validation with this value is still required
+    // (see Lot 9 report) - change this single constant back to 0.5 to revert.
+    private const double AmbiguityGateThreshold = 0.95;
+
     private readonly List<string> _warnings = new();
     private readonly List<string> _diagnostics = new();
     private EntryTriggerStatus _triggerStatus = EntryTriggerStatus.INVALID;
@@ -146,11 +154,15 @@ public sealed class EntryTriggerBuilder
         // DecisionArbitrator.Arbitrate, AmbiguityScore = Clamp(1 - (winnerScore - runnerUpScore), 0, 1))
         // means the regime call itself isn't reliably established. Trading a direction derived from a
         // regime-specific model when the regime call is close to a coin flip would fabricate confidence
-        // the arbitration doesn't actually have. Threshold fixed at the midpoint of AmbiguityScore's
-        // [0,1] range: >=0.5 means the winner's score edge over the runner-up was under 0.5.
-        if (decision.AmbiguityScore >= 0.5)
+        // the arbitration doesn't actually have. Sprint 15.25 (Lot 9): threshold moved from the original
+        // midpoint (0.5) to AmbiguityGateThreshold (0.95, equivalent to Difference > 0.05) - the original
+        // 0.5 value was never once satisfied on any real ATAS capture analyzed (Lots 2-3), permanently
+        // blocking Direction; 0.95 is the candidate value from the Lots 4-8 offline OOS study. See
+        // AmbiguityGateThreshold's own doc comment for the reversion path and the Lot 9 report for the
+        // live-ATAS validation this change still requires before any further calibration decision.
+        if (decision.AmbiguityScore >= AmbiguityGateThreshold)
         {
-            suppressionReason = $"Direction suppressed: decision ambiguity {decision.AmbiguityScore:F3} >= 0.5 (regime arbitration not decisive enough to trust a directional call).";
+            suppressionReason = $"Direction suppressed: decision ambiguity {decision.AmbiguityScore:F3} >= {AmbiguityGateThreshold:F2} (regime arbitration not decisive enough to trust a directional call).";
             noActionReason = EntryTriggerReason.DECISION_AMBIGUOUS;
             return DirectionCandidate.NO_ACTION;
         }

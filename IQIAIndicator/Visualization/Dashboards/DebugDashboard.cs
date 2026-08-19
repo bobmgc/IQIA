@@ -14,7 +14,9 @@ namespace IQIAIndicator.Visualization.Dashboards;
 internal sealed class DebugDashboard
 {
     public const int Width = 900;
-    public const int Height = 620;
+    // Sprint 15.25 (Lot 12.12, Problem A/B): +56px for the new "ATAS CONTEXT (RÉSOLU)" section (header,
+    // 18px + 2 fields, 16px each = 32px + the 6px inter-section gap already used by every section below).
+    public const int Height = 676;
 
     public void Draw(RenderContext renderContext, DashboardContext context, int x, int y)
     {
@@ -27,7 +29,30 @@ internal sealed class DebugDashboard
         DashboardCanvas.Field(renderContext, "LastCalculatedBar", DashboardCanvas.FormatInt(context.Execution?.LastCalculatedBar), x + 10, ref fieldY);
         DashboardCanvas.Field(renderContext, "IsRealtime", context.Execution?.IsRealtime.ToString() ?? "N/A", x + 10, ref fieldY);
         DashboardCanvas.Field(renderContext, "IsHistorical", context.Execution?.IsHistorical.ToString() ?? "N/A", x + 10, ref fieldY);
-        DashboardCanvas.Field(renderContext, "IsReplay", context.Execution?.IsReplay.ToString() ?? "N/A", x + 10, ref fieldY);
+        // Sprint 15.25 (Lot 12.12, Problem A): relabelled to make explicit this is the raw, in-house
+        // bar-index heuristic (Core.MarketContextBuilder) - independently proven unreliable on its own
+        // (a real Replay capture showed it False during an actual Replay session, and True during a
+        // genuine live session, Lot 12.10/12.12 reports). Never used alone anywhere in the pipeline
+        // since Lot 12.11 - see "ATAS Context (résolu)" below for the corrected answer.
+        DashboardCanvas.Field(renderContext, "IsReplay (heuristique brute)", context.Execution?.IsReplay.ToString() ?? "N/A", x + 10, ref fieldY);
+
+        fieldY += 6;
+        DashboardCanvas.SectionHeader(renderContext, "ATAS CONTEXT (RÉSOLU)", x + 10, ref fieldY);
+        // Sprint 15.25 (Lot 12.12, Problem A/C): the corrected Live/Replay resolution (Portfolio
+        // .IsReplay() priority, wall-clock guard, heuristic fallback - ATASEquityReplayDetector.cs,
+        // Lot 12.6/12.11) propagated to every dashboard consumer, not just Equity source selection -
+        // see AtasDataContextResolver.cs and the Lot 12.12 report, Problem A/C.
+        DashboardCanvas.Field(renderContext, "Context", context.AtasContext.ToString(), x + 10, ref fieldY);
+        // Sprint 15.25 (Lot 12.12, Problem B): non-N/A only when the Risk stage's ATAS-owned reads threw
+        // on the most recent bar - see IQIAIndicator.cs's Risk stage catch clause and RiskDashboardPresenter.
+        DashboardCanvas.Field(
+            renderContext,
+            "Risk Stage Error",
+            context.RiskStageError ?? "Aucune",
+            x + 10,
+            ref fieldY,
+            context.RiskStageError is null ? DashboardTheme.Green : DashboardTheme.Red,
+            valueOffset: 150);
 
         fieldY += 6;
         DashboardCanvas.SectionHeader(renderContext, "ATAS RENDERER", x + 10, ref fieldY);
