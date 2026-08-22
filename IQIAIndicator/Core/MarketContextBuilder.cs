@@ -105,34 +105,32 @@ public sealed class MarketContextBuilder
         if (isRealtime)
             _maxRealtimeBar = Math.Max(_maxRealtimeBar, bar);
 
-        return new MarketContext
-        {
-            BarIndex   = bar,
-            TimeFrame  = _timeFrame,
-            Price      = new PriceInfo(
-                c.Open, c.High, c.Low, c.Close,
-                (c.High + c.Low) / 2m,
-                (c.High + c.Low + c.Close) / 3m),
-            Volume     = new VolumeInfo(c.Volume, c.Bid, c.Ask, c.Delta),
-            Instrument = new InstrumentInfo(_symbol, _tickSize, _tickValue, _pointValue, _decimals),
-            Clock      = new MarketClock
-            {
-                CurrentTime    = c.Time,
-                CurrentDate    = DateOnly.FromDateTime(c.Time),
-                DayOfWeek      = c.Time.DayOfWeek,
-                Session        = new SessionInfo(string.Empty, DateTime.MinValue, DateTime.MaxValue),
-                ElapsedMinutes = bar == 0 ? 0 : (int)(c.Time - _firstBarTime).TotalMinutes,
-                IsFirstBar     = bar == 0,
-                IsLastBar      = bar == currentBar - 1
-            },
-            Execution  = new ExecutionContext
-            {
-                CurrentBar        = currentBar,
-                LastCalculatedBar = bar,
-                IsRealtime        = isRealtime,
-                IsHistorical      = bar < currentBar - 1,
-                IsReplay          = isReplay
-            }
-        };
+        // Sprint 15.25 (Lot 14.1, brief §8). The assembly of the MarketContext itself - the OHLC/derived
+        // price arithmetic, ElapsedMinutes, the empty SessionInfo placeholder and the MarketClock/
+        // ExecutionContext shape - now lives in Core.MarketContextFactory, so the Backtest Engine builds a
+        // context through the SAME code instead of restating these formulas (Lot 13 report §6.3/RISK-07).
+        // Nothing about this method's behaviour changed: every value passed below is exactly the one this
+        // method already produced inline, including the ATAS-specific Replay/Realtime heuristic computed
+        // just above, which stays here because it is meaningless outside a live ATAS chart.
+        return MarketContextFactory.Create(
+            barIndex:     bar,
+            currentBar:   currentBar,
+            timeFrame:    _timeFrame,
+            open:         c.Open,
+            high:         c.High,
+            low:          c.Low,
+            close:        c.Close,
+            volume:       c.Volume,
+            bidVolume:    c.Bid,
+            askVolume:    c.Ask,
+            delta:        c.Delta,
+            instrument:   new InstrumentInfo(_symbol, _tickSize, _tickValue, _pointValue, _decimals),
+            barTime:      c.Time,
+            firstBarTime: _firstBarTime,
+            isFirstBar:   bar == 0,
+            isLastBar:    bar == currentBar - 1,
+            isRealtime:   isRealtime,
+            isHistorical: bar < currentBar - 1,
+            isReplay:     isReplay);
     }
 }

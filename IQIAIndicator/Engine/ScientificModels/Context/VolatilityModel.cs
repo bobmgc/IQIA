@@ -6,6 +6,33 @@ using IQIAIndicator.Engine.ScientificModels.Abstractions;
 
 namespace IQIAIndicator.Engine.ScientificModels.Context;
 
+/// <summary>
+/// CAUSAL CONTRACT (Lot B2, C-2 blocker B2 - audited, not changed). For a history whose LAST element
+/// is the bar under evaluation at index T, every value this model produces is a function of
+/// X[0..T] only. No value at an index &gt; T can influence any output.
+///
+/// The property holds structurally, by three independent facts verified during the B2 audit:
+///   1. This model has no notion of "which bar" beyond `history[Count-1]` - it deliberately derives
+///      the current price from the last history element rather than from MarketContext.CurrentBar
+///      (which may be an index, see Evaluate). It therefore cannot be asked for an earlier bar while
+///      being handed a longer series - the one call shape that would permit look-ahead.
+///   2. Every index this class reads is bounded by the last supplied element:
+///      GetTrailingReturns reads [start, start+count] and its two callers cap that at
+///      history.Count-1 (ComputeReferenceVolatility's `start + window &lt; history.Count`) and at
+///      history.Count-2 (ComputeVolatilityPercentile's `start + window &lt; history.Count - 1`);
+///      the trailing path (startIndex &lt; 0) reads [Count-count-1, Count-1].
+///   3. The class carries no state whatsoever between evaluations - every field is a `const`, every
+///      helper is `static` and pure - so no value computed for one bar can survive into another.
+///
+/// The caller-side half of the contract is IQIAIndicator.CreateScientificMarketContext, which builds
+/// MarketContext.History as a rolling window of the last 500 closes ENDING at the current bar. Any
+/// future caller that supplies a history extending past the bar it wants evaluated would break this
+/// contract at the call site, not here.
+///
+/// Enforced by Tests/ScientificModels/VolatilityModelCausalityTests.cs (B2-01..B2-05: prefix
+/// property, replay invariance, future perturbation, future append, recalculation after later bars -
+/// all with bit-exact comparison and no tolerance).
+/// </summary>
 public sealed class VolatilityModel : IScientificModel
 {
     public string Name => "VolatilityModel";
@@ -181,6 +208,24 @@ public sealed class VolatilityModel : IScientificModel
         return StandardDeviation(returns);
     }
 
+    /// <summary>
+    /// Baseline for <see cref="ComputeCurrentVolatility"/>: the mean of the standard deviations of
+    /// every `window`-length return block contained in the supplied history.
+    ///
+    /// Causality (Lot B2, audited - see the class doc comment): the loop guard
+    /// `start + window &lt; history.Count` caps the highest index GetTrailingReturns can reach
+    /// (start + window) at history.Count - 1, i.e. the bar under evaluation. Nothing beyond the
+    /// supplied prefix is read, and no state is retained between calls.
+    ///
+    /// Two statistical properties of this baseline were found during the B2 audit and deliberately
+    /// LEFT UNCHANGED, because B2 is a causality lot and altering them would silently redefine
+    /// RelativeVolatility (see the B2 report, Remaining Issues B2-F1 / B2-F2): for a history of 21
+    /// observations or fewer the loop runs exactly once over the same returns
+    /// <see cref="ComputeCurrentVolatility"/> uses, so RelativeVolatility is exactly 1.0; and the
+    /// current window is always itself one of the averaged blocks, whereas
+    /// <see cref="ComputeVolatilityPercentile"/> deliberately excludes it. Both are pinned by
+    /// VolatilityModelCausalityTests.TestB2_06_InsufficientHistory.
+    /// </summary>
     private static double ComputeReferenceVolatility(IReadOnlyList<decimal> history)
     {
         int window = Math.Min(CurrentVolatilityWindow, history.Count - 1);
