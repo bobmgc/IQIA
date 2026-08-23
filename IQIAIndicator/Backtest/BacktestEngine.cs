@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using IQIAIndicator.Backtest.Cost;
 using IQIAIndicator.Backtest.Execution;
 using IQIAIndicator.Backtest.Measurement;
 using IQIAIndicator.Backtest.Pnl;
+using IQIAIndicator.Backtest.Risk;
 using IQIAIndicator.Core;
 using IQIAIndicator.Core.MarketData;
 using IQIAIndicator.Engine.Decision.Core;
@@ -507,5 +509,87 @@ public sealed class BacktestEngine
         BacktestPnLResult pnlResult = BacktestPnLResultBuilder.Build(positionPnLResults, pnlConfiguration.StartingCapital);
 
         return new BacktestFullResult(signalResult, measurements, executionResult, pnlResult);
+    }
+
+    /// <summary>
+    /// Sprint 15.25 (Lot 14.7). Full chain: Signal -&gt; Measurement -&gt; Execution -&gt; Gross P&amp;L (Lot 14.6,
+    /// via <see cref="RunFullBacktest"/>, completely unchanged) -&gt; Cost/Slippage/Execution-Realism (Lot
+    /// 14.7). Purely additive: calls <see cref="RunFullBacktest"/> as-is and layers
+    /// <see cref="PositionCostCalculator"/>/<see cref="BacktestCostResultBuilder"/> on top of its
+    /// already-computed <see cref="SimulatedPosition"/>/<see cref="PositionPnLResult"/> lists - never
+    /// recomputes Signal/Measurement/Execution/GrossPnL (Lot 14.7 brief §14: "L'intégration doit être
+    /// additive").
+    ///
+    /// With <paramref name="costConfiguration"/>.Enabled == false (see
+    /// <see cref="ExecutionCostConfiguration.Disabled"/>, the recommended default), every NetPnL equals its
+    /// GrossPnL counterpart and the NetEquityCurve is numerically identical to
+    /// <c>FullResult.PnLResult.EquityCurve</c> (Lot 14.7 brief §8/§9: "configuration par défaut =
+    /// comportement Lot 14.6") - verified by the zero-cost-equivalence tests.
+    /// </summary>
+    public BacktestFullResultWithCosts RunFullBacktestWithCosts(
+        BacktestScenario scenario,
+        int warmupBars,
+        MeasurementConfiguration measurementConfiguration,
+        ExecutionConfiguration executionConfiguration,
+        PnLConfiguration pnlConfiguration,
+        ExecutionCostConfiguration costConfiguration)
+    {
+        ArgumentNullException.ThrowIfNull(costConfiguration);
+
+        BacktestFullResult fullResult = RunFullBacktest(scenario, warmupBars, measurementConfiguration, executionConfiguration, pnlConfiguration);
+        IReadOnlyList<PositionCostResult> positionCostResults = PositionCostCalculator.CalculateAll(
+            fullResult.ExecutionResult.Positions, fullResult.PnLResult.PositionPnLResults, pnlConfiguration, costConfiguration);
+        BacktestCostResult costResult = BacktestCostResultBuilder.Build(positionCostResults, pnlConfiguration.StartingCapital);
+
+        return new BacktestFullResultWithCosts(fullResult, costResult);
+    }
+
+    /// <summary>
+    /// Sprint 15.25 (Lot 14.8). Full chain: Signal -&gt; Measurement -&gt; Execution (Lots 14.3-14.5, unchanged)
+    /// -&gt; Risk Evaluation -&gt; Position Sizing -&gt; Cost -&gt; PnL -&gt; Equity (Lot 14.8). Sibling to
+    /// <see cref="RunFullBacktest"/>/<see cref="RunFullBacktestWithCosts"/> - calls
+    /// <see cref="RunSignalPipeline"/>/<see cref="ScientificMeasurementEngine.MeasureAll"/>/
+    /// <see cref="ExecutionSimulator.SimulateAll"/> exactly as those methods already do (Lot 14.8 brief
+    /// §14: "L'intégration doit être additive"), then builds a risk-aware, per-position-quantity Cost/PnL/
+    /// Equity result via <see cref="BacktestRiskResultBuilder"/> instead of the uniform-quantity
+    /// <see cref="PositionPnLCalculator.CalculateAll"/>/<see cref="PositionCostCalculator.CalculateAll"/>
+    /// path <see cref="RunFullBacktest"/>/<see cref="RunFullBacktestWithCosts"/> use (Lot 14.8 brief §15:
+    /// quantity now varies per position, so those two list-level helpers - which apply ONE quantity to
+    /// every position - are the wrong tool here; <see cref="BacktestRiskResultBuilder"/> instead calls the
+    /// single-position <c>PositionPnLCalculator.Calculate</c>/<c>PositionCostCalculator.Calculate</c>
+    /// overloads directly, once per position, with a per-position quantity-overridden
+    /// <see cref="PnLConfiguration"/>).
+    ///
+    /// With <paramref name="riskConfiguration"/>.EnableRiskControls == false (see
+    /// <see cref="BacktestRiskConfiguration.Disabled"/>, the recommended default), every position's
+    /// AllowedQuantity equals <paramref name="pnlConfiguration"/>.Quantity and the resulting
+    /// FinalNetPnL/MaximumDrawdown are numerically identical to <see cref="RunFullBacktestWithCosts"/>'s
+    /// own FinalGrossPnL/MaximumDrawdown for the same scenario/pnlConfiguration/costConfiguration (Lot
+    /// 14.8 brief §18) - verified by this lot's zero-regression tests.
+    /// </summary>
+    public BacktestFullResultWithRisk RunFullBacktestWithRisk(
+        BacktestScenario scenario,
+        int warmupBars,
+        MeasurementConfiguration measurementConfiguration,
+        ExecutionConfiguration executionConfiguration,
+        PnLConfiguration pnlConfiguration,
+        ExecutionCostConfiguration costConfiguration,
+        BacktestRiskConfiguration riskConfiguration)
+    {
+        ArgumentNullException.ThrowIfNull(pnlConfiguration);
+        ArgumentNullException.ThrowIfNull(costConfiguration);
+        ArgumentNullException.ThrowIfNull(riskConfiguration);
+
+        BacktestSignalPipelineResult signalResult = RunSignalPipeline(scenario, warmupBars);
+        IReadOnlyList<MeasurementResult> measurements =
+            ScientificMeasurementEngine.MeasureAll(scenario.Series, signalResult.Bars, measurementConfiguration);
+        BacktestExecutionResult executionResult =
+            ExecutionSimulator.SimulateAll(scenario.Series, signalResult.Bars, executionConfiguration);
+
+        BacktestRiskResult riskResult = BacktestRiskResultBuilder.Build(
+            executionResult.Positions, scenario.InitialCapital, scenario.Instrument, scenario.Policy,
+            pnlConfiguration, costConfiguration, riskConfiguration);
+
+        return new BacktestFullResultWithRisk(signalResult, measurements, executionResult, riskResult);
     }
 }

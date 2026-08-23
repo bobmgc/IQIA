@@ -1,6 +1,6 @@
 SPRINT 15.10 CAMPAIGN SUMMARY
 TotalEntriesAnalyzed=112662
-Elapsed=00:34:48.5965606
+Elapsed=00:34:31.4999613
 
 === Entry counts per (dataset, split), scale=1 ===
 WhiteNoise             TRAIN       entries=569

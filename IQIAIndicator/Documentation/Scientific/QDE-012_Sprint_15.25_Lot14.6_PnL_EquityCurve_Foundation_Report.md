@@ -250,7 +250,23 @@ Résultat mesuré (2026-08-22) :
 
 ### 26.1 Résultats d'exécution
 
-_(Section complétée après exécution du test réseau.)_
+```
+Suite ciblée Lot 14.6 (hors réseau) : 46/46 PASS (2 m 59 s)
+Test réseau Yahoo (PnLYahooIntegrationTests) : 1/1 PASS (5 m 49 s)
+Suite Lot 14.5 (non-régression, hors réseau) : 35/35 PASS
+```
+
+### 26.2 Suite complète du dépôt
+
+```
+Total : 564 tests
+Réussi(s) : 563
+Ignoré(s) : 1
+Échec(s) : 0
+Durée : 43 min 20 s
+```
+
+564 = 517 (base LOT 14.1-14.5) + 47 (nouveaux tests Lot 14.6 : 46 hors-réseau + 1 réseau). L'ignoré est le même test préexistant déjà documenté. **Aucun échec** — y compris `AdfLagSelectionScaleStabilityXunitTests`, le test de performance flaky documenté aux LOT 14.3/14.5 : il passe normalement cette fois, confirmant à nouveau qu'il s'agit de contention CPU ponctuelle sous charge parallèle, jamais d'une régression fonctionnelle.
 
 ---
 
