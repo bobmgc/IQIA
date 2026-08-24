@@ -19,6 +19,7 @@ using IQIAIndicator.Engine.Methodology.Core;
 using IQIAIndicator.Engine.Presentation;
 using IQIAIndicator.Engine.Regime;
 using IQIAIndicator.Engine.Regime.Core;
+using IQIAIndicator.Engine.Risk;
 using IQIAIndicator.Engine.ScientificFusion;
 using IQIAIndicator.Engine.Signal;
 using IQIAIndicator.Engine.TradePlan;
@@ -189,8 +190,20 @@ public sealed class BacktestEngine
     /// never a new engine concept. Bars below this threshold still run the full pipeline; only their
     /// <see cref="BacktestSignalResult.Status"/> differs (Warmup vs Ready).</param>
     public BacktestSignalPipelineResult RunSignalPipeline(BacktestScenario scenario, int warmupBars)
+        => RunSignalPipeline(scenario, warmupBars, PipelineParameterOverrides.None);
+
+    /// <summary>
+    /// Sprint 15.25 (Lot 14.10, P0-3). Identical to <see cref="RunSignalPipeline(BacktestScenario, int)"/>
+    /// in every respect except that <paramref name="overrides"/> is threaded into the
+    /// <see cref="Engine.Signal.SignalEngine"/> this call constructs (brief's "RÈGLE DE NON-RÉGRESSION": the
+    /// two-argument overload above is the only thing every pre-Lot-14.10 caller ever sees, and it delegates
+    /// here with <see cref="PipelineParameterOverrides.None"/>, which reproduces its exact prior behaviour -
+    /// verified by <c>PipelineParameterBindingDefaultBehaviourTests</c>).
+    /// </summary>
+    public BacktestSignalPipelineResult RunSignalPipeline(BacktestScenario scenario, int warmupBars, PipelineParameterOverrides overrides)
     {
         ArgumentNullException.ThrowIfNull(scenario);
+        ArgumentNullException.ThrowIfNull(overrides);
         if (warmupBars < 0)
             throw new ArgumentOutOfRangeException(nameof(warmupBars), warmupBars, "WarmupBars cannot be negative.");
 
@@ -213,7 +226,12 @@ public sealed class BacktestEngine
             new DecisionRules.RandomWalkRule()
         ]);
         var methodologyEngine = new MethodologyEngine();
-        var signalEngine = new SignalEngine();
+        // Sprint 15.25 (Lot 14.10, P0-3): traceCollector stays null (unchanged from every prior lot);
+        // ambiguityGateThreshold falls back to the production constant when overrides.AmbiguityGateThreshold
+        // is null (PipelineParameterOverrides.None, or any override that leaves this one field unset).
+        var signalEngine = new SignalEngine(
+            traceCollector: null,
+            ambiguityGateThreshold: overrides.AmbiguityGateThreshold ?? EntryTriggerBuilder.AmbiguityGateThreshold);
         var tradePlanEngine = new TradePlanEngine();
 
         var instrumentInfo = new InstrumentInfo(
@@ -325,7 +343,32 @@ public sealed class BacktestEngine
                 // produced an EntryTriggerCandidate this bar (brief §13: never fabricate a TradePlan).
                 if (entryTrigger is not null)
                 {
-                    tradePlan = tradePlanEngine.Process(new TradePlanContext(entryTrigger, instrumentInfo));
+                    // Sprint 15.25 (Lot 15.3): the one place TradeRiskParameters is ever resolved to a
+                    // non-null value for this pipeline - previously always null (Lot 15.0 P0 finding),
+                    // structurally blocking TradePlanStatus.PLAN_READY for every regime including
+                    // MeanReverting. Computed ONLY for a directional candidate (never for NO_ACTION/WATCH -
+                    // brief §20) and NEVER for an unsupported regime (structurally impossible: Lot 15.1
+                    // guarantees Direction is BUY/SELL only when Winner==MeanReverting). StopLoss comes
+                    // from VolatilityStopLossModel (Engine.Risk, new in this lot) using VolatilityModel's
+                    // already-computed, already-causal CurrentVolatility - never a new evidence
+                    // computation. RiskPerTrade reuses the SAME scenario.Policy/scenario.InitialCapital the
+                    // real RiskEngine.Evaluate path (RunFullBacktestWithRisk) already validates at
+                    // construction (BacktestScenario.Create) - never a new, second risk-budget concept; null
+                    // when MaxRiskPerTradePercent is not configured, never a fabricated fallback percentage.
+                    // This is a lightweight, per-bar ESTIMATE only (no running-equity tracking, unlike
+                    // BacktestRiskResultBuilder's sequential walk) - see the Lot 15.3 report §12 for why
+                    // that gap is deliberate and unaddressed here.
+                    TradeRiskParameters? riskParameters = null;
+                    if (entryTrigger.Assessment.Direction is DirectionCandidate.BUY_CANDIDATE or DirectionCandidate.SELL_CANDIDATE)
+                    {
+                        decimal? stopLoss = VolatilityStopLossModel.TryResolveStopPrice(entryTrigger, instrumentInfo.TickSize);
+                        decimal? riskPerTrade = scenario.Policy.MaxRiskPerTradePercent is decimal riskPercent
+                            ? scenario.InitialCapital * riskPercent
+                            : null;
+                        riskParameters = new TradeRiskParameters(stopLoss, riskPerTrade);
+                    }
+
+                    tradePlan = tradePlanEngine.Process(new TradePlanContext(entryTrigger, instrumentInfo, riskParameters));
                     switch (tradePlan.Status)
                     {
                         case TradePlanStatus.SIGNAL_ONLY: tpSignalOnly++; break;
@@ -575,12 +618,38 @@ public sealed class BacktestEngine
         PnLConfiguration pnlConfiguration,
         ExecutionCostConfiguration costConfiguration,
         BacktestRiskConfiguration riskConfiguration)
+        => RunFullBacktestWithRisk(
+            scenario, warmupBars, measurementConfiguration, executionConfiguration,
+            pnlConfiguration, costConfiguration, riskConfiguration, PipelineParameterOverrides.None);
+
+    /// <summary>
+    /// Sprint 15.25 (Lot 14.10, P0-3). Identical to the seven-argument
+    /// <see cref="RunFullBacktestWithRisk(BacktestScenario, int, MeasurementConfiguration, ExecutionConfiguration, PnLConfiguration, ExecutionCostConfiguration, BacktestRiskConfiguration)"/>
+    /// in every respect except that <paramref name="overrides"/> is threaded into the underlying
+    /// <see cref="RunSignalPipeline(BacktestScenario, int, PipelineParameterOverrides)"/> call - this is the
+    /// end-to-end path <c>Backtest.Calibration.CalibrationExperimentRunner</c> uses to make a
+    /// <c>CalibrationParameterSet</c> actually change pipeline behaviour (see
+    /// <c>Backtest.Calibration.CalibrationParameterBinding</c>). The seven-argument overload above is the
+    /// only thing every pre-Lot-14.10 caller ever sees, and it delegates here with
+    /// <see cref="PipelineParameterOverrides.None"/> - bit-for-bit unchanged behaviour (brief's "RÈGLE DE
+    /// NON-RÉGRESSION").
+    /// </summary>
+    public BacktestFullResultWithRisk RunFullBacktestWithRisk(
+        BacktestScenario scenario,
+        int warmupBars,
+        MeasurementConfiguration measurementConfiguration,
+        ExecutionConfiguration executionConfiguration,
+        PnLConfiguration pnlConfiguration,
+        ExecutionCostConfiguration costConfiguration,
+        BacktestRiskConfiguration riskConfiguration,
+        PipelineParameterOverrides overrides)
     {
         ArgumentNullException.ThrowIfNull(pnlConfiguration);
         ArgumentNullException.ThrowIfNull(costConfiguration);
         ArgumentNullException.ThrowIfNull(riskConfiguration);
+        ArgumentNullException.ThrowIfNull(overrides);
 
-        BacktestSignalPipelineResult signalResult = RunSignalPipeline(scenario, warmupBars);
+        BacktestSignalPipelineResult signalResult = RunSignalPipeline(scenario, warmupBars, overrides);
         IReadOnlyList<MeasurementResult> measurements =
             ScientificMeasurementEngine.MeasureAll(scenario.Series, signalResult.Bars, measurementConfiguration);
         BacktestExecutionResult executionResult =

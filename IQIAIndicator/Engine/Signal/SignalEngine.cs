@@ -22,16 +22,23 @@ public sealed class SignalEngine
     private readonly ScientificModelRegistry _registry;
     private readonly ScientificFusionEngine _scientificFusionEngine = new();
     private readonly EntryEngine _entryEngine = new();
-    private readonly EntryTriggerEngine _entryTriggerEngine = new();
+    private readonly EntryTriggerEngine _entryTriggerEngine;
     private readonly VisualizationEngine _visualizationEngine = new();
     private readonly ChartAnnotationEngine _chartAnnotationEngine = new();
     private readonly OpportunityPresentationEngine _opportunityPresentationEngine = new();
     private readonly IPipelineTraceCollector _traceCollector;
 
-    public SignalEngine(IPipelineTraceCollector? traceCollector = null)
+    /// <summary><paramref name="ambiguityGateThreshold"/>: Sprint 15.25 (Lot 14.10, P0-3), an explicit,
+    /// typed, optional override of EntryTriggerBuilder's production ambiguity gate (default:
+    /// EntryTriggerBuilder.AmbiguityGateThreshold, i.e. identical behaviour to every SignalEngine that
+    /// existed before this lot when this parameter is omitted - see
+    /// Backtest.BacktestEngine.RunSignalPipeline's PipelineParameterOverrides overload for the one place a
+    /// calibration experiment ever supplies a different value).</summary>
+    public SignalEngine(IPipelineTraceCollector? traceCollector = null, double ambiguityGateThreshold = EntryTriggerBuilder.AmbiguityGateThreshold)
     {
         _registry = new ScientificModelRegistry();
         _traceCollector = traceCollector ?? NullPipelineTraceCollector.Instance;
+        _entryTriggerEngine = new EntryTriggerEngine(ambiguityGateThreshold);
     }
 
     public ChartAnnotationCandidate? LastChartAnnotationCandidate { get; private set; }

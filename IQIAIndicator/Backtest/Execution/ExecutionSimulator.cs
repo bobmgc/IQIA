@@ -97,11 +97,23 @@ public static class ExecutionSimulator
     /// see <see cref="PositionStatus.InvalidExit"/>'s doc comment for why that status is otherwise
     /// unreachable through the validating constructors).
     ///
-    /// LOOK-AHEAD BOUNDARY (brief §9/§18): EntryPrice/EntryTimestamp come exclusively from
-    /// <paramref name="candidate"/> (already resolved at the signal bar by Lot 14.3's pipeline, using
-    /// bars[0..EntryBarIndex] only - never recomputed here). The only bar this method itself reads from
-    /// <paramref name="bars"/> is bars[EntryBarIndex + HorizonBars] (the exit bar) - never
-    /// bars[EntryBarIndex] and never anything beyond the exit bar.
+    /// FILL CONVENTION (Sprint 15.25, Lot 14.10, P0-1): the real, tradeable entry price is
+    /// bars[SignalBarIndex + 1].Open - never the signal bar's own Close/TradePlan.EntryPrice. A signal
+    /// computed from information available up to and including bar i cannot honestly be filled AT bar i's
+    /// own close; the earliest a real order could realistically execute is the next bar's open. This
+    /// corrects the bias identified in Lot 13's architecture audit (defect L-2: "Entrer à Close[i] alors
+    /// que le signal est dérivé de Close[i]") and left uncorrected by the original Lot 14.5 implementation.
+    /// <paramref name="candidate"/>.EntryPrice (TradePlan.EntryPrice, the signal bar's own reference price)
+    /// is still read once, as a data-quality gate on the SIGNAL bar itself (defense in depth: if the
+    /// pipeline could not even establish a reference price at the signal bar, the candidate is rejected
+    /// before a fill is even attempted) - it is never used as the traded price.
+    ///
+    /// LOOK-AHEAD BOUNDARY (brief §9/§18 of Lot 14.5, preserved under the corrected convention): every
+    /// field of a CLOSED position is resolved from bars[SignalBarIndex+1] (the fill bar) and
+    /// bars[SignalBarIndex+1+HorizonBars] (the exit bar) only - never any bar beyond the exit bar. This is
+    /// still a look-ahead-safe convention: the fill bar is the bar immediately AFTER the one the signal was
+    /// computed from (a real order placed after seeing bar i's close can only ever fill on bar i+1 or
+    /// later), not a bar the signal itself depended on.
     /// </summary>
     public static SimulatedPosition SimulateCore(IReadOnlyList<HistoricalBar> bars, ExecutionCandidate candidate, ExecutionConfiguration configuration)
     {
@@ -118,25 +130,64 @@ public static class ExecutionSimulator
             return new SimulatedPosition(
                 positionId, PositionStatus.NotExecutable,
                 $"Direction={candidate.Direction} is not a directional trade candidate - only BUY_CANDIDATE/SELL_CANDIDATE are executed.",
-                candidate.Direction, candidate.SignalTimestamp, candidate.EntryPrice, candidate.SignalBarIndex,
+                candidate.Direction, candidate.SignalTimestamp, null, candidate.SignalBarIndex,
                 null, null, null, null, null, null, null);
         }
 
-        // Brief §8/§20: a single explicit entry convention (TradePlan.EntryPrice, see
-        // ExecutionCandidate.FromSignal) - never a silent fallback to Close/Open/High/Low, never a
-        // division by zero.
-        if (candidate.EntryPrice is not decimal entryPrice || entryPrice <= 0m)
+        // Data-quality gate on the SIGNAL bar itself (see the FILL CONVENTION doc comment above): a single
+        // explicit reference price (TradePlan.EntryPrice, see ExecutionCandidate.FromSignal) must exist and
+        // be strictly positive before a fill is even attempted - never a silent fallback, never a division
+        // by zero.
+        if (candidate.EntryPrice is not decimal referencePrice || referencePrice <= 0m)
         {
             return new SimulatedPosition(
                 positionId, PositionStatus.InvalidEntry,
-                "EntryPrice is missing or not strictly positive.",
+                "TradePlan.EntryPrice (signal-bar reference price) is missing or not strictly positive.",
                 candidate.Direction, candidate.SignalTimestamp, candidate.EntryPrice, candidate.SignalBarIndex,
                 null, null, null, null, null, null, null);
         }
 
-        int entryBarIndex = candidate.SignalBarIndex;
-        if (entryBarIndex < 0 || entryBarIndex >= bars.Count)
-            throw new ArgumentOutOfRangeException(nameof(candidate), entryBarIndex, "SignalBarIndex must index an existing bar.");
+        int signalBarIndex = candidate.SignalBarIndex;
+        if (signalBarIndex < 0 || signalBarIndex >= bars.Count)
+            throw new ArgumentOutOfRangeException(nameof(candidate), signalBarIndex, "SignalBarIndex must index an existing bar.");
+
+        int fillBarIndex = signalBarIndex + 1;
+
+        // P0-1: the case where bar i+1 does not exist is explicit insufficient-future-data - never
+        // truncated to the signal bar's own price, never a fabricated fill.
+        if (fillBarIndex >= bars.Count)
+        {
+            return new SimulatedPosition(
+                positionId, PositionStatus.InsufficientFutureData,
+                $"Realistic fill requires bar index {fillBarIndex} (Open of the bar after the signal), but only {bars.Count} bars (0..{bars.Count - 1}) are available.",
+                candidate.Direction, candidate.SignalTimestamp, null, signalBarIndex,
+                null, null, null, null, null, null, null);
+        }
+
+        HistoricalBar fillBar = bars[fillBarIndex];
+
+        // Never compute a fill from an invalid bar - same discipline as the exit-bar check below.
+        if (!fillBar.IsValid)
+        {
+            return new SimulatedPosition(
+                positionId, PositionStatus.InvalidEntry,
+                $"Fill bar[{fillBarIndex}] (Open of the bar after the signal) failed HistoricalBar.Validate(): {string.Join("; ", fillBar.Validate())}.",
+                candidate.Direction, candidate.SignalTimestamp, null, signalBarIndex,
+                null, null, null, null, null, null, null);
+        }
+
+        decimal entryPrice = fillBar.Open;
+        if (entryPrice <= 0m)
+        {
+            return new SimulatedPosition(
+                positionId, PositionStatus.InvalidEntry,
+                $"Fill bar[{fillBarIndex}]'s Open ({entryPrice}) is not strictly positive.",
+                candidate.Direction, candidate.SignalTimestamp, null, signalBarIndex,
+                null, null, null, null, null, null, null);
+        }
+
+        DateTime entryTimestamp = fillBar.Timestamp;
+        int entryBarIndex = fillBarIndex;
 
         int exitBarIndex = entryBarIndex + configuration.HorizonBars;
 
@@ -147,7 +198,7 @@ public static class ExecutionSimulator
             return new SimulatedPosition(
                 positionId, PositionStatus.InsufficientFutureData,
                 $"TIME_HORIZON exit requires bar index {exitBarIndex}, but only {bars.Count} bars (0..{bars.Count - 1}) are available.",
-                candidate.Direction, candidate.SignalTimestamp, entryPrice, entryBarIndex,
+                candidate.Direction, entryTimestamp, entryPrice, entryBarIndex,
                 null, null, null, null, null, null, null);
         }
 
@@ -159,7 +210,7 @@ public static class ExecutionSimulator
             return new SimulatedPosition(
                 positionId, PositionStatus.InvalidExit,
                 $"Exit bar[{exitBarIndex}] failed HistoricalBar.Validate(): {string.Join("; ", exitBar.Validate())}.",
-                candidate.Direction, candidate.SignalTimestamp, entryPrice, entryBarIndex,
+                candidate.Direction, entryTimestamp, entryPrice, entryBarIndex,
                 null, null, null, null, null, null, null);
         }
 
@@ -175,10 +226,14 @@ public static class ExecutionSimulator
             ? exitPrice - entryPrice
             : entryPrice - exitPrice;
 
-        // Brief §15: identical convention to Lot 14.4's Return (Close at horizon end, same sign rule) -
-        // not a second, competing definition. Verified independently by
-        // ExecutionMeasurementReturnCoherenceTests, which runs both engines on the same data and asserts
-        // bit-exact agreement.
+        // Sprint 15.25 (Lot 14.10, P0-1): this Return is DELIBERATELY NO LONGER bit-identical to Lot
+        // 14.4's MeasurementResult.Return - Measurement answers "what happened after the signal, regardless
+        // of any exit convention" (still anchored on the signal bar's own Close, unchanged), while this
+        // engine now answers "what would a realistically fillable position have returned" (anchored on
+        // Open[SignalBarIndex+1]). The two engines were only numerically identical before this lot because
+        // both happened to use the same (biased) Close[i] entry convention - see
+        // ExecutionMeasurementReturnCoherenceTests for the documented, intentional divergence this lot
+        // introduces.
         double entryAsDouble = (double)entryPrice;
         double exitAsDouble = (double)exitPrice;
         double returnValue = candidate.Direction == DirectionCandidate.BUY_CANDIDATE
@@ -187,7 +242,7 @@ public static class ExecutionSimulator
 
         return new SimulatedPosition(
             positionId, PositionStatus.Closed, null,
-            candidate.Direction, candidate.SignalTimestamp, entryPrice, entryBarIndex,
+            candidate.Direction, entryTimestamp, entryPrice, entryBarIndex,
             exitTimestamp, exitPrice, exitBarIndex, ExitReason.TimeHorizon,
             holdingBars, grossPriceMove, returnValue);
     }

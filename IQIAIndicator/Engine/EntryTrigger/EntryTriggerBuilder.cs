@@ -16,7 +16,36 @@ public sealed class EntryTriggerBuilder
     // (Difference > 0.5) before this lot; that value produced zero BUY/SELL candidates on every real
     // ATAS capture analyzed (Lots 2-3 audit). Live ATAS validation with this value is still required
     // (see Lot 9 report) - change this single constant back to 0.5 to revert.
-    private const double AmbiguityGateThreshold = 0.95;
+    //
+    // Sprint 15.25 (Lot 14.10, P0-3, explicit exception to this file's protected status - see the Lot
+    // 14.10 brief's "REGIME / FUSION / DECISION" section): this production default is UNCHANGED (still
+    // 0.95, still the value every live/backtest caller gets unless it explicitly overrides it). What
+    // changed is that the value is no longer a hard-coded literal read only from this file - it is now
+    // also an explicit, typed constructor parameter (see the two constructors below), so a calibration
+    // experiment can supply a different value FOR ITSELF, local to one BacktestEngine call, without ever
+    // mutating this constant or any shared/static/global state. See
+    // Backtest.Calibration.CalibrationParameterBinding for the one place a CalibrationParameterSet is
+    // ever translated into this override.
+    public const double AmbiguityGateThreshold = 0.95;
+
+    private readonly double _ambiguityGateThreshold;
+
+    /// <summary>Production default: identical behaviour to every EntryTriggerBuilder that existed before
+    /// Lot 14.10 (brief's "RÈGLE DE NON-RÉGRESSION").</summary>
+    public EntryTriggerBuilder() : this(AmbiguityGateThreshold)
+    {
+    }
+
+    /// <summary>Sprint 15.25 (Lot 14.10, P0-3): the sole injection point for a calibration experiment to
+    /// exercise a different ambiguity gate than the production default, without touching the constant
+    /// above or any other file. <paramref name="ambiguityGateThreshold"/> is not validated against [0, 1]
+    /// here - DecisionArbitrator already guarantees AmbiguityScore itself is clamped to [0, 1], so any
+    /// threshold outside that range is simply always/never satisfied, a legitimate (if degenerate)
+    /// experiment configuration, never a crash.</summary>
+    public EntryTriggerBuilder(double ambiguityGateThreshold)
+    {
+        _ambiguityGateThreshold = ambiguityGateThreshold;
+    }
 
     private readonly List<string> _warnings = new();
     private readonly List<string> _diagnostics = new();
@@ -57,7 +86,7 @@ public sealed class EntryTriggerBuilder
         _currentPrice = context.BusinessContext.CurrentPrice;
         _estimatedEquilibrium = context.BusinessContext.EstimatedEquilibrium;
         _distanceToEquilibrium = context.BusinessContext.DistanceToEquilibrium;
-        _direction = DetermineDirection(context, out string? directionSuppressionReason, out _noActionReason);
+        _direction = DetermineDirection(context, _ambiguityGateThreshold, out string? directionSuppressionReason, out _noActionReason);
         _triggerStatus = DetermineTriggerStatus(context);
         _reason = BuildReason(context);
 
@@ -126,8 +155,33 @@ public sealed class EntryTriggerBuilder
     /// metric. This does not add a new directional rule - the sign-of-DynamicZScore logic is unchanged
     /// for the one regime it was already valid for; it only gates that existing logic behind proof that
     /// the regime it depends on was actually the one arbitrated.
+    ///
+    /// Sprint 15.25 (Lot 15.1, brief §11/§12/§30): the regime-mismatch branch below now also records
+    /// <see cref="EntryTriggerReason.UNSUPPORTED_REGIME"/> (previously left <c>noActionReason</c> null,
+    /// so this branch's cause was never distinguishable from any other NO_ACTION downstream - Lot 15.0
+    /// audit finding). The GATING CONDITION itself is UNCHANGED (still exactly
+    /// <c>decision.Winner != MarketState.MeanReverting</c> - Lot 15.0 confirmed this is bit-for-bit
+    /// equivalent, for every regime reachable in production, to gating on
+    /// <see cref="Engine.ScientificFusion.ScientificCoverageStatus.NoModelCoverage"/>, since
+    /// MethodologyEngine.Evaluate -> MethodologyRegistry.Resolve -> ScientificModelRegistry.Resolve is a
+    /// deterministic, unconditional chain keyed only on decisionResult.Winner - but switching the
+    /// condition itself to read CoverageStatus was rejected: several existing hand-built
+    /// EntryTriggerContext test fixtures across the suite construct ScientificAssessment without setting
+    /// CoverageStatus explicitly, relying on ScientificAssessment's declared default
+    /// (NoModelCoverage) independently of the MarketState they pass to Trigger(...) - switching the
+    /// condition would have silently broken every one of those MeanReverting-winner fixtures for a
+    /// purely cosmetic robustness gain this lot's brief does not require (brief §15: "ne pas créer une
+    /// nouvelle abstraction... si le repository possède déjà le mécanisme approprié" cuts both ways -
+    /// reuse what exists, but do not rewire it beyond what the fix needs). CoverageStatus is still
+    /// surfaced, read-only, in the diagnostic message below - the existing distinction (brief §13) is
+    /// reused for OBSERVABILITY, not made load-bearing for behaviour. This is NOT the "IRegimeSignalModel
+    /// abstraction" contemplated by brief §15/§16 - no such abstraction was created; none of the
+    /// repository's existing mechanisms needed one to satisfy this lot's acceptance criteria.
+    /// No fallback strategy is substituted for any regime (brief's "RÈGLE ABSOLUE") - the outcome for
+    /// every non-MeanReverting regime remains exactly DirectionCandidate.NO_ACTION, unchanged; only the
+    /// recorded Reason becomes explicit.
     /// </summary>
-    private static DirectionCandidate DetermineDirection(EntryTriggerContext context, out string? suppressionReason, out EntryTriggerReason? noActionReason)
+    private static DirectionCandidate DetermineDirection(EntryTriggerContext context, double ambiguityGateThreshold, out string? suppressionReason, out EntryTriggerReason? noActionReason)
     {
         suppressionReason = null;
         noActionReason = null;
@@ -146,7 +200,8 @@ public sealed class EntryTriggerBuilder
 
         if (decision.Winner != MarketState.MeanReverting)
         {
-            suppressionReason = $"Direction suppressed: regime={decision.Winner} has no scientific model capable of a directional read (only MeanReverting is currently supported).";
+            suppressionReason = $"Direction suppressed: regime={decision.Winner} has no scientific model capable of a directional read (ScientificAssessment.CoverageStatus={context.ScientificAssessment.CoverageStatus}; only MeanReverting is currently supported - see MethodologyRegistry/ScientificModelRegistry).";
+            noActionReason = EntryTriggerReason.UNSUPPORTED_REGIME;
             return DirectionCandidate.NO_ACTION;
         }
 
@@ -160,9 +215,9 @@ public sealed class EntryTriggerBuilder
         // blocking Direction; 0.95 is the candidate value from the Lots 4-8 offline OOS study. See
         // AmbiguityGateThreshold's own doc comment for the reversion path and the Lot 9 report for the
         // live-ATAS validation this change still requires before any further calibration decision.
-        if (decision.AmbiguityScore >= AmbiguityGateThreshold)
+        if (decision.AmbiguityScore >= ambiguityGateThreshold)
         {
-            suppressionReason = $"Direction suppressed: decision ambiguity {decision.AmbiguityScore:F3} >= {AmbiguityGateThreshold:F2} (regime arbitration not decisive enough to trust a directional call).";
+            suppressionReason = $"Direction suppressed: decision ambiguity {decision.AmbiguityScore:F3} >= {ambiguityGateThreshold:F2} (regime arbitration not decisive enough to trust a directional call).";
             noActionReason = EntryTriggerReason.DECISION_AMBIGUOUS;
             return DirectionCandidate.NO_ACTION;
         }
@@ -261,9 +316,20 @@ public sealed class EntryTriggerBuilder
         // specific reason DetermineDirection already computed instead of the generic READY reason -
         // this does not change TriggerStatus, Direction, or any trading condition, only which
         // EntryTriggerReason value is reported for a case that already existed.
-        if (_triggerStatus == EntryTriggerStatus.READY
-            && _direction == DirectionCandidate.NO_ACTION
-            && _noActionReason.HasValue)
+        //
+        // Sprint 15.25 (Lot 15.1, brief §12/§14): UNSUPPORTED_REGIME is surfaced regardless of
+        // TriggerStatus - unlike the three Sprint 15.7.1 reasons above (which only ever apply to
+        // MeanReverting, where OpportunityStatus is typically QUALIFIED/HIGH_PRIORITY and TriggerStatus
+        // is therefore READY), a regime with zero registered scientific models has
+        // OpportunityStatus=NOT_QUALIFIED upstream (EntryAssessmentBuilder.Build, driven by
+        // ScientificAssessment.MissingEvidence being non-empty), so TriggerStatus is EXPIRED/NOT_READY
+        // here, never READY - confirmed on the Lot 15.0 dataset. Without this widened condition,
+        // UNSUPPORTED_REGIME would be computed by DetermineDirection but never actually reach
+        // EntryTriggerAssessment.Reason, silently falling back to the generic BLOCKED/NOT_READY value
+        // this lot exists to make explicit (brief §12: "Un régime sans modèle scientifique doit
+        // produire NO SIGNAL / UNSUPPORTED et non... une absence explicite de signal").
+        if (_direction == DirectionCandidate.NO_ACTION && _noActionReason.HasValue &&
+            (_triggerStatus == EntryTriggerStatus.READY || _noActionReason.Value == EntryTriggerReason.UNSUPPORTED_REGIME))
         {
             return _noActionReason.Value;
         }

@@ -21,13 +21,19 @@ public enum PositionStatus
     /// - NO_ACTION/WATCH never create a position).</summary>
     NotExecutable,
 
-    /// <summary>Candidate.EntryPrice is missing or not strictly positive (brief §20). Decimal cannot
-    /// represent NaN/Infinity, so that part of §20's check is structurally unreachable through
-    /// TradePlan.EntryPrice - documented rather than defended against dead code.</summary>
+    /// <summary>Sprint 15.25 (Lot 14.10, P0-1): either (a) Candidate.EntryPrice (the signal bar's own
+    /// TradePlan reference price) is missing or not strictly positive - a data-quality gate on the signal
+    /// bar itself, checked before any fill is attempted - or (b) the fill bar (SignalBarIndex+1) itself
+    /// failed <c>HistoricalBar.Validate()</c> or its Open is not strictly positive. Both cases mean "no
+    /// honest entry price could be established", never a silent fallback to another field. Decimal cannot
+    /// represent NaN/Infinity, so the NaN/Infinity half of this check is structurally unreachable - documented
+    /// rather than defended against dead code.</summary>
     InvalidEntry,
 
-    /// <summary>EntryBarIndex + HorizonBars exceeds the series' last index (brief §18) - the exit bar the
-    /// TIME_HORIZON convention requires does not exist yet. Never truncated to an earlier bar.</summary>
+    /// <summary>Sprint 15.25 (Lot 14.10, P0-1): either (a) SignalBarIndex+1 (the fill bar the corrected
+    /// entry convention requires) does not exist yet, or (b) EntryBarIndex + HorizonBars exceeds the
+    /// series' last index (brief §18 of Lot 14.5) - the exit bar the TIME_HORIZON convention requires does
+    /// not exist yet. Never truncated to an earlier bar in either case.</summary>
     InsufficientFutureData,
 
     /// <summary>The exit bar itself fails <c>HistoricalBar.Validate()</c> (brief §21) - unreachable

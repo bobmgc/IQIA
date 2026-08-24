@@ -37,17 +37,49 @@ public sealed class ExecutionSimulatorIntegrationTests
 
     private static ExecutionConfiguration Exec(int horizon = 10) => ExecutionConfiguration.Create(horizon);
 
-    // ── §28 (MANDATORY): entry price must never be influenced by bar i+1 ───────────────────────────
+    // ── Sprint 15.25 (Lot 14.10, P0-1): the look-ahead boundary shifted by exactly one bar. Entry price
+    // is now DELIBERATELY influenced by bar i+1 (the fill bar - that is the entire point of the fix), but
+    // must still never be influenced by bar i+2 or beyond. ───────────────────────────────────────────
 
     [Fact]
-    public void ModifyingBarIPlusOne_NeverChangesTheEntryPriceOfAPositionCreatedAtBarI()
+    public void ModifyingBarIPlusOne_ChangesTheEntryPriceOfAPositionSignalledAtBarI_ByDesign()
     {
         HistoricalSeries original = BacktestTestSeriesBuilder.MeanRevertingOu(200, seed: 21UL);
 
         var mutatedBars = new List<HistoricalBar>(original.Bars);
         const int signalBarIndex = 150;
-        HistoricalBar nextBar = mutatedBars[signalBarIndex + 1];
-        mutatedBars[signalBarIndex + 1] = nextBar with { High = nextBar.High + 200m, Low = nextBar.Low + 200m, Close = nextBar.Close + 200m };
+        HistoricalBar fillBar = mutatedBars[signalBarIndex + 1];
+        // Shift Open/High/Low/Close uniformly (same bar shape, translated) so the fill bar stays valid -
+        // only Open is actually read as the entry price, but the bar must still satisfy Low<=O/C<=High.
+        mutatedBars[signalBarIndex + 1] = fillBar with
+        {
+            Open = fillBar.Open + 200m, High = fillBar.High + 200m, Low = fillBar.Low + 200m, Close = fillBar.Close + 200m
+        };
+        HistoricalSeries mutated = HistoricalSeries.Create(
+            original.Symbol, original.TimeFrame, original.TimeZone, original.Provider, mutatedBars);
+
+        BacktestSimulationResult before = new BacktestEngine().RunSimulation(ScenarioFor(original), 128, Measurement(), Exec());
+        BacktestSimulationResult after = new BacktestEngine().RunSimulation(ScenarioFor(mutated), 128, Measurement(), Exec());
+
+        SimulatedPosition positionBefore = before.ExecutionResult.Positions[signalBarIndex];
+        SimulatedPosition positionAfter = after.ExecutionResult.Positions[signalBarIndex];
+
+        if (positionBefore.Status == PositionStatus.Closed && positionAfter.Status == PositionStatus.Closed)
+        {
+            Assert.NotEqual(positionBefore.EntryPrice, positionAfter.EntryPrice);
+            Assert.Equal(positionBefore.EntryPrice + 200m, positionAfter.EntryPrice);
+        }
+    }
+
+    [Fact]
+    public void ModifyingBarITwoPlusOne_NeverChangesTheEntryPriceOfAPositionSignalledAtBarI()
+    {
+        HistoricalSeries original = BacktestTestSeriesBuilder.MeanRevertingOu(200, seed: 21UL);
+
+        var mutatedBars = new List<HistoricalBar>(original.Bars);
+        const int signalBarIndex = 150;
+        HistoricalBar farBar = mutatedBars[signalBarIndex + 2];
+        mutatedBars[signalBarIndex + 2] = farBar with { High = farBar.High + 200m, Low = farBar.Low + 200m, Close = farBar.Close + 200m };
         HistoricalSeries mutated = HistoricalSeries.Create(
             original.Symbol, original.TimeFrame, original.TimeZone, original.Provider, mutatedBars);
 
@@ -74,9 +106,12 @@ public sealed class ExecutionSimulatorIntegrationTests
         BacktestSimulationResult shortRun = new BacktestEngine().RunSimulation(ScenarioFor(truncated), 128, Measurement(), Exec());
         BacktestSimulationResult longRun = new BacktestEngine().RunSimulation(ScenarioFor(full), 128, Measurement(), Exec());
 
-        // Every signal whose exit (i+10) already fit inside the 220-bar series must produce the EXACT
-        // same position whether or not more future data exists beyond it.
-        for (int i = 0; i < 210; i++)
+        // Every signal whose exit already fit inside the 220-bar series must produce the EXACT same
+        // position whether or not more future data exists beyond it. Sprint 15.25 (Lot 14.10, P0-1): the
+        // boundary moved from i<210 to i<209 - the exit bar is now (i+1)+10 = i+11 (fill bar i+1, then
+        // horizon 10), which requires i<209 to stay inside a 220-bar series (0..219). Same documented,
+        // pre-existing phenomenon as Lot 14.4's own data-boundary behaviour, one bar later than before.
+        for (int i = 0; i < 209; i++)
         {
             SimulatedPosition s = shortRun.ExecutionResult.Positions[i];
             SimulatedPosition l = longRun.ExecutionResult.Positions[i];

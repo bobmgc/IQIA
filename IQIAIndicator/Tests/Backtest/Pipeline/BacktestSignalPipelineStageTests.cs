@@ -205,10 +205,22 @@ public sealed class BacktestSignalPipelineStageTests
             // null)" gate.
             Assert.NotNull(bar.EntryTrigger);
             Assert.NotNull(bar.TradePlan);
-            // TradePlanBuilder never fabricates a Stop Loss (brief §13/§32) - with no RiskParameters
-            // wired in this lot, Status can never be PLAN_READY.
-            Assert.NotEqual(TradePlanStatus.PLAN_READY, bar.TradePlan!.Status);
-            Assert.Null(bar.TradePlan!.StopLoss);
+
+            // Sprint 15.25 (Lot 15.3): BacktestEngine now resolves TradeRiskParameters (StopLoss via
+            // VolatilityStopLossModel, RiskPerTrade via scenario.Policy/InitialCapital) for every
+            // directional bar - PLAN_READY is no longer structurally unreachable (Lot 15.0 P0, closed by
+            // this lot). The invariant this test must still pin is "never fabricated", now expressed
+            // precisely: StopLoss (and therefore PLAN_READY) is only ever populated for a directional
+            // candidate - never for NO_ACTION/WATCH, which must still produce NO_TRADE with a null
+            // StopLoss, exactly as before this lot.
+            bool isDirectional = bar.EntryTrigger!.Assessment.Direction
+                is DirectionCandidate.BUY_CANDIDATE or DirectionCandidate.SELL_CANDIDATE;
+
+            if (!isDirectional)
+            {
+                Assert.Equal(TradePlanStatus.NO_TRADE, bar.TradePlan!.Status);
+                Assert.Null(bar.TradePlan!.StopLoss);
+            }
         }
     }
 

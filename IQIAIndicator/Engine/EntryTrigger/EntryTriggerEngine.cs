@@ -9,6 +9,22 @@ public sealed record EntryTriggerResult(
 
 public sealed class EntryTriggerEngine
 {
+    private readonly double _ambiguityGateThreshold;
+
+    /// <summary>Production default (Sprint 15.25, Lot 14.10, P0-3): identical behaviour to every
+    /// EntryTriggerEngine that existed before this lot.</summary>
+    public EntryTriggerEngine() : this(EntryTriggerBuilder.AmbiguityGateThreshold)
+    {
+    }
+
+    /// <summary>Sprint 15.25 (Lot 14.10, P0-3): threads a calibration-supplied ambiguity gate threshold
+    /// down to the <see cref="EntryTriggerBuilder"/> it constructs - see
+    /// <see cref="Engine.Signal.SignalEngine"/>'s constructor for the next link in the chain.</summary>
+    public EntryTriggerEngine(double ambiguityGateThreshold)
+    {
+        _ambiguityGateThreshold = ambiguityGateThreshold;
+    }
+
     public EntryTriggerResult Process(EntryTriggerContext context)
     {
         if (context is null)
@@ -16,7 +32,7 @@ public sealed class EntryTriggerEngine
             throw new ArgumentNullException(nameof(context));
         }
 
-        var builder = new EntryTriggerBuilder();
+        var builder = new EntryTriggerBuilder(_ambiguityGateThreshold);
         EntryTriggerCandidate candidate = builder.Build(context);
         var timing = new EntryTiming(
             candidate.Assessment.TriggerStatus,

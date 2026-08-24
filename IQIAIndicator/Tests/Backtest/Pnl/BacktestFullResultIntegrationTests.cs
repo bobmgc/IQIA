@@ -49,9 +49,14 @@ public sealed class BacktestFullResultIntegrationTests
         BacktestFullResult shortRun = new BacktestEngine().RunFullBacktest(ScenarioFor(truncated), 128, Measurement(), Exec(), Pnl());
         BacktestFullResult longRun = new BacktestEngine().RunFullBacktest(ScenarioFor(full), 128, Measurement(), Exec(), Pnl());
 
-        // Every position whose exit already fit inside the 220-bar series (i < 210, horizon 10) must
-        // produce the exact same PositionPnLResult whether or not more future data exists beyond it.
-        for (int i = 0; i < 210; i++)
+        // Every position whose exit already fit inside the 220-bar series must produce the exact same
+        // PositionPnLResult whether or not more future data exists beyond it. Sprint 15.25 (Lot 14.10,
+        // P0-1): the boundary moved from i<210 to i<209 - entry is now bars[i+1].Open (not bars[i].Close),
+        // so the exit bar is (i+1)+horizon = i+11, which requires i<209 to stay inside a 220-bar series
+        // (0..219). This is the SAME documented, pre-existing phenomenon Lot 14.4 already established
+        // (truncating below HorizonBars legitimately drops PositionCount near a data boundary - not a
+        // look-ahead), one bar later than before.
+        for (int i = 0; i < 209; i++)
         {
             PositionPnLResult s = shortRun.PnLResult.PositionPnLResults[i];
             PositionPnLResult l = longRun.PnLResult.PositionPnLResults[i];
