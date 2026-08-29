@@ -1,9 +1,0 @@
-Metric,Count,Pct_or_Rate
-Positions opened only in the ablated run,115,
-  ...whose entry bar was a StructuralBreak winner in production,0,0
-     wins,0,
-     losses,0,
-     win rate %,,0
-     net PnL of those positions,0,
-net PnL of ALL positions unique to the ablated run,479.29241426985,
-=> economic effect of StructuralBreakRule (prod - abl FinalNetPnL),1453.90648186365,

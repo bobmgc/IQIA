@@ -1,6 +1,0 @@
-Regime,ReadyBars,SignalProduced,SignalProducedPct,EntryCandidate,EntryCandidatePct,TriggerBUY,TriggerSELL,TriggerNO_ACTION,TriggerWATCH,TradePlanNO_TRADE,TradePlanSIGNAL_ONLY,TradePlanPLAN_READY,TradePlanPLAN_BLOCKED,PositionOpened,PositionOpenedPct,PositionClosed,PositionClosedPct
-MeanReverting,6792,6792,100,6792,100,1222,1203,4367,0,4367,0,2425,0,2425,35.704000000000001,2425,35.704000000000001
-StructuralBreak,3562,3562,100,0,0,0,0,3562,0,3562,0,0,0,0,0,0,0
-RandomWalk,502,502,100,0,0,0,0,502,0,502,0,0,0,0,0,0,0
-Trending,459,459,100,0,0,0,0,459,0,459,0,0,0,0,0,0,0
-StableRange,113,113,100,0,0,0,0,113,0,113,0,0,0,0,0,0,0

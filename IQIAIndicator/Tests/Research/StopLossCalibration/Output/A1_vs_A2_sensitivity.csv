@@ -1,8 +1,0 @@
-Note,ExplanatoryFinding
-Finding,AR1_phi0.5 and MeanRevertingOu_k0.5 are mathematically identical series (AR1 coefficient = 1-kappa = 0.5 in both cases; same seed/noise) - verified byte-identical via diff on entry-level data. Same for AR1_phi0.95 and MeanRevertingOu_k0.05 (1-0.05=0.95). Effective independent series count is 9, not 11.
-ExcludedSeries,IndependentSeriesUsed,MeanDeltaRevRate_A2minusA1_pp,SignOfConclusion
-None (all 9 independent series),9,-5.06,A2_worse_on_average
-RandomWalk,8,-2.73,A2_worse_on_average
-VarianceBreak,8,-6.42,A2_worse_on_average
-Trending,8,-5.69,A2_worse_on_average
-RandomWalk+VarianceBreak,7,-3.94,A2_worse_on_average

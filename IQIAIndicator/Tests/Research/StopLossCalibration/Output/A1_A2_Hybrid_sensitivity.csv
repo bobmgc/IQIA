@@ -1,7 +1,0 @@
-ExcludedDataset,IncludedDatasetCount,MeanDeltaHybridStrictMinusA1,SignFlippedVsFullSet
-None,9,-0.000976372,False
-RandomWalk,8,0.00153779,True
-AR1_phi0.95,8,0.00219684,True
-VarianceBreak,8,-0.00307557,False
-Trending,8,-0.00109842,False
-StructuralBreak,8,-0.00175747,False

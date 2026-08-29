@@ -1,7 +1,0 @@
-Metric,Count,Rate%,NetPnL
-Positions ADDED by removing StructuralBreakRule,3425,,-1444.6931
-  ...whose signal bar was a StructuralBreak winner in production,1667,48.671999999999997,-1176.3184
-     ...their win rate %,,70.846000000000004,
-Positions REMOVED by removing StructuralBreakRule (ambiguity-gate churn),0,,0
-Net traded-set change (added.NetPnL - removed.NetPnL),,,-1444.6931
-=> economic effect of KEEPING StructuralBreakRule (prod - ablated FinalNetPnL),,,1444.6931
