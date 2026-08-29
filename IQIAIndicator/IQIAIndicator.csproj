@@ -5,7 +5,7 @@
     <UseWPF>True</UseWPF>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <AssemblyName>IQIAIndicator</AssemblyName>
     <RootNamespace>IQIAIndicator</RootNamespace>
     <NoWarn>$(NoWarn);CA1416;CS8002</NoWarn>
@@ -31,6 +31,10 @@
     <Reference Include="Utils.Common">
       <HintPath>$(ATAS_BASE)\Utils.Common.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Tests\**\*.cs" />
   </ItemGroup>
 
 </Project>

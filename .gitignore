@@ -480,3 +480,26 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# CodeAtlas MCP local analysis cache (76MB SQLite db)
+.codeatlas-sa/
+
+# ---------------------------------------------------------------------------
+# IQIA — artefacts locaux à ne jamais versionner
+# ---------------------------------------------------------------------------
+
+# Dumps de diagnostic MSBuild (générés à la demande, cf. `dotnet build -v diag`
+# et `dotnet msbuild /pp`). ~16 Mo, aucune valeur en historique.
+build_diag*.txt
+*.pp.xml
+-Destination
+
+# Sorties des campagnes de recherche/calibration : régénérées (et réécrites) à
+# chaque exécution de la suite de tests, jamais lues comme fixtures. Les
+# snapshots curés `_*_snapshots/` (captures "before/after" non reproductibles)
+# restent versionnés via les exceptions ci-dessous ; RealMarket/ n'est pas sous
+# Output/ et reste versionné tel quel.
+IQIAIndicator/Tests/Research/*/Output/**
+!IQIAIndicator/Tests/Research/*/Output/_*_snapshots/
+!IQIAIndicator/Tests/Research/*/Output/_*_snapshots/**
+

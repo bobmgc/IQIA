@@ -1,0 +1,3 @@
+SourceFile,SessionId,Symbol,TimeFrame,BarsReceived,BarsWritten,FirstTimestamp,LastTimestamp,Notes
+ScientificDataset_ES_M5_20260814_165421,967a640e-f224-4ffc-8dfc-13104179cf14,ES,M5,3059,1732,2026-06-29T22:00:00.0000000,2026-07-08T08:15:00.0000000,Primary capture analyzed by this sprint.
+ScientificDataset_ES_M5_20260814_165335,20c7b9c8-7d79-47f5-9ff2-b47d8e474394,ES,M5,71,1,2026-08-14T14:50:00.0000000,2026-08-14T14:50:00.0000000,"Independent, separate session - single-bar/71-callback corroborating evidence only, never concatenated with 165421."

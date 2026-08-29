@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- Sprint 15.25 (Lot 16.6): xUnit v3 test projects are executables (they host their own runner). -->
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Sprint 15.25 (Lot 16.6): xUnit1051 (pass TestContext.Current.CancellationToken to any method
+         that accepts a CancellationToken) fires on ~27 YahooHistoricalBarSource.Load call sites since
+         Lot 16.3 gave Load an optional CancellationToken. The deterministic fake-client unit tests gain
+         nothing from it, and the real network loads are already internally bounded (YahooRetryPolicy +
+         overall ceiling). Wiring the token through every call site is deliberately out of this lot's
+         scope; suppress the suggestion rather than make 27 noise-edits. -->
+    <NoWarn>$(NoWarn);xUnit1051</NoWarn>
+    <!-- Sprint 15.25 (Lot 16.6): the .NET 10 SDK dropped the VSTest bridge for Microsoft.Testing.Platform
+         projects (which xUnit v3 is). Opt in to the MTP-native `dotnet test` experience. -->
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <UseVSTest>false</UseVSTest>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ATAS_BASE>C:\Program Files (x86)\ATAS Platform</ATAS_BASE>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Sprint 15.25 (Lot 16.6): migrated from xunit 2.5.3 -> xunit.v3 4.0.0. The v3 change that
+         matters here is IAssemblyFixture (share YahooSessionDataset across the whole assembly WITHOUT
+         forcing intra-collection serialisation, unlike v2's ICollectionFixture) and Assert.Skip
+         (a real dynamic skip, replacing the "log + early return, still Passed" convention).
+         Microsoft.NET.Test.Sdk (the VSTest host) is intentionally dropped: xUnit v3 runs on
+         Microsoft.Testing.Platform, and on the .NET 10 SDK the two no longer coexist for `dotnet test`. -->
+    <PackageReference Include="xunit.v3" Version="4.0.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+
+  <!-- Sprint 15.25 (Lot 12.2): needed so ATASRuntimeBindingTests.cs can construct real ATAS domain
+       types (Portfolio/Security/EquityValue/IMutableEnumerable) as fixtures - mirrors the main
+       project's own References below. -->
+  <ItemGroup>
+    <Reference Include="ATAS.DataFeedsCore">
+      <HintPath>$(ATAS_BASE)\ATAS.DataFeedsCore.dll</HintPath>
+    </Reference>
+    <Reference Include="Utils.Common">
+      <HintPath>$(ATAS_BASE)\Utils.Common.dll</HintPath>
+    </Reference>
+    <!-- Sprint 15.25 (Lot 12.12): needed so MarketContextBuilderSelfHealingTests.cs can reference
+         ATAS.Indicators.IndicatorCandle (MarketContextBuilder's getBar delegate type) - the
+         ProjectReference to IQIAIndicator.csproj below does not transitively expose its own private
+         HintPath-based References, so this mirrors the main project's identical Reference entry. -->
+    <Reference Include="ATAS.Indicators">
+      <HintPath>$(ATAS_BASE)\ATAS.Indicators.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IQIAIndicator.csproj" />
+  </ItemGroup>
+</Project>

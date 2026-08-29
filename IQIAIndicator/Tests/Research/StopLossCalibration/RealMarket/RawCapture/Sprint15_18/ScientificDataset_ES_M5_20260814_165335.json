@@ -1,0 +1,39 @@
+[
+  {
+    "SessionId": "20c7b9c8-7d79-47f5-9ff2-b47d8e474394",
+    "Timestamp": "2026-08-14T14:50:00",
+    "Symbol": "ES",
+    "TimeFrame": "M5",
+    "CurrentPrice": 7815.75,
+    "HistoryLength": 500,
+    "CurrentBar": 1030,
+    "Metrics": {
+      "Fusion.OverallConfidence": 0,
+      "Decision.ScientificScore": 0.63,
+      "Decision.QualityScore": 0.436,
+      "Decision.FinalScore": 0.6106218822967195
+    },
+    "Categories": {
+      "Fusion.OverallConfidence": "0",
+      "Decision.ScientificScore": "0.63",
+      "Decision.QualityScore": "0.436",
+      "Decision.FinalScore": "0.6106218822967195",
+      "Fusion.SuccessfulModels": "",
+      "Fusion.FailedModels": "",
+      "Fusion.EvidenceAgreement": "",
+      "Fusion.EvidenceConflict": "",
+      "Fusion.MissingEvidence": "KalmanFilterModel;OrnsteinUhlenbeckModel;DynamicZScoreModel;VolatilityModel;SPRTModel",
+      "Decision.TriggeredRules": "RandomWalkRule",
+      "Decision.RejectedRules": "",
+      "Decision.Winner": "RandomWalk",
+      "Decision.RuleExplanation": "Scientific Score : 0.630\r\nQuality Score : 0.436\r\nDecision Confidence : 0.436\r\nFinal Score : 0.611\r\nModerate Random Walk Compatibility\r\nWeak Persistence\r\nModerate Mean Reversion\r\nMarket behaves close to a stochastic process",
+      "Decision.ArbitrationExplanation": "Winner : RandomWalk\r\nWinner Score : 0.611\r\nRunner Up : MeanReverting (0.567)\r\nDifference : 0.044\r\nAmbiguity : 0.956",
+      "Fusion.Diagnostics": "No scientific model coverage for the current methodology. No models are registered for this regime; none were executed."
+    },
+    "Open": 7815.00,
+    "High": 7816.75,
+    "Low": 7813.75,
+    "Volume": 4620,
+    "Close": 7815.75
+  }
+]

@@ -1,0 +1,15 @@
+Metric,Value,Source
+Session165421_TotalBarsWritten,1732,RawCapture/Sprint15_18 ohlcv.csv (unchanged since Sprint 15.18)
+Session165421_ZeroRangeSuspectSegment_BarCount,633,RealMarketQualityAnalyzer.DetectZeroRangeSegments (unchanged code, re-run)
+Session165421_ZeroRangeSuspectSegment_StartIndex,1099,same
+Session165421_ZeroRangeSuspectSegment_EndIndex,1731,same
+Session165421_ZeroRangeSuspectSegment_StartTimestamp,2026-07-06T01:35:00.0000000,same
+Session165421_ZeroRangeSuspectSegment_MedianVolume,1,same
+Session165421_ZeroRangeSuspectSegment_PercentOfFile,36.5,computed
+Session165335_BarsReceived,71,RawCapture/Sprint15_18 165335_metadata.json (unchanged)
+Session165335_BarsWritten_UnderPre15_19Semantics,1,same
+Session165335_Duplicates_UnderPre15_19Semantics,70,same (all 70 were legitimate forming-bar updates, not true duplicates - see Sprint 15.19 report Section 2)
+Session165335_CollectionWallClockSpan_Seconds,43.07,165335_lifecycle.json: OnDisposeEnteredAt(14:54:18.6976575Z) - DatasetEnabledAt(14:53:35.632299Z)
+RootCause,"first-Add()-wins dedup committed the FIRST snapshot per CurrentBar, not the final one",ScientificDatasetCollector.cs pre-Sprint-15.19 source (git history)
+ATAS_SDK_Explicit_CloseSignal_Found,NO,"reflection audit of ATAS.Indicators.dll/ATAS.DataFeedsCore.dll/ATAS.Types.dll - see Sprint 15.19 report Section 3"
+ATAS_SDK_UsableSignal,"BaseIndicator.CurrentBar (already read by IQIAIndicator.cs) compared against the OnCalculate 'bar' parameter","same reflection audit; already computed as MarketContext.Execution.IsHistorical/IsRealtime in MarketContextBuilder.cs, unused by the collector pre-15.19"

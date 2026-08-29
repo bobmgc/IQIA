@@ -63,6 +63,7 @@ public static class KpssValidation
         {
             Statistic       = stat,
             PValue          = pv,
+            Confidence      = Math.Clamp((decimal)n / 60, 0m, 1m),
             CriticalValue1  = cv1,
             CriticalValue5  = cv5,
             CriticalValue10 = cv10,

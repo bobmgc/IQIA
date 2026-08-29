@@ -1,0 +1,11 @@
+Dimension,OldSemantics_PreSprint1519,NewSemantics_Sprint1519
+DedupIdentity,SessionId+Symbol+TimeFrame+CurrentBar,unchanged - same logical bar identity
+CommitPolicy,first Add() wins - committed immediately on first valid callback,last update before bar-advance wins - committed only once a later bar proves this one closed
+SecondCallbackSameBar,"rejected, counted as DuplicateRecordsRejected",accepted as FormingBarUpdates; replaces the pending snapshot (latest wins)
+TrueDuplicateDefinition,any 2nd+ callback for a CurrentBar already seen (finalized or not),"re-delivery of an ALREADY-FINALIZED (closed, immutable) bar only"
+FinalizationTrigger,the Add() call itself,"a later callback's CurrentBar advancing past the pending bar, a Symbol/TimeFrame change, or explicit Flush()"
+OnDisposeBehavior,"whatever was collected so far is exported as-is, including a possibly still-forming last bar",EXCLUDE_CURRENT_FORMING_BAR - Flush() marks the still-pending bar excluded; never exported as if closed
+OutOfOrderMeaning,an accepted record's Timestamp regressed vs. the previously accepted record,a callback's CurrentBar rewinds behind the pending bar without matching an already-finalized one (e.g. an ambiguous Replay rewind)
+NewDiagnostics,n/a,"FormingBarUpdates, BarsPendingAtDispose, PendingBar, PendingBarFirstSeenAt/LastSeenAt"
+BackwardCompatibility,n/a,RecordsAccepted/DuplicateRecordsRejected/RecordsOutOfOrder property names and Errors/BarsCollected formulas kept unchanged for DatasetDashboard/ScientificCollectionMonitorWidget/SystemHealthAggregator (outside this sprint's allowed-file list); BarsFinalized/BarsDuplicated/BarsOutOfOrder added as same-value aliases under their Sprint 15.19 names
+MetadataSchema,ScientificDatasetMetadata: 15 fields,"+FormingBarUpdates, +BarsPendingAtDispose, both optional/defaulted to 0 so Sprint 15.18's committed raw metadata.json fixtures still deserialize unchanged"

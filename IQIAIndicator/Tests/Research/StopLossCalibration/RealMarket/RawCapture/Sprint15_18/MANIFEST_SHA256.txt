@@ -1,0 +1,39 @@
+Sprint 15.18 (QDE-012 real-market data quality) - raw ATAS capture provenance manifest.
+
+These 10 files are byte-exact copies of the real ATAS capture supplied as evidence for this sprint,
+originally produced by ScientificDatasetSessionWriter/DatasetLifecycleSnapshotWriter under
+%LocalAppData%\IQIA\ScientificDataset\ on this machine. They are committed here, unmodified, so that
+RealMarketQualityAnalyzerTests/Sprint1518RealCaptureQualityTests have a deterministic, repository-local
+path to read from (the AppData path is machine-local and would not exist in CI or on another checkout).
+
+Do not edit any file in this folder. If a future sprint needs to re-verify these files against the
+original export, recompute SHA-256 and compare against the hashes below - they must match exactly.
+
+SHA-256 (computed from the original %LocalAppData%\IQIA\ScientificDataset\ files before copying):
+
+c645618c9e302dbad58710f1e7c7e281aef8f1f7cb543f06ba189c45f8f2ff56  ScientificDataset_ES_M5_20260814_165421.csv
+2eb3aa6cf1763659bf100ac2ac0170d894517a875e3e185bf9fab9c0818071f5  ScientificDataset_ES_M5_20260814_165421.json
+22aed9dfc1a1e579ce565d0fdf074d42196e50d08aef70ebda04f455670fc8e9  ScientificDataset_ES_M5_20260814_165421_lifecycle.json
+52a7747aa45e0179ef60439bff51db966d1fb5dc54b8cff4ab8891e746d85547  ScientificDataset_ES_M5_20260814_165421_metadata.json
+6170e3fedcbbbfe9bb144f6ae2defeb3ea05280ab9a337610a72dfac9a0553d3  ScientificDataset_ES_M5_20260814_165421_ohlcv.csv
+18254df48fd9250f8cd0a4b32ca4d91f988b5dfe8366bda35d7b9a3bea04002b  ScientificDataset_ES_M5_20260814_165335.csv
+2c77135bfdb1e6fde78c4b289207f6f28cf67985eaa656dfd25a8e348010a350  ScientificDataset_ES_M5_20260814_165335.json
+e5f3452f1e5c666d18e4e8c557684e0a2c6dfd239f5749eedc5677fa82ed0b1f  ScientificDataset_ES_M5_20260814_165335_lifecycle.json
+d368186c9af09b996616eefe8b9647223b9aa1e84b2ca68a667fd29c4fcf74fe  ScientificDataset_ES_M5_20260814_165335_metadata.json
+751d39e78f595903593a821c4a9cc1fb1a9948dab64e1d704f1fdc5fc0047738  ScientificDataset_ES_M5_20260814_165335_ohlcv.csv
+
+Verified identical to the copies in this folder at commit time (byte-for-byte sha256sum comparison,
+Sprint 15.18). Sprint1518RealCaptureQualityTests re-asserts these exact hashes against the committed
+copies on every test run (source dataset immutability gate).
+
+Sessions:
+- 20260814_165421 (SessionId 967a640e-f224-4ffc-8dfc-13104179cf14): the primary capture analyzed by
+  this sprint. ES / M5, BarsReceived=3059, BarsWritten=1732, Duplicates=1327, InvalidRejected=0,
+  OutOfOrder=0, FirstTimestamp=2026-06-29T22:00:00, LastTimestamp=2026-07-08T08:15:00.
+- 20260814_165335 (SessionId 20c7b9c8-7d79-47f5-9ff2-b47d8e474394): an earlier, much shorter capture
+  from the same machine/day. ES / M5, BarsReceived=71, BarsWritten=1, Duplicates=70 - all 71 add
+  attempts share the same CurrentBar (1030) and the same Timestamp (2026-08-14T14:50:00), spanning
+  ~43 real seconds of wall-clock collection time (DatasetEnabledAt 14:53:35.63Z to OnDisposeEnteredAt
+  14:54:18.70Z per its lifecycle.json). Analyzed strictly as a separate session - never concatenated
+  with 165421 - and used only as corroborating evidence for the duplicate/observation-contract
+  analysis (see real_market_duplicate_analysis.csv and the Sprint 15.18 report, Section 6).

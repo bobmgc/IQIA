@@ -1,0 +1,13 @@
+SessionId,Timestamp,Symbol,TimeFrame,CurrentPrice,Open,High,Low,Volume,HistoryLength,CurrentBar,Decision.FinalScore,Decision.QualityScore,Decision.ScientificScore,Fusion.OverallConfidence,Decision.ArbitrationExplanation,Decision.FinalScore,Decision.QualityScore,Decision.RejectedRules,Decision.RuleExplanation,Decision.ScientificScore,Decision.TriggeredRules,Decision.Winner,Fusion.Diagnostics,Fusion.EvidenceAgreement,Fusion.EvidenceConflict,Fusion.FailedModels,Fusion.MissingEvidence,Fusion.OverallConfidence,Fusion.SuccessfulModels
+20c7b9c8-7d79-47f5-9ff2-b47d8e474394,2026-08-14T14:50:00.0000000,ES,M5,7815.75,7815.00,7816.75,7813.75,4620,500,1030,0.6106218822967195,0.436,0.63,0,"Winner : RandomWalk
+Winner Score : 0.611
+Runner Up : MeanReverting (0.567)
+Difference : 0.044
+Ambiguity : 0.956",0.6106218822967195,0.436,,"Scientific Score : 0.630
+Quality Score : 0.436
+Decision Confidence : 0.436
+Final Score : 0.611
+Moderate Random Walk Compatibility
+Weak Persistence
+Moderate Mean Reversion
+Market behaves close to a stochastic process",0.63,RandomWalkRule,RandomWalk,No scientific model coverage for the current methodology. No models are registered for this regime; none were executed.,,,,KalmanFilterModel;OrnsteinUhlenbeckModel;DynamicZScoreModel;VolatilityModel;SPRTModel,0,

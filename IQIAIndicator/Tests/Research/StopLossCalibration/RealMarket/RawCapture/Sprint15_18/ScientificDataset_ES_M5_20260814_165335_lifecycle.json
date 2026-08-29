@@ -1,0 +1,17 @@
+{
+  "SessionId": "20c7b9c8-7d79-47f5-9ff2-b47d8e474394",
+  "Symbol": "ES",
+  "TimeFrame": "M5",
+  "ConstructedAt": "2026-08-14T14:53:16.7434066Z",
+  "DatasetEnabledAt": "2026-08-14T14:53:35.632299Z",
+  "FirstAddAt": "2026-08-14T14:53:35.703655Z",
+  "LastAddAt": "2026-08-14T14:54:07.4164623Z",
+  "OnDisposeEnteredAt": "2026-08-14T14:54:18.6976575Z",
+  "ExportStartedAt": "2026-08-14T14:54:18.7013052Z",
+  "ExportCompletedAt": "2026-08-14T14:54:18.758032Z",
+  "ExportFailedAt": null,
+  "BarsReceived": 71,
+  "BarsWritten": 1,
+  "LastError": null,
+  "SnapshotWrittenAt": "2026-08-14T14:54:18.7583679Z"
+}

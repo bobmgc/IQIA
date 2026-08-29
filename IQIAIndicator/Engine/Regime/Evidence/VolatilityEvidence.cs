@@ -1,76 +1,53 @@
-using IQIAIndicator.Core;
+﻿using IQIAIndicator.Core;
 
 namespace IQIAIndicator.Engine.Regime.Evidence;
 
 /// <summary>
-/// Clustering de volatilité : autocorrélation au lag 1 des rendements absolus.
-/// ACF(|r|) élevée → la volatilité haute suit la volatilité haute → Expansion.
-/// ACF(|r|) faible ou négative → pas de clustering → Compression.
-/// Proxy de l'effet ARCH ; modèle GARCH complet au Sprint suivant.
+/// Clustering de volatilite via autocorrelation des |rendements|.
+/// Producteur d'evidence pure : retourne VolatilityResult.
+/// ACF > 0 -> effet ARCH present. ACF ~ 0 -> pas de clustering.
 /// </summary>
-public sealed class VolatilityEvidence : IRegimeEvidence
+public sealed class VolatilityEvidence
 {
-    public string ModelName => "Volatility";
-
     private const int W    = 30;
     private const int MinN = 20;
     private readonly decimal[] _buf = new decimal[W];
     private int _h, _n;
 
-    public EvidenceResult Compute(MarketContext ctx)
+    public VolatilityResult Compute(MarketContext ctx)
     {
         if (ctx.Clock.IsFirstBar) { _h = _n = 0; Array.Clear(_buf); }
-
         _buf[_h] = ctx.Price.Close;
         _h = (_h + 1) % W;
         _n = Math.Min(_n + 1, W);
-
-        if (_n < MinN) return Stub();
+        if (_n < MinN) return VolatilityResult.Invalid($"Warmup Volatility ({_n}/{MinN} bars).");
 
         int n = _n - 1;
-
-        // Moyenne des |rendements|
         decimal sumA = 0m;
         for (int i = 0; i < n; i++) sumA += Math.Abs(P(i) - P(i + 1));
-        decimal muA = sumA / n;
+        decimal mu = sumA / n;
 
-        // Autocorrélation au lag 1 des |rendements|
         decimal cov = 0m, varA = 0m;
         for (int i = 0; i < n - 1; i++)
         {
-            decimal a0 = Math.Abs(P(i)     - P(i + 1)) - muA;
-            decimal a1 = Math.Abs(P(i + 1) - P(i + 2)) - muA;
+            decimal a0 = Math.Abs(P(i)     - P(i + 1)) - mu;
+            decimal a1 = Math.Abs(P(i + 1) - P(i + 2)) - mu;
             cov  += a0 * a1;
             varA += a0 * a0;
         }
+        if (varA == 0m) return VolatilityResult.Invalid("Variance nulle.");
 
-        if (varA == 0m) return Stub();
+        decimal acf = cov / varA;
 
-        var acf   = cov / varA;
-        var score = Math.Clamp(Math.Abs(acf), 0m, 1m);
-        var dir   = acf > 0.05m ? 1 : acf < -0.05m ? -1 : 0;
-        var hint  = dir > 0 ? RegimeType.Expansion
-                  : dir < 0 ? RegimeType.Compression
-                  : RegimeType.Transition;
-
-        return new EvidenceResult
+        return new VolatilityResult
         {
-            ModelName   = ModelName,
-            Score       = score,
-            Confidence  = Math.Clamp((decimal)_n / W, 0m, 1m),
-            Direction   = dir,
-            RegimeHint  = hint,
-            Explanation = $"ACF(|r|)={acf:F3}",
-            IsReady     = true
+            AcfAbsReturns = acf,
+            IsClustering  = acf > 0.05m,
+            Confidence    = Math.Clamp((decimal)_n / W, 0m, 1m),
+            IsValid       = true,
+            Explanation   = $"ACF(|r|)={acf:F4}, clustering={acf > 0.05m}"
         };
     }
 
     private decimal P(int lag) => _buf[(_h - 1 - lag + W) % W];
-
-    private EvidenceResult Stub() => new()
-    {
-        ModelName = ModelName, Score = 0m, Confidence = 0m,
-        Direction = 0, RegimeHint = RegimeType.Unknown,
-        Explanation = "Warmup", IsReady = false
-    };
 }

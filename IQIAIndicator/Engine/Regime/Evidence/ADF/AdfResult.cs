@@ -8,6 +8,7 @@ public sealed class AdfResult
 {
     public required decimal Statistic        { get; init; }  // τ (t-stat sur y_{t-1})
     public required decimal PValue           { get; init; }  // p-value approximée
+    public required decimal Confidence       { get; init; }  // 0..1, basée sur la taille d'échantillon
     public required decimal CriticalValue1   { get; init; }  // MacKinnon 1%
     public required decimal CriticalValue5   { get; init; }  // MacKinnon 5%
     public required decimal CriticalValue10  { get; init; }  // MacKinnon 10%
@@ -22,6 +23,7 @@ public sealed class AdfResult
     {
         Statistic       = 0m,
         PValue          = 1m,
+        Confidence      = 0m,
         CriticalValue1  = 0m,
         CriticalValue5  = 0m,
         CriticalValue10 = 0m,

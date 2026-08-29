@@ -1,0 +1,19 @@
+Metric,Value
+BarsReceived,3059
+BarsWritten,1732
+DuplicateRecordsRejected,1327
+InvalidRejected,0
+OutOfOrder,0
+ArithmeticCheck_ReceivedEqualsWrittenPlusDuplicatesPlusInvalid,True
+DuplicateRate,0.43380189604445896
+AverageAddAttemptsPerAcceptedBar,1.7661662817551964
+DedupIdentity,SessionId+Symbol+TimeFrame+CurrentBar (first Add() wins - ScientificDatasetCollector.cs)
+ZeroRangeContiguousSegmentCount,1
+Segment_BarCount,633
+Segment_StartIndex,1099
+Segment_EndIndex,1731
+Segment_StartTimestamp,2026-07-06T01:35:00.0000000
+Segment_EndTimestamp,2026-07-08T08:15:00.0000000
+Segment_MedianVolume,1
+Segment_MaxVolume,51
+Classification,"Predominantly (B) repeated observation of a forming bar: confirmed directly by the contiguous 633-bar zero-range/near-zero-volume tail segment (idx 1099..1731) in this session, and independently corroborated by session 165335 (71 Add() attempts, all for the same CurrentBar and Timestamp, across ~43 real seconds). For bars before idx 1099, individual duplicate payloads are not retained by ScientificDatasetCollector (first-Add()-wins discards them before export), so per-bar classification there is (D) ambiguous / cannot determine from this evidence alone - see Sprint 15.18 report Section 6."

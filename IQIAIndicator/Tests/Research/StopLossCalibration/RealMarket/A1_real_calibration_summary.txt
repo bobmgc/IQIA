@@ -1,0 +1,43 @@
+SPRINT 15.16 — A1 REAL-MARKET CALIBRATION SUMMARY
+
+VERDICT = INSUFFICIENT REAL DATA
+
+No real-market campaign was executed. Per QDE-012 Sprint 15.16's own gate rule (Section 0 /
+Section 25): if no exploitable real market data is available locally, the campaign must not run
+and no result may be fabricated or substituted with synthetic data.
+
+=== Phase A gate outcome ===
+DataAudit            = COMPLETE (see real_market_data_inventory.csv)
+DataQualityAudit      = BLOCKED - no dataset to assess (see real_market_data_quality.csv)
+HarnessAudit          = PASS - CalibrationEntryBuilder/BarMetricsComputer/OutcomeSimulator/
+                        StopLossEvaluator/StableRegionAnalyzer have no hard dependency on the
+                        synthetic generators and are ready to consume a real close-price series
+                        with no code changes, once one exists.
+LookAheadAudit        = PASS (pre-existing) - BarMetricsComputer only ever reads series[0..barIndex];
+                        StopLossCalibrationPocTests already regression-guards truncation equivalence.
+                        This property is structural (every model class is stateless/batch over the
+                        slice it is given), so it is expected to hold unchanged for real data too.
+StructuralTests        = ADDED - RealMarketGateTests.cs (horizon/k-grid lock, A1 formula + scale-ratio
+                        consistency, BUY/SELL symmetry, harness data-source agnosticism, SYNTHETIC/
+                        REAL artifact separation). No regression in the pre-existing suite.
+CampaignExecuted        = NO
+
+=== What is missing ===
+No real historical OHLC data exists anywhere in this repository: no data files, no vendor connector
+(NinjaTrader/Databento/Binance/Polygon/Yahoo), and no export from the one theoretical live-capture
+bridge that does exist (ScientificDatasetCollector, which requires the ATAS desktop platform running
+live/replay on a real chart - never exercised in this repository to date). This matches the explicit,
+repeated "Real market validation: NOT PERFORMED" statement carried in the QDE-012 protocol document
+and in every sprint report from 15.10 through 15.15.
+
+=== Required data format to unblock a future sprint ===
+See QDE-012_Sprint_15.16_Real_Market_Validation_Report.md, Section "Required data format," for the
+full specification. Summary: one or more real close-price series (decimal, chronologically ordered,
+one instrument/timeframe per file, minimum ~700 bars to cover WarmupBars=30 + Horizon=40 + a usable
+TRAIN/VALIDATION/TEST split), with an accompanying timestamp column and documented timezone/session
+convention, sourced from an identifiable provider and reproducibly obtainable (exported file or a
+scriptable, credentialed API pull) rather than a one-off manual capture.
+
+=== Production perimeter ===
+Production files modified = 0. All changes in this sprint are confined to
+Tests/Research/StopLossCalibration/RealMarket/, Tests/XunitWrappers/, and Documentation/Scientific/.

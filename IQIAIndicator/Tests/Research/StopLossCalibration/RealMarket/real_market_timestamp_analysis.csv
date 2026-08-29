@@ -1,0 +1,17 @@
+Metric,Value
+FirstTimestamp,2026-06-29T22:00:00.0000000
+LastTimestamp,2026-07-08T08:15:00.0000000
+ElapsedCalendarSeconds,728100
+ExpectedIntervalSeconds,300
+StrictlyIncreasing,True
+NonDecreasing,True
+DuplicateTimestampCount,0
+IntervalCount,1731
+MinIntervalSeconds,300
+MaxIntervalSeconds,191100
+MedianIntervalSeconds,300
+MeanIntervalSeconds,420.6239168110919
+ModalIntervalSeconds,300
+StdDevIntervalSeconds,4588.449928640864
+GapCount,6
+LargestGapSeconds,191100

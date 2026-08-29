@@ -1,0 +1,7 @@
+{
+  "//": "Ce dépôt est un projet .NET. Ce package.json ne sert qu'à installer l'outillage MCP de développement. 'chokidar' est requis à l'exécution par @codeatlas/mcp (import dynamique pour son file-watcher) mais absent de ses dependencies déclarées en amont : on le fournit ici explicitement. Ne pas retirer sans vérifier que @codeatlas/mcp le déclare enfin lui-même.",
+  "devDependencies": {
+    "@codeatlas/mcp": "^5.3.0",
+    "chokidar": "^5.0.0"
+  }
+}

@@ -1,0 +1,37 @@
+QDE-012 Sprint 15.18 - REAL_DATA_ADMISSIBILITY gate
+============================================================
+
+DataCollection: Pass
+StructuralValidity: Pass
+DuplicateBehavior: Fail
+TimestampIntegrity: PassWithCaveats
+OhlcvIntegrity: PassWithCaveats
+VolumeIntegrity: Pass
+Continuity: PassWithCaveats
+Timezone: Unresolved
+Coverage: PassWithCaveats
+Horizon40Adequacy: PassWithCaveats
+SessionIntegrity: Pass
+
+DATA_COLLECTION:
+    PASS
+DATA_INTEGRITY:
+    PASS_WITH_CAVEATS
+TIMESTAMP_INTEGRITY:
+    PASS_WITH_CAVEATS
+OHLCV_INTEGRITY:
+    PASS_WITH_CAVEATS
+DUPLICATE_HANDLING:
+    FAIL
+HORIZON_40_ADEQUACY:
+    PASS_WITH_CAVEATS
+TIMEZONE:
+    UNRESOLVED
+SCIENTIFIC_ADMISSIBILITY:
+    BLOCKED
+PRODUCTION_MODIFICATIONS:
+    0
+CALIBRATION_RUN:
+    NO
+K_SELECTED:
+    NO
