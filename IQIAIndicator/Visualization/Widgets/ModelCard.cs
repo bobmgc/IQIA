@@ -40,7 +40,8 @@ internal static class ModelCard
 
         // En-tête : seule zone cliquable (Étape 5). Caret purement visuel (Étape 6) — le vrai
         // hit-test porte sur tout le rectangle d'en-tête, pas sur le glyphe lui-même.
-        string caret = expanded ? "▾" : "▸";
+        // ASCII caret - ATAS's text renderer drops many geometric-shape glyphs (see DashboardCanvas note).
+        string caret = expanded ? "v" : ">";
         string displayName = DashboardCanvas.SplitPascalCase(result.ModelName.Replace("Model", string.Empty));
         renderContext.DrawString($"{caret} {displayName}", DashboardTheme.HeaderFont, DashboardTheme.TextColor, x + 8, y + 6);
         renderContext.DrawString(DashboardCanvas.FormatDouble(result.Score), DashboardTheme.BodyFont, DashboardTheme.TextColor, x + Width - 60, y + 7);

@@ -40,27 +40,32 @@ internal static class DashboardCanvas
         y += 13;
     }
 
+    // Audit 2026-08-29 (P2 dashboard): ATAS's GDI text renderer (RenderFont "Arial") does not render
+    // emoji (U+1F7E0-range coloured circles) or several geometric-shape glyphs - they showed as
+    // missing-glyph boxes on the live SYSTEM HEALTH bar. All status markers below are ASCII-only; the
+    // state colour still carries the meaning, the marker is redundant reinforcement for b/w / colour-blind.
     public static void StatusLine(RenderContext renderContext, string label, bool ok, int x, ref int y)
     {
         Color color = ok ? DashboardTheme.Green : DashboardTheme.Gray;
-        string text = ok ? "✓ Executed" : "✗ Not Executed";
+        string text = ok ? "[OK] Executed" : "[--] Not Executed";
         SmallField(renderContext, label, text, x, ref y, color);
     }
 
-    /// <summary>Badge de statut PASS/WARN/FAIL avec pastille colorée.</summary>
+    /// <summary>Badge de statut PASS/WARN/FAIL : marqueur ASCII + texte, tous deux dans la couleur de
+    /// l'état (les emoji ne sont pas rendus par le moteur texte d'ATAS - voir la note ci-dessus).</summary>
     public static void Badge(RenderContext renderContext, string label, HealthState state, int x, int y)
     {
-        (Color color, string dot, string text) = state switch
+        (Color color, string marker, string text) = state switch
         {
-            HealthState.Pass => (DashboardTheme.Green, "\U0001F7E2", "PASS"),
-            HealthState.Warn => (DashboardTheme.Orange, "\U0001F7E1", "WARN"),
-            HealthState.Fail => (DashboardTheme.Red, "\U0001F534", "FAIL"),
-            HealthState.Waiting => (DashboardTheme.Gray, "○", "WAITING"),
-            _ => (DashboardTheme.Gray, "⚪", "N/A")
+            HealthState.Pass => (DashboardTheme.Green, "[+]", "PASS"),
+            HealthState.Warn => (DashboardTheme.Orange, "[!]", "WARN"),
+            HealthState.Fail => (DashboardTheme.Red, "[x]", "FAIL"),
+            HealthState.Waiting => (DashboardTheme.Gray, "[~]", "WAITING"),
+            _ => (DashboardTheme.Gray, "[-]", "N/A")
         };
 
-        renderContext.DrawString($"{dot} {label}", DashboardTheme.SmallFont, DashboardTheme.SecondaryTextColor, x, y);
-        renderContext.DrawString(text, DashboardTheme.SmallFont, color, x + 90, y);
+        renderContext.DrawString(label, DashboardTheme.SmallFont, DashboardTheme.SecondaryTextColor, x, y);
+        renderContext.DrawString($"{marker} {text}", DashboardTheme.SmallFont, color, x + 90, y);
     }
 
     /// <summary>Message honnête affiché à la place d'un panneau qui ne tient pas dans la largeur de
@@ -96,7 +101,7 @@ internal static class DashboardCanvas
     {
         double clamped = Math.Clamp(value01, 0.0, 1.0);
         int filled = (int)Math.Round(blockCount * clamped, MidpointRounding.AwayFromZero);
-        string bar = new string('█', filled) + new string('░', blockCount - filled);
+        string bar = new string('#', filled) + new string('-', blockCount - filled);
         Color color = DashboardTheme.StateColor(clamped);
 
         renderContext.DrawString(label, DashboardTheme.BodyFont, DashboardTheme.SecondaryTextColor, x, y);
