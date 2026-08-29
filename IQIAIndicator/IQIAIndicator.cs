@@ -889,7 +889,13 @@ public sealed class IQIAIndicator : Indicator
             // RiskPolicy/InstrumentRiskSpecification/RiskEngineRequest (all protected) are themselves
             // completely untouched: this only changes how their INPUTS behave when ATAS itself cannot
             // supply them this bar.
-            _latestRiskStageError = $"{exception.GetType().Name}: {exception.Message}";
+            //
+            // Audit 2026-08-29: include the InnerException chain. A real ATAS deployment surfaced a
+            // TypeInitializationException here whose own Message is only the generic wrapper ("The type
+            // initializer for '...' threw an exception.") - the actual cause lives in InnerException and
+            // was lost, leaving ATAS.RiskStage.Exception undiagnosable. Walk the chain (also unwraps the
+            // AggregateException case) so the captured string carries the root cause.
+            _latestRiskStageError = DescribeExceptionChain(exception);
             _latestRiskAccountState = null;
             _latestRiskInstrumentSpec = null;
             _latestRiskEngineRequest = null;
@@ -898,6 +904,28 @@ public sealed class IQIAIndicator : Indicator
             _latestATASInstrumentDiagnostic = null;
             riskTrace.Fail(exception);
         }
+    }
+
+    /// <summary>
+    /// Flattens an exception and its <see cref="Exception.InnerException"/> chain into a single
+    /// "Type: message -&gt; InnerType: inner message" string for capture in <c>_latestRiskStageError</c>
+    /// (Audit 2026-08-29). <see cref="AggregateException"/> is unwrapped via its first inner exception,
+    /// which is what its own <see cref="Exception.InnerException"/> already exposes. The depth guard is a
+    /// belt-and-braces stop against a pathological self-referential chain.
+    /// </summary>
+    private static string DescribeExceptionChain(Exception exception)
+    {
+        var builder = new System.Text.StringBuilder();
+        Exception? current = exception;
+        for (int depth = 0; current is not null && depth < 8; depth++)
+        {
+            if (depth > 0)
+                builder.Append(" -> ");
+            builder.Append(current.GetType().Name).Append(": ").Append(current.Message);
+            current = current.InnerException;
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>
