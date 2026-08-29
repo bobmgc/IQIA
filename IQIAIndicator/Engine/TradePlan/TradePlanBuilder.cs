@@ -139,7 +139,13 @@ public sealed class TradePlanBuilder
             }
         }
 
-        (TradePlanStatus status, string? invalidationReason) = ClassifyStatus(entryPrice, stopLoss, takeProfit, positionSize, degenerateRisk);
+        (TradePlanStatus status, string? invalidationReason) = ClassifyStatus(
+            entryPrice, stopLoss, takeProfit, positionSize, degenerateRisk,
+            context.RiskParameters?.MinRiskReward, riskRewardRatio);
+        if (status == TradePlanStatus.PLAN_REJECTED && invalidationReason is not null)
+        {
+            diagnostics.Add(invalidationReason);
+        }
 
         return new TradePlan(
             IsValid: status == TradePlanStatus.PLAN_READY,
@@ -162,7 +168,8 @@ public sealed class TradePlanBuilder
     // fallback value. SIGNAL_ONLY is reserved for a categorical capability gap (a component the system
     // has no source for yet, e.g. StopLoss/PositionSize today).
     private static (TradePlanStatus Status, string? InvalidationReason) ClassifyStatus(
-        decimal? entryPrice, decimal? stopLoss, decimal? takeProfit, int? positionSize, bool degenerateRisk)
+        decimal? entryPrice, decimal? stopLoss, decimal? takeProfit, int? positionSize, bool degenerateRisk,
+        double? minRiskReward, double? riskRewardRatio)
     {
         if (entryPrice is null)
         {
@@ -172,6 +179,16 @@ public sealed class TradePlanBuilder
         if (degenerateRisk)
         {
             return (TradePlanStatus.PLAN_BLOCKED, "Computed risk is zero; refusing to size a trade against a zero-distance stop.");
+        }
+
+        // Audit 2026-08-29: reject an unfavourable plan outright rather than presenting it as SIGNAL_ONLY/
+        // PLAN_READY. Only fires when a minimum is configured (> 0) AND the ratio was actually computable
+        // (Entry + StopLoss + TakeProfit all valid, Phase 8) - a plan whose R:R cannot be computed is left
+        // to the missing-component path below, never rejected on an absent number.
+        if (minRiskReward is double minRr && minRr > 0d && riskRewardRatio is double rr && rr < minRr)
+        {
+            return (TradePlanStatus.PLAN_REJECTED,
+                $"RiskRewardRatio ({rr:0.00}) is below the configured minimum ({minRr:0.00}).");
         }
 
         var missing = new List<string>();

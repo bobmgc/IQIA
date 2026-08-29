@@ -12,7 +12,13 @@ namespace IQIAIndicator.Engine.TradePlan;
 /// </summary>
 public sealed record TradeRiskParameters(
     decimal? StopLoss,
-    decimal? RiskPerTrade);
+    decimal? RiskPerTrade,
+    // Audit 2026-08-29: minimum acceptable reward/risk ratio. When set (> 0) and the plan's
+    // RiskRewardRatio is below it, TradePlanBuilder returns PLAN_REJECTED instead of PLAN_READY - it
+    // stops the pipeline presenting a structurally unfavourable trade (e.g. a mean-reversion entry
+    // taken near equilibrium: tiny target, volatility-wide stop). Sourced from RiskPolicy.MinRiskReward
+    // (the "Risk/Reward minimum" indicator parameter / BacktestScenario policy). Null/0 = no gate.
+    double? MinRiskReward = null);
 
 public sealed record TradePlanContext(
     EntryTriggerCandidate EntryTriggerCandidate,

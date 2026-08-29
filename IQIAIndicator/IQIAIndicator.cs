@@ -593,7 +593,11 @@ public sealed class IQIAIndicator : Indicator
                     decimal? riskPerTrade = RiskInitialCapital > 0m && RiskPolicyMaxRiskPerTradePercent > 0m
                         ? RiskInitialCapital * (RiskPolicyMaxRiskPerTradePercent / 100m)
                         : null;
-                    riskParameters = new TradeRiskParameters(stopLoss, riskPerTrade);
+                    // Audit 2026-08-29: the "Risk/Reward minimum" parameter (RiskPolicy.MinRiskReward,
+                    // already fed to RunRiskStage's RiskPolicy) also gates the TradePlan itself now - a
+                    // plan below it is PLAN_REJECTED here, not surfaced as an actionable SIGNAL_ONLY.
+                    double? minRiskReward = RiskPolicyMinRiskReward > 0d ? RiskPolicyMinRiskReward : null;
+                    riskParameters = new TradeRiskParameters(stopLoss, riskPerTrade, minRiskReward);
                 }
 
                 _latestTradePlan = _tradePlanEngine.Process(new TradePlanContext(entryTriggerCandidate, instrumentInfo, riskParameters));

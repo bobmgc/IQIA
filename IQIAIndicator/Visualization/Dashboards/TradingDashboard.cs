@@ -130,6 +130,7 @@ internal sealed class TradingDashboard
         TradePlanStatus.PLAN_READY => (DashboardTheme.Green, "●"),
         TradePlanStatus.SIGNAL_ONLY => (DashboardTheme.Orange, "●"),
         TradePlanStatus.PLAN_BLOCKED => (DashboardTheme.Red, "●"),
+        TradePlanStatus.PLAN_REJECTED => (DashboardTheme.Red, "●"),
         TradePlanStatus.NO_TRADE => (DashboardTheme.Gray, "●"),
         _ => (DashboardTheme.Gray, "●")
     };

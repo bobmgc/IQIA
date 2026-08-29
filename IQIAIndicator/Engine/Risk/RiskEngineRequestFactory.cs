@@ -21,6 +21,13 @@ public static class RiskEngineRequestFactory
         InstrumentRiskSpecification instrument,
         PortfolioState? portfolio = null)
     {
+        // Audit 2026-08-29: a plan the builder already rejected on a policy gate (PLAN_REJECTED, e.g.
+        // RiskRewardRatio below TradeRiskParameters.MinRiskReward) is not re-evaluated here - the
+        // rejection and its reason are already carried by the TradePlan itself; handing it to the Risk
+        // Engine would only surface a second, redundant REJECTED for the same decision.
+        if (tradePlan.Status == global::IQIAIndicator.Engine.TradePlan.TradePlanStatus.PLAN_REJECTED)
+            return null;
+
         TradeDirection? direction = tradePlan.Direction switch
         {
             DirectionCandidate.BUY_CANDIDATE => TradeDirection.Buy,

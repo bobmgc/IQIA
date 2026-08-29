@@ -29,6 +29,7 @@ public static class TradePlanBuilderTests
         AssertZeroRiskProducesPlanBlockedWithNoNaNOrInfinity();
         AssertImpossiblePositionSizingLeavesPositionSizeUnavailable();
         AssertImpossibleRiskRewardReportsNull();
+        AssertRiskRewardBelowMinimumProducesPlanRejected();
     }
 
     // TEST A
@@ -151,6 +152,39 @@ public static class TradePlanBuilderTests
         Assert(plan.TakeProfit is null, "With no EstimatedEquilibrium, TakeProfit must stay null.");
         Assert(plan.RiskRewardRatio is null, "Without a valid TakeProfit, RiskRewardRatio must be null (displayed as N/A), never fabricated.");
         Assert(plan.Status == TradePlanStatus.SIGNAL_ONLY, $"Missing only TakeProfit (Entry/SL/sizing all valid) must be SIGNAL_ONLY. Actual={plan.Status}.");
+    }
+
+    // TEST I (audit 2026-08-29): MinRiskReward gate.
+    private static void AssertRiskRewardBelowMinimumProducesPlanRejected()
+    {
+        // BUY at 100, equilibrium 101 -> reward 1; StopLoss 95 -> risk 5; R:R = 0.20.
+        TradePlan rejected = Build(
+            DirectionCandidate.BUY_CANDIDATE,
+            currentPrice: 100m,
+            estimatedEquilibrium: 101.0,
+            riskParameters: new TradeRiskParameters(StopLoss: 95m, RiskPerTrade: 1000m, MinRiskReward: 1.5));
+        Assert(rejected.Status == TradePlanStatus.PLAN_REJECTED,
+            $"R:R 0.20 below MinRiskReward 1.5 must produce PLAN_REJECTED. Actual={rejected.Status}.");
+        Assert(!rejected.IsValid, "PLAN_REJECTED must never be reported as IsValid.");
+        Assert(!string.IsNullOrWhiteSpace(rejected.InvalidationReason), "PLAN_REJECTED must carry an explicit InvalidationReason.");
+
+        // Same geometry, no gate configured -> the plan is still PLAN_READY (gate is opt-in).
+        TradePlan ungated = Build(
+            DirectionCandidate.BUY_CANDIDATE,
+            currentPrice: 100m,
+            estimatedEquilibrium: 101.0,
+            riskParameters: new TradeRiskParameters(StopLoss: 95m, RiskPerTrade: 1000m));
+        Assert(ungated.Status == TradePlanStatus.PLAN_READY,
+            $"With no MinRiskReward, the same weak-R:R plan stays PLAN_READY. Actual={ungated.Status}.");
+
+        // R:R above the minimum is not rejected: equilibrium 120 -> reward 20, risk 5, R:R = 4.0.
+        TradePlan accepted = Build(
+            DirectionCandidate.BUY_CANDIDATE,
+            currentPrice: 100m,
+            estimatedEquilibrium: 120.0,
+            riskParameters: new TradeRiskParameters(StopLoss: 95m, RiskPerTrade: 1000m, MinRiskReward: 1.5));
+        Assert(accepted.Status == TradePlanStatus.PLAN_READY,
+            $"R:R 4.0 above MinRiskReward 1.5 must stay PLAN_READY. Actual={accepted.Status}.");
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────────────────────────

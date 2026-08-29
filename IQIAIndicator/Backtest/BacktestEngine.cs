@@ -375,7 +375,9 @@ public sealed class BacktestEngine
                         decimal? riskPerTrade = scenario.Policy.MaxRiskPerTradePercent is decimal riskPercent
                             ? scenario.InitialCapital * riskPercent
                             : null;
-                        riskParameters = new TradeRiskParameters(stopLoss, riskPerTrade);
+                        // Audit 2026-08-29: same MinRiskReward gate as the live path - a plan below the
+                        // scenario's configured minimum reward/risk is PLAN_REJECTED, not SIGNAL_ONLY.
+                        riskParameters = new TradeRiskParameters(stopLoss, riskPerTrade, scenario.Policy.MinRiskReward);
                     }
 
                     tradePlan = tradePlanEngine.Process(new TradePlanContext(entryTrigger, instrumentInfo, riskParameters));
@@ -385,6 +387,9 @@ public sealed class BacktestEngine
                         case TradePlanStatus.PLAN_READY: tpReady++; break;
                         case TradePlanStatus.NO_TRADE: tpNoTrade++; break;
                         case TradePlanStatus.PLAN_BLOCKED: tpBlocked++; break;
+                        // PLAN_REJECTED (audit 2026-08-29): folded into the NoTrade telemetry counter -
+                        // both mean "no executable plan this bar"; no separate report field is added.
+                        case TradePlanStatus.PLAN_REJECTED: tpNoTrade++; break;
                     }
                 }
 

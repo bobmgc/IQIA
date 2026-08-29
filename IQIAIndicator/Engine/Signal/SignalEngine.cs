@@ -177,6 +177,16 @@ public sealed class SignalEngine
             }
         }
 
+        // Audit 2026-08-29: no scientific model exposes a "DistanceToEquilibrium" metric today, so the
+        // dashboard field was always N/A even though both inputs are present. This is the plain
+        // signed price gap to the Kalman equilibrium (CurrentPrice - EstimatedMean) - not a model
+        // recomputation, just the subtraction the field name already means. Left as-is when a model
+        // does provide the metric, or when the equilibrium itself is unavailable.
+        if (distanceToEquilibrium is null && estimatedEquilibrium is double equilibriumForDistance && currentPrice > 0m)
+        {
+            distanceToEquilibrium = (double)currentPrice - equilibriumForDistance;
+        }
+
         string? methodology = methodologySelection?.SelectedMethodology?.Name;
 
         // Collect supporting evidence and diagnostics from upstream

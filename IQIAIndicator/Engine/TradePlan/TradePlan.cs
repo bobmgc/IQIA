@@ -13,13 +13,18 @@ namespace IQIAIndicator.Engine.TradePlan;
 /// RiskRewardRatio are all valid.
 /// PLAN_BLOCKED: a directional candidate exists and the required inputs were nominally present, but
 /// the computation itself is degenerate/unsafe (e.g. zero or negative risk) - never NaN/Infinity.
+/// PLAN_REJECTED: a directional candidate exists and every component was validly computed, but the
+/// plan fails a configured policy gate (today: RiskRewardRatio below TradeRiskParameters.MinRiskReward).
+/// A deliberate rejection of an unfavourable trade, not a computation failure - IsValid is false and
+/// the Risk stage does not re-evaluate it (audit 2026-08-29).
 /// </summary>
 public enum TradePlanStatus
 {
     NO_TRADE,
     SIGNAL_ONLY,
     PLAN_READY,
-    PLAN_BLOCKED
+    PLAN_BLOCKED,
+    PLAN_REJECTED
 }
 
 /// <summary>
