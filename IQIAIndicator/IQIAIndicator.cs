@@ -487,40 +487,10 @@ public sealed class IQIAIndicator : Indicator
                 ChartInfo?.TimeFrame ?? string.Empty);
         }
 
-        PipelineTraceScope marketContextTrace = trace is null
-            ? default
-            : traceCollector!.BeginStage(trace, PipelineTraceStage.MarketContext);
-        Core.MarketContext context;
-        try
-        {
-            context = _builder.Build(bar, CurrentBar);
-            var validation = _validator.Validate(context);
-            if (trace is not null)
-            {
-                marketContextTrace.Complete(
-                    PipelineTraceDetails.Create(
-                        ("Timestamp", context.Clock.CurrentTime),
-                        ("Symbol", context.Instrument.Symbol),
-                        ("TimeFrame", context.TimeFrame),
-                        ("CurrentPrice", context.Price.Close),
-                        ("HistoryLength", bar + 1),
-                        ("Valid", validation.IsValid)),
-                    validation.Errors.Count);
-            }
-
-            if (!validation.IsValid)
-            {
-                _latestPipelineTrace = trace;
-                _latestPipelineTraceCollector = traceCollector;
-                _latestPipelineTraceReport = trace is null ? string.Empty : traceCollector!.BuildReport(trace);
-                return;
-            }
-        }
-        catch (Exception exception)
-        {
-            marketContextTrace.Fail(exception);
-            throw;
-        }
+        Core.MarketContext? validatedContext = BuildValidatedMarketContext(bar, trace, traceCollector);
+        if (validatedContext is null)
+            return;
+        Core.MarketContext context = validatedContext;
 
         _latestExecution = context.Execution;
         var evidence = _regimeEngine.Collect(context);
@@ -636,27 +606,95 @@ public sealed class IQIAIndicator : Indicator
             throw;
         }
 
-        // Sprint 15.25 (Lot 11): RiskEngine stage, strictly after TradePlan - evaluates the TradePlan
-        // this bar already produced, never reconstructs or recomputes it (Lot 11, Section 7). Purely
-        // observational: RiskAssessment is never fed back into TradePlan/EntryTrigger/Decision and never
-        // triggers an order (this indicator sends none, regardless of Status). AccountState/RiskPolicy/
-        // InstrumentRiskSpecification are built fresh from the Risk Engine parameters above every bar -
-        // pure, no state carried across bars other than the UI parameter values themselves.
-        // Sprint 15.25 (Lot 12): AccountState/InstrumentRiskSpecification are now built unconditionally
-        // (moved out of the "TradePlan exists" branch below) purely so the Risk Engine dashboard panel
-        // can show Capital/Equity/Instrument on every bar - including one with no assessable candidate -
-        // making a not-yet-configured account/instrument immediately visible rather than only appearing
-        // once a directional candidate happens to exist. Only the request/Evaluate call stays gated on
-        // _latestTradePlan; nothing about the calculation itself changed.
-        // Sprint 15.25 (Lot 12.2): CurrentEquity and InstrumentRiskSpecification are now sourced from
-        // ATAS itself (Indicator.TradingManager/.TradingStatisticsProvider, both confirmed accessible by
-        // the Lot 12.1 reflection audit - TradingManager's getter is `protected`, exactly like the
-        // pre-existing InstrumentInfo property this file already reads below, so this compiles and
-        // behaves the same way). Read fresh every bar - no caching, matching Lot 12.2 Section 13.
-        // RiskCurrentEquity (Lot 11) is intentionally no longer read here: Section 5 forbids ever
-        // falling back to a manual/stale equity reading - see ATASAccountStateAdapter's doc comment for
-        // why unavailable equity resolves to the same 0m "unconfigured" sentinel RiskEngine already
-        // treats as INVALID_EQUITY, rather than silently reusing the old manual value.
+        RunRiskStage(context, trace, traceCollector);
+
+        // Sprint 15.24 (Lot 1 - chart display): always recomputed from _latestTradePlan, the same
+        // object TradingDashboard reads (see IQIAIndicator.cs's DashboardContext.TradePlan assignment
+        // below) - guarantees the chart and the HUD panel can never show two different Entry/SL/TP
+        // values for the same bar.
+        _latestTradePlanAnnotationCandidate = _tradePlanAnnotationEngine.Process(new TradePlanAnnotationContext(_latestTradePlan));
+
+        if (ActiveDashboard == DashboardKind.Debug)
+        {
+            LogPipelineDebug(context, _latestDecisionResult, _latestMethodologySelection, _latestOpportunityPresentation, _latestChartAnnotationCandidate);
+        }
+        _latestBarIndex = bar;
+        _latestTimestamp = evidence.Timestamp;
+        _availableEvidenceCount = CountAvailableEvidence(evidence);
+        _latestPipelineTrace = trace;
+        _latestPipelineTraceCollector = traceCollector;
+        _latestPipelineTraceReport = trace is null ? string.Empty : traceCollector!.BuildReport(trace);
+
+        CaptureScientificDataset(bar, context, trace);
+    }
+
+    /// <summary>
+    /// MarketContext pipeline stage (verbatim extraction from <see cref="OnCalculate"/>): builds this
+    /// bar's <see cref="Core.MarketContext"/> via the ATAS builder and validates it. Returns
+    /// <c>null</c> when validation fails - the caller must then return early, exactly as the former
+    /// inline <c>return</c> did, after the same three trace side effects
+    /// (<c>_latestPipelineTrace</c>/<c>_latestPipelineTraceCollector</c>/<c>_latestPipelineTraceReport</c>).
+    /// </summary>
+    private Core.MarketContext? BuildValidatedMarketContext(
+        int bar, PipelineTraceRun? trace, IPipelineTraceCollector? traceCollector)
+    {
+        PipelineTraceScope marketContextTrace = trace is null
+            ? default
+            : traceCollector!.BeginStage(trace, PipelineTraceStage.MarketContext);
+        try
+        {
+            Core.MarketContext context = _builder.Build(bar, CurrentBar);
+            var validation = _validator.Validate(context);
+            if (trace is not null)
+            {
+                marketContextTrace.Complete(
+                    PipelineTraceDetails.Create(
+                        ("Timestamp", context.Clock.CurrentTime),
+                        ("Symbol", context.Instrument.Symbol),
+                        ("TimeFrame", context.TimeFrame),
+                        ("CurrentPrice", context.Price.Close),
+                        ("HistoryLength", bar + 1),
+                        ("Valid", validation.IsValid)),
+                    validation.Errors.Count);
+            }
+
+            if (!validation.IsValid)
+            {
+                _latestPipelineTrace = trace;
+                _latestPipelineTraceCollector = traceCollector;
+                _latestPipelineTraceReport = trace is null ? string.Empty : traceCollector!.BuildReport(trace);
+                return null;
+            }
+
+            return context;
+        }
+        catch (Exception exception)
+        {
+            marketContextTrace.Fail(exception);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// RiskEngine pipeline stage (verbatim extraction from <see cref="OnCalculate"/>), strictly after
+    /// TradePlan - evaluates the TradePlan this bar already produced, never reconstructs or recomputes
+    /// it (Lot 11, Section 7). Purely observational: RiskAssessment is never fed back into
+    /// TradePlan/EntryTrigger/Decision and never triggers an order (this indicator sends none,
+    /// regardless of Status). AccountState/RiskPolicy/InstrumentRiskSpecification are built fresh from
+    /// the Risk Engine parameters every bar - pure, no state carried across bars other than the UI
+    /// parameter values themselves. Lot 12: AccountState/InstrumentRiskSpecification are built
+    /// unconditionally (out of the "TradePlan exists" branch) purely so the Risk Engine dashboard
+    /// panel can show Capital/Equity/Instrument on every bar - only the request/Evaluate call stays
+    /// gated on <c>_latestTradePlan</c>. Lot 12.2: CurrentEquity and InstrumentRiskSpecification are
+    /// sourced from ATAS itself (Indicator.TradingManager/.TradingStatisticsProvider), read fresh
+    /// every bar - no caching. RiskCurrentEquity (Lot 11) is intentionally no longer read here:
+    /// Section 5 forbids ever falling back to a manual/stale equity reading - unavailable equity
+    /// resolves to the same 0m "unconfigured" sentinel RiskEngine treats as INVALID_EQUITY.
+    /// All outputs are instance fields; nothing is returned.
+    /// </summary>
+    private void RunRiskStage(
+        Core.MarketContext context, PipelineTraceRun? trace, IPipelineTraceCollector? traceCollector)
+    {
         PipelineTraceScope riskTrace = trace is null ? default : traceCollector!.BeginStage(trace, PipelineTraceStage.Risk);
         try
         {
@@ -860,98 +898,93 @@ public sealed class IQIAIndicator : Indicator
             _latestATASInstrumentDiagnostic = null;
             riskTrace.Fail(exception);
         }
+    }
 
-        // Sprint 15.24 (Lot 1 - chart display): always recomputed from _latestTradePlan, the same
-        // object TradingDashboard reads (see IQIAIndicator.cs's DashboardContext.TradePlan assignment
-        // below) - guarantees the chart and the HUD panel can never show two different Entry/SL/TP
-        // values for the same bar.
-        _latestTradePlanAnnotationCandidate = _tradePlanAnnotationEngine.Process(new TradePlanAnnotationContext(_latestTradePlan));
+    /// <summary>
+    /// ScientificDataset capture (verbatim extraction from <see cref="OnCalculate"/>). Sprint 15.17
+    /// (QDE-012 real-market capture): pure OBSERVER, runs after every trading engine has already
+    /// produced its result for this bar. Reads context/pipeline outputs; never writes back into
+    /// anything the pipeline reads. Wrapped in try/catch so a failure in this diagnostic/data-collection
+    /// path can never propagate into <see cref="OnCalculate"/> and disrupt trading - the same guarantee
+    /// EnableScientificDataset=false already gives by construction, extended to unexpected exceptions
+    /// while it is on.
+    /// </summary>
+    private void CaptureScientificDataset(int bar, Core.MarketContext context, PipelineTraceRun? trace)
+    {
+        if (!EnableScientificDataset)
+            return;
 
-        if (ActiveDashboard == DashboardKind.Debug)
+        try
         {
-            LogPipelineDebug(context, _latestDecisionResult, _latestMethodologySelection, _latestOpportunityPresentation, _latestChartAnnotationCandidate);
+            _datasetLifecycleLog.MarkAdd(DateTime.UtcNow);
+            // Sprint 15.25 (audit refactor): _latestScientificMarketContext/_latestDecisionResult were
+            // proven non-null by OnCalculate's own flow analysis when this block was inline; extracted
+            // into a method, the compiler can no longer see those assignments, so the null-forgiveness
+            // is now explicit (matching _latestScientificAssessment! which already needed it). Reaching
+            // this line still requires OnCalculate to have run every prior stage this bar - behaviour is
+            // unchanged.
+            _scientificDatasetCollector!.Add(ScientificDatasetRecord.From(
+                _scientificDatasetSessionId,
+                bar,
+                _latestScientificMarketContext!,
+                _latestScientificAssessment!,
+                _latestDecisionResult!,
+                open: context.Price.Open,
+                high: context.Price.High,
+                low: context.Price.Low,
+                volume: context.Volume.Volume,
+                trace: trace,
+                // Sprint 15.25 (Lot 9): passive instrumentation only - these are the same
+                // already-computed objects the dashboard/renderer below already read this bar
+                // (_latestEntryCandidate, _signalEngine.LastEntryTriggerCandidate, _latestTradePlan);
+                // nothing here is recomputed or influenced by being captured.
+                entryCandidate: _latestEntryCandidate,
+                entryTriggerCandidate: _signalEngine.LastEntryTriggerCandidate,
+                tradePlan: _latestTradePlan,
+                riskAssessment: _latestRiskAssessment,
+                // Sprint 15.25 (Lot 12.5): same passive-capture discipline as above - these are the
+                // same already-computed objects the Risk stage produced this bar
+                // (_latestATASAccountDiagnostic/_latestATASInstrumentDiagnostic since Lot 12.3;
+                // _latestRiskAccountState/_latestRiskInstrumentSpec since Lot 12.2;
+                // _latestRiskEngineRequest/_latestAtasEquitySeriesCount/_latestAtasEquityLastTimestamp
+                // new to this lot but populated the same way, right where the Risk stage already
+                // computes their sources) - nothing here is recomputed.
+                atasAccountDiagnostic: _latestATASAccountDiagnostic,
+                atasInstrumentDiagnostic: _latestATASInstrumentDiagnostic,
+                atasEquityIsReplay: _latestEquitySourceIsReplay,
+                atasEquitySeriesCount: _latestAtasEquitySeriesCount,
+                atasEquityLastTimestamp: _latestAtasEquityLastTimestamp,
+                riskAccountState: _latestRiskAccountState,
+                riskInstrumentSpec: _latestRiskInstrumentSpec,
+                riskEngineRequest: _latestRiskEngineRequest,
+                // Sprint 15.25 (Lot 12.6): same passive-capture discipline - these are the same
+                // already-computed values the Risk stage produced this bar
+                // (_latestPortfolioIsReplay/_latestMinQuantitySource/_latestMaxQuantitySource,
+                // ATASEquityReplayDetector.cs) - nothing here is recomputed.
+                atasEquityHeuristicIsReplay: context.Execution.IsReplay,
+                atasPortfolioIsReplay: _latestPortfolioIsReplay,
+                minQuantitySource: _latestMinQuantitySource,
+                maxQuantitySource: _latestMaxQuantitySource,
+                // Sprint 15.25 (Lot 12.12): same passive-capture discipline - _latestAtasDataContext/
+                // _latestRiskStageError are the same already-computed values the Risk stage produced
+                // this bar (AtasDataContextResolver.cs / the Risk stage's catch clause) - nothing
+                // here is recomputed.
+                atasContext: _latestAtasDataContext,
+                riskStageError: _latestRiskStageError));
+
+            // Sprint 15.17.2: throttled so the persistent lifecycle snapshot stays reasonably
+            // current without adding per-bar disk I/O to the ATAS calculation hot path.
+            if (_scientificDatasetCollector.TotalAddAttempts % LifecycleSnapshotWriteEveryNBars == 0)
+                WriteLifecycleSnapshot();
         }
-        _latestBarIndex = bar;
-        _latestTimestamp = evidence.Timestamp;
-        _availableEvidenceCount = CountAvailableEvidence(evidence);
-        _latestPipelineTrace = trace;
-        _latestPipelineTraceCollector = traceCollector;
-        _latestPipelineTraceReport = trace is null ? string.Empty : traceCollector!.BuildReport(trace);
-
-        // Sprint 15.17 (QDE-012 real-market capture): pure OBSERVER, placed after every trading engine
-        // above has already produced its result for this bar. Reads context/pipeline outputs; never
-        // writes back into anything the pipeline reads. Wrapped in try/catch so that a failure in this
-        // diagnostic/data-collection path can never propagate into OnCalculate and disrupt trading -
-        // the same guarantee EnableScientificDataset=false already gives by construction (this block
-        // doesn't run at all), extended to cover unexpected exceptions while it's on.
-        if (EnableScientificDataset)
+        catch (Exception)
         {
-            try
-            {
-                _datasetLifecycleLog.MarkAdd(DateTime.UtcNow);
-                _scientificDatasetCollector!.Add(ScientificDatasetRecord.From(
-                    _scientificDatasetSessionId,
-                    bar,
-                    _latestScientificMarketContext,
-                    _latestScientificAssessment!,
-                    _latestDecisionResult,
-                    open: context.Price.Open,
-                    high: context.Price.High,
-                    low: context.Price.Low,
-                    volume: context.Volume.Volume,
-                    trace: trace,
-                    // Sprint 15.25 (Lot 9): passive instrumentation only - these are the same
-                    // already-computed objects the dashboard/renderer below already read this bar
-                    // (_latestEntryCandidate, _signalEngine.LastEntryTriggerCandidate, _latestTradePlan);
-                    // nothing here is recomputed or influenced by being captured.
-                    entryCandidate: _latestEntryCandidate,
-                    entryTriggerCandidate: _signalEngine.LastEntryTriggerCandidate,
-                    tradePlan: _latestTradePlan,
-                    riskAssessment: _latestRiskAssessment,
-                    // Sprint 15.25 (Lot 12.5): same passive-capture discipline as above - these are the
-                    // same already-computed objects the Risk stage produced this bar
-                    // (_latestATASAccountDiagnostic/_latestATASInstrumentDiagnostic since Lot 12.3;
-                    // _latestRiskAccountState/_latestRiskInstrumentSpec since Lot 12.2;
-                    // _latestRiskEngineRequest/_latestAtasEquitySeriesCount/_latestAtasEquityLastTimestamp
-                    // new to this lot but populated the same way, right where the Risk stage already
-                    // computes their sources) - nothing here is recomputed.
-                    atasAccountDiagnostic: _latestATASAccountDiagnostic,
-                    atasInstrumentDiagnostic: _latestATASInstrumentDiagnostic,
-                    atasEquityIsReplay: _latestEquitySourceIsReplay,
-                    atasEquitySeriesCount: _latestAtasEquitySeriesCount,
-                    atasEquityLastTimestamp: _latestAtasEquityLastTimestamp,
-                    riskAccountState: _latestRiskAccountState,
-                    riskInstrumentSpec: _latestRiskInstrumentSpec,
-                    riskEngineRequest: _latestRiskEngineRequest,
-                    // Sprint 15.25 (Lot 12.6): same passive-capture discipline - these are the same
-                    // already-computed values the Risk stage produced this bar
-                    // (_latestPortfolioIsReplay/_latestMinQuantitySource/_latestMaxQuantitySource,
-                    // ATASEquityReplayDetector.cs) - nothing here is recomputed.
-                    atasEquityHeuristicIsReplay: context.Execution.IsReplay,
-                    atasPortfolioIsReplay: _latestPortfolioIsReplay,
-                    minQuantitySource: _latestMinQuantitySource,
-                    maxQuantitySource: _latestMaxQuantitySource,
-                    // Sprint 15.25 (Lot 12.12): same passive-capture discipline - _latestAtasDataContext/
-                    // _latestRiskStageError are the same already-computed values the Risk stage produced
-                    // this bar (AtasDataContextResolver.cs / the Risk stage's catch clause) - nothing
-                    // here is recomputed.
-                    atasContext: _latestAtasDataContext,
-                    riskStageError: _latestRiskStageError));
-
-                // Sprint 15.17.2: throttled so the persistent lifecycle snapshot stays reasonably
-                // current without adding per-bar disk I/O to the ATAS calculation hot path.
-                if (_scientificDatasetCollector.TotalAddAttempts % LifecycleSnapshotWriteEveryNBars == 0)
-                    WriteLifecycleSnapshot();
-            }
-            catch (Exception)
-            {
-                // Diagnostic-only path: never let a collection failure disrupt the trading pipeline
-                // above. ScientificDatasetCollector.RejectedReason/InvalidRecordsRejected already
-                // surface expected rejections (invalid OHLCV, duplicates) without throwing - reaching
-                // this catch means something unexpected happened; it is intentionally swallowed here
-                // rather than crashing the indicator, and is visible only via the collector's own
-                // counters not increasing for this bar.
-            }
+            // Diagnostic-only path: never let a collection failure disrupt the trading pipeline
+            // above. ScientificDatasetCollector.RejectedReason/InvalidRecordsRejected already
+            // surface expected rejections (invalid OHLCV, duplicates) without throwing - reaching
+            // this catch means something unexpected happened; it is intentionally swallowed here
+            // rather than crashing the indicator, and is visible only via the collector's own
+            // counters not increasing for this bar.
         }
     }
 
