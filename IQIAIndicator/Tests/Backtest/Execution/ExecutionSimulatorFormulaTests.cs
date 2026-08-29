@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using IQIAIndicator.Backtest.Execution;
 using IQIAIndicator.Core.MarketData;
 using IQIAIndicator.Engine.EntryTrigger;
+using IQIAIndicator.Engine.TradePlan;
 using Xunit;
 
 namespace IQIAIndicator.Tests.BacktestTests.Execution;
@@ -44,6 +45,24 @@ public sealed class ExecutionSimulatorFormulaTests
         Assert.Equal(PositionStatus.Closed, position.Status);
         Assert.Equal(5m, position.GrossPriceMove);
         Assert.Equal(0.05, position.Return!.Value, 9);
+    }
+
+    // ── Audit 2026-08-29: PLAN_REJECTED is never simulated ───────────────────────────────────────────
+
+    [Fact]
+    public void PlanRejected_IsNeverExecuted_EvenWithValidDirectionEntryAndLevels()
+    {
+        var bars = new List<HistoricalBar> { Bar(0, 100m, 100m, 100m), FillBar(5, 100m), Bar(10, 106m, 104m, 105m) };
+
+        var rejected = new ExecutionCandidate(
+            SignalBarIndex: 0, SignalTimestamp: Anchor, Direction: DirectionCandidate.BUY_CANDIDATE,
+            EntryPrice: 100m, TradePlanStatus: TradePlanStatus.PLAN_REJECTED, StopLoss: 95m, TakeProfit: 110m);
+
+        SimulatedPosition position = ExecutionSimulator.SimulateCore(bars, rejected, ExecutionConfiguration.Create(1));
+
+        Assert.Equal(PositionStatus.NotExecutable, position.Status);
+        Assert.Null(position.ExitReason);
+        Assert.Null(position.ExitPrice);
     }
 
     // ── §23: SELL fixture ────────────────────────────────────────────────────────────────────────────

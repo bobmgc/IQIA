@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using IQIAIndicator.Core.MarketData;
 using IQIAIndicator.Engine.EntryTrigger;
+using IQIAIndicator.Engine.TradePlan;
 
 namespace IQIAIndicator.Backtest.Execution;
 
@@ -133,6 +134,19 @@ public static class ExecutionSimulator
                 positionId, PositionStatus.NotExecutable,
                 $"Direction={candidate.Direction} is not a directional trade candidate - only BUY_CANDIDATE/SELL_CANDIDATE are executed.",
                 candidate.Direction, candidate.SignalTimestamp, null, candidate.SignalBarIndex,
+                null, null, null, null, null, null, null);
+        }
+
+        // Audit 2026-08-29: a plan the builder rejected on a policy gate (PLAN_REJECTED, e.g.
+        // RiskRewardRatio below TradeRiskParameters.MinRiskReward) still carries a BUY/SELL Direction,
+        // EntryPrice and SL/TP - without this guard the backtest would simulate it exactly like an
+        // accepted plan, so the gate would only relabel the dashboard and never actually filter a trade.
+        if (candidate.TradePlanStatus == TradePlanStatus.PLAN_REJECTED)
+        {
+            return new SimulatedPosition(
+                positionId, PositionStatus.NotExecutable,
+                "TradePlan.Status is PLAN_REJECTED (failed a policy gate, e.g. RiskRewardRatio below MinRiskReward) - not executed.",
+                candidate.Direction, candidate.SignalTimestamp, candidate.EntryPrice, candidate.SignalBarIndex,
                 null, null, null, null, null, null, null);
         }
 

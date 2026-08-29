@@ -64,7 +64,9 @@ Fusion.MissingEvidence      : vide 1505 | "Kalman;OU;DynamicZScore;Volatility;SP
 1. **Gate d'ambiguïté** : ≈50 % des barres directionnelles rejetées `DECISION_AMBIGUOUS` (captures : 495/672 MNQ, 834/1505 MES). `EntryTriggerBuilder` : `Winner==MeanReverting AND AmbiguityScore<0.95 AND DynamicZScore≠0`.
 2. **Stop Loss jamais produit en live** : `IQIAIndicator.cs:575` construit `new TradePlanContext(entryTriggerCandidate, instrumentInfo)` **sans `RiskParameters`** → `context.RiskParameters?.StopLoss` toujours `null` (`TradePlanBuilder.cs:57`, message : *« no stop-loss methodology is implemented in the system yet »*) → `TradePlan` plafonne à `SIGNAL_ONLY`. Confirmé : `TradePlan.StopLoss = NOT AVAILABLE` / `StopLossAvailable = False` sur **100 %** des 3 captures.
 3. **Sans SL → pas de sizing** : `Risk.Status` jamais `ACCEPTED` (uniquement `NOT AVAILABLE` ou `REJECTED`), `Risk.PositionSize` toujours `NOT AVAILABLE`.
-4. Le **Lot 15.3** a créé `Engine/Risk/VolatilityStopLossModel.cs` (`StopPrice = EntryPrice ∓ 2.0 × CurrentVolatility`) mais l'a câblé **uniquement dans `BacktestEngine.cs:374`, jamais dans `IQIAIndicator.cs`** (live). Le multiplicateur `2.0` est **non calibré** (`K_SELECTED: NO`, Lot 15.14). `ExecutionSimulator` **n'utilise pas** le SL (sortie à horizon temporel fixe).
+4. Le **Lot 15.3** a créé `Engine/Risk/VolatilityStopLossModel.cs` (`StopPrice = EntryPrice ∓ 2.0 × CurrentVolatility`) mais l'a câblé **uniquement dans `BacktestEngine.cs:374`, jamais dans `IQIAIndicator.cs`** (live). Le multiplicateur `2.0` est **non calibré** (`K_SELECTED: NO`, Lot 15.14).
+
+> **Correction 2026-08-30** : contrairement à ce que l'audit Lot 15.0/15.3 laissait entendre, `ExecutionSimulator` **utilise bien le SL/TP** — les **Lots 15.4/15.5** (commit `669391a`, postérieurs) ont ajouté le monitoring intrabar : sortie sur `StopLoss`/`TakeProfit`/`Ambiguous` dès qu'un niveau est touché, `TimeHorizon` n'étant plus qu'un fallback. Vérifié empiriquement (backtest MES=F M5, ~45 j) : **96 % des sorties sont sur SL/TP** (TP 74 %, SL 21 %, Ambiguous 3 %, TimeHorizon 2 %). Le **P0-4 ci-dessous est donc caduc** ; il reste seulement à faire que le backtest **ne simule pas** un plan `PLAN_REJECTED` (fait le 2026-08-30, `ExecutionSimulator` guard).
 
 ### 2.4 Anomalie de conception `StructuralBreak`
 
@@ -147,7 +149,7 @@ Le code (`Visualization/`) est **défensif et globalement propre** — pas de cr
 | P0-1 | Câbler une méthodologie **Stop Loss en live**, en miroir de `BacktestEngine.cs:356-381` (`VolatilityStopLossModel`). Sans ça `PLAN_READY` reste inatteignable en production. | `IQIAIndicator.cs` (~575) |
 | P0-2 | **Décision utilisateur** : implémenter au moins un modèle réel pour `Trending` (régime le plus fréquent après MeanReverting/StructuralBreak) — **ou** assumer explicitement « MeanReverting-only » et l'afficher clairement. | `Engine/ScientificModels/Trend/`, `ScientificModelRegistry.cs` |
 | P0-3 | **Décision utilisateur** : réparer la sémantique `StructuralBreak` — soit `StructuralBreakRule` consomme la dimension D6 (CUSUM/Bai-Perron), soit renommer le régime pour ne pas prétendre détecter une rupture. | `StructuralBreakRule.cs`, câblage `IQIAIndicator.cs` |
-| P0-4 | `ExecutionSimulator` : clôturer une position via le **Stop Loss** (aujourd'hui horizon fixe) — sinon toute mesure de perf du SL est fictive. | `Backtest/Execution/ExecutionSimulator.cs` |
+| P0-4 | ~~`ExecutionSimulator` : clôturer une position via le **Stop Loss**~~ **CADUC** — déjà fait (Lots 15.4/15.5). Ne restait que : ne pas simuler un plan `PLAN_REJECTED` — **fait le 2026-08-30**. | `Backtest/Execution/ExecutionSimulator.cs` |
 | P0-5 | Corriger les biais de mesure : fill à l'**ouverture de la barre suivante** ; activer coûts + slippage par défaut dans la campagne de calibration. | `Backtest/Execution/`, `Backtest/Cost/` |
 
 ### P1 — rendre la calibration possible
