@@ -569,10 +569,34 @@ public sealed class IQIAIndicator : Indicator
                     PointValue,
                     PriceDecimals);
 
-                // Sprint 15.8 (Phase 1 audit): no Risk Engine / stop-loss methodology / account risk
-                // budget exists anywhere in the system yet, so RiskParameters is left null - the
-                // TradePlan will honestly report SIGNAL_ONLY rather than fabricate SL/sizing.
-                _latestTradePlan = _tradePlanEngine.Process(new TradePlanContext(entryTriggerCandidate, instrumentInfo));
+                // Audit 2026-08-29 (P0-1): resolve TradeRiskParameters for a directional candidate so the
+                // live/replay TradePlan can reach PLAN_READY (and RunRiskStage below can then evaluate it)
+                // instead of always capping at SIGNAL_ONLY. Mirrors BacktestEngine.RunSignalPipeline's Lot
+                // 15.3 wiring exactly:
+                //  - StopLoss from VolatilityStopLossModel, reading VolatilityModel.CurrentVolatility as
+                //    already computed for this bar (never a new evidence calculation); non-calibrated 2.0
+                //    multiplier (Lot 15.3, revisited by a future calibration lot). Resolved ONLY for a
+                //    BUY/SELL direction - never for NO_ACTION/WATCH, and structurally impossible outside
+                //    MeanReverting (Lot 15.1), so this never fabricates a stop for an unsupported regime.
+                //  - RiskPerTrade = RiskInitialCapital x the MaxRiskPerTradePercent fraction (same
+                //    whole-percent -> fraction convention as RiskPolicyFactory.PositiveFractionOrNull and
+                //    as BacktestEngine's scenario.Policy.MaxRiskPerTradePercent). Null when the two
+                //    "Risk Engine" parameters are not configured - the TradePlan then stays honestly
+                //    SIGNAL_ONLY, exactly as before this change.
+                // TradePlanBuilder / RunRiskStage / RiskEngine are unchanged: they simply consume this
+                // non-null RiskParameters for the first time in the live path.
+                TradeRiskParameters? riskParameters = null;
+                if (entryTriggerCandidate.Assessment.Direction is DirectionCandidate.BUY_CANDIDATE
+                    or DirectionCandidate.SELL_CANDIDATE)
+                {
+                    decimal? stopLoss = VolatilityStopLossModel.TryResolveStopPrice(entryTriggerCandidate, instrumentInfo.TickSize);
+                    decimal? riskPerTrade = RiskInitialCapital > 0m && RiskPolicyMaxRiskPerTradePercent > 0m
+                        ? RiskInitialCapital * (RiskPolicyMaxRiskPerTradePercent / 100m)
+                        : null;
+                    riskParameters = new TradeRiskParameters(stopLoss, riskPerTrade);
+                }
+
+                _latestTradePlan = _tradePlanEngine.Process(new TradePlanContext(entryTriggerCandidate, instrumentInfo, riskParameters));
 
                 if (trace is not null)
                 {
