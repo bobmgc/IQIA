@@ -1,0 +1,5 @@
+Metric,N,Value
+"PointBiserial(D6.Value, IsStructuralBreakWinner)",11314,0.39478600000000003
+Mean D6.Value | StructuralBreak winner,3494,0.84923899999999997
+Mean D6.Value | other winner,7820,0.77740200000000004
+D6.IsAvailable rate,11314,100

@@ -4,7 +4,6 @@ using IQIAIndicator.Engine.Regime.Core;
 using IQIAIndicator.Engine.Regime.Evidence.BaiPerron;
 using IQIAIndicator.Engine.Regime.Evidence.CUSUM;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace IQIAIndicator.Tests.GoldenDatasets;
 

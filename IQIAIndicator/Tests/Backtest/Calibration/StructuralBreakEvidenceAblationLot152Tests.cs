@@ -19,9 +19,9 @@ using IQIAIndicator.Engine.Fusion.State;
 using IQIAIndicator.Engine.Regime.Core;
 using IQIAIndicator.Engine.Risk;
 using Xunit;
-using Xunit.Abstractions;
 using FusionEngine = IQIAIndicator.Engine.Fusion.EvidenceFusionEngine;
 using FusionRandomWalkRule = IQIAIndicator.Engine.Fusion.Rules.RandomWalkRule;
+using IQIAIndicator.Tests.BacktestTests.Yahoo;
 
 namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 
@@ -49,10 +49,12 @@ namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 public sealed class StructuralBreakEvidenceAblationLot152Tests
 {
     private readonly ITestOutputHelper _output;
+    private readonly YahooSessionDataset _yahoo;
 
-    public StructuralBreakEvidenceAblationLot152Tests(ITestOutputHelper output)
+    public StructuralBreakEvidenceAblationLot152Tests(ITestOutputHelper output, YahooSessionDataset yahoo)
     {
         _output = output;
+        _yahoo = yahoo;
     }
 
     private static InstrumentRiskSpecification Spec() => InstrumentRiskSpecification.FromInstrumentInfo(
@@ -93,11 +95,7 @@ public sealed class StructuralBreakEvidenceAblationLot152Tests
         {
             // ── Step 1: load the real dataset (same recipe as Lot 15.0/14.17 - can be the SAME run as the
             // coverage re-measurement, brief §10, no second download needed) ──────────────────────────────
-            var source = new YahooHistoricalBarSource();
-            DateTime to = DateTime.UtcNow;
-            DateTime from = to.AddDays(-YahooHistoricalBarSource.DefaultMaxChunkSpanDays);
-
-            HistoricalSeries series = source.Load("MES", "M5", from, to);
+            HistoricalSeries series = _yahoo.Require();
             Assert.True(series.Count > 0);
 
             string fingerprint = HistoricalSeriesFingerprint.Compute(series);
@@ -191,7 +189,7 @@ public sealed class StructuralBreakEvidenceAblationLot152Tests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
@@ -469,5 +467,5 @@ public sealed class StructuralBreakEvidenceAblationLot152Tests
     }
 
     private static bool IsConnectivityOrProviderIssue(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or InvalidOperationException;
+        exception is global::IQIAIndicator.Core.MarketData.Yahoo.YahooProviderException or HttpRequestException or TaskCanceledException;
 }

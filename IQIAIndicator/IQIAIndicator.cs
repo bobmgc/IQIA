@@ -66,7 +66,10 @@ public sealed class IQIAIndicator : Indicator
         new StationarityRule(),
         new PersistenceRule(),
         new MeanReversionRule(),
-        new RandomWalkRule()
+        new RandomWalkRule(),
+        // Sprint 15.25 (Lot 15.8): additive evidence dimension only - not consumed by any
+        // Decision.Rules.IDecisionRule yet (see StructuralBreakEvidenceRule doc comment).
+        new StructuralBreakEvidenceRule()
     ]);
     private readonly FusionStateManager     _fusionState  = new();
     private readonly MethodologyEngine       _methodologyEngine = new();

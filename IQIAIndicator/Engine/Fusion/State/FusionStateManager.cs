@@ -15,7 +15,12 @@ public sealed class FusionStateManager
         FusionDimension.Persistence,
         FusionDimension.MeanReversion,
         FusionDimension.StructuralStability,
-        FusionDimension.RandomWalk
+        FusionDimension.RandomWalk,
+        // Sprint 15.25 (Lot 15.8): additive only - StructuralBreak takes the exact same EMA+hysteresis
+        // path as every dimension above. Deliberately NOT added to FusionProfileAnalyzer's own (separate)
+        // Dimensions list, so it never feeds StructuralStability's self-referential computation - see the
+        // Lot 15.8 report §13/§14 for why that isolation is intentional, not an oversight.
+        FusionDimension.StructuralBreak
     ];
 
     private readonly StabilizationConfiguration _configuration = StabilizationConfiguration.Default;

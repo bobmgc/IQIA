@@ -7,7 +7,6 @@ using IQIAIndicator.Core.MarketData;
 using IQIAIndicator.Core.MarketData.Yahoo;
 using IQIAIndicator.Engine.Risk;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace IQIAIndicator.Tests.BacktestTests.Pipeline;
 
@@ -67,10 +66,10 @@ public sealed class BacktestSignalPipelineYahooIntegrationTests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
     private static bool IsConnectivityOrProviderIssue(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or InvalidOperationException;
+        exception is global::IQIAIndicator.Core.MarketData.Yahoo.YahooProviderException or HttpRequestException or TaskCanceledException;
 }

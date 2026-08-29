@@ -6,7 +6,7 @@ using IQIAIndicator.Backtest.Calibration;
 using IQIAIndicator.Core.MarketData;
 using IQIAIndicator.Core.MarketData.Yahoo;
 using Xunit;
-using Xunit.Abstractions;
+using IQIAIndicator.Tests.BacktestTests.Yahoo;
 
 namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 
@@ -24,10 +24,12 @@ namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 public sealed class CalibrationYahooIntegrationTests
 {
     private readonly ITestOutputHelper _output;
+    private readonly YahooSessionDataset _yahoo;
 
-    public CalibrationYahooIntegrationTests(ITestOutputHelper output)
+    public CalibrationYahooIntegrationTests(ITestOutputHelper output, YahooSessionDataset yahoo)
     {
         _output = output;
+        _yahoo = yahoo;
     }
 
     [Fact]
@@ -35,19 +37,16 @@ public sealed class CalibrationYahooIntegrationTests
     {
         try
         {
-            var source = new YahooHistoricalBarSource();
-            DateTime to = DateTime.UtcNow;
-            DateTime from = to.AddDays(-45);
-
-            HistoricalSeries series = source.Load("MES", "M5", from, to);
+            HistoricalSeries series = _yahoo.LastDays(45);
+            DateTime from = series.FirstTimestamp;
+            DateTime to = series.LastTimestamp;
             Assert.True(series.Count > 0);
 
             const int leadIn = 128;
             int remaining = series.Count - leadIn;
             if (remaining < 30)
             {
-                _output.WriteLine($"SKIPPED (not a code failure): only {series.Count} bars returned, insufficient for a TRAIN/VALIDATION/OOS split.");
-                return;
+                Assert.Skip($"insufficient data: only {series.Count} bars returned for a TRAIN/VALIDATION/OOS split.");
             }
 
             int train = (int)(remaining * 0.7);
@@ -55,8 +54,7 @@ public sealed class CalibrationYahooIntegrationTests
             int oos = remaining - train - validation - 1; // leave a 1-bar safety margin below series.Count
             if (train < 1 || validation < 1 || oos < 1)
             {
-                _output.WriteLine("SKIPPED (not a code failure): remaining bars too few to give every window at least one bar.");
-                return;
+                Assert.Skip("insufficient data: remaining bars too few to give every window at least one bar.");
             }
 
             CalibrationDataset dataset = CalibrationTestFixtures.Dataset(series, provider: "Yahoo");
@@ -112,10 +110,10 @@ public sealed class CalibrationYahooIntegrationTests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
     private static bool IsConnectivityOrProviderIssue(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or InvalidOperationException;
+        exception is global::IQIAIndicator.Core.MarketData.Yahoo.YahooProviderException or HttpRequestException or TaskCanceledException;
 }

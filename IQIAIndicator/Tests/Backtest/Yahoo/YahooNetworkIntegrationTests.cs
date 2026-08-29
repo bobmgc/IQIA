@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using IQIAIndicator.Core.MarketData;
 using IQIAIndicator.Core.MarketData.Yahoo;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace IQIAIndicator.Tests.BacktestTests.Yahoo;
 
@@ -14,12 +13,14 @@ namespace IQIAIndicator.Tests.BacktestTests.Yahoo;
 /// correctness (that is <c>YahooChartParserTests</c>/<c>YahooHistoricalBarSourceTests</c>, both fully
 /// deterministic and network-free).
 ///
-/// EVERY test below wraps its network call in a try/catch for connectivity-shaped failures
-/// (<see cref="HttpRequestException"/>, <see cref="TaskCanceledException"/>, and - because Yahoo's own
-/// rate limiting/maintenance responses surface through this project's error path as
-/// <see cref="InvalidOperationException"/>, see YahooChartParser - that type too) and returns early,
-/// reporting via <see cref="ITestOutputHelper"/>, rather than failing (brief §20: "aucun impact sur les
-/// tests unitaires" / a network test must never fail the suite when Internet/Yahoo is unreachable).
+/// EVERY test below wraps its network call in a try/catch for PROVIDER failures - primarily
+/// <see cref="Core.MarketData.Yahoo.YahooProviderException"/> (Sprint 15.25 Lot 15.25-XX: rate limiting,
+/// 5xx, transport, or a non-chart body, all already classified and bounded by the resilience layer), plus
+/// bare <see cref="HttpRequestException"/>/<see cref="TaskCanceledException"/> for defence in depth - and
+/// returns early, reporting via <see cref="ITestOutputHelper"/>, rather than failing (brief §20: "aucun
+/// impact sur les tests unitaires"). A genuine <see cref="InvalidOperationException"/> from
+/// <c>HistoricalSeries.Create</c> or "no usable bar in range" is NO LONGER caught here: a scientific
+/// regression must surface as a red failure, only a provider outage is skipped.
 ///
 /// KNOWN LIMITATION, STATED EXPLICITLY: the xunit version this project references (2.5.3) has no
 /// <c>Assert.Skip</c>/dynamic-skip facility, and a `[Fact(Skip=...)]` reason must be a compile-time
@@ -58,7 +59,7 @@ public sealed class YahooNetworkIntegrationTests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
@@ -77,7 +78,7 @@ public sealed class YahooNetworkIntegrationTests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
@@ -91,5 +92,5 @@ public sealed class YahooNetworkIntegrationTests
     }
 
     private static bool IsConnectivityOrProviderIssue(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or InvalidOperationException;
+        exception is global::IQIAIndicator.Core.MarketData.Yahoo.YahooProviderException or HttpRequestException or TaskCanceledException;
 }

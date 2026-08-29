@@ -218,10 +218,13 @@ public sealed class ExecutionSimulatorIntegrationTests
         // brief §31: one independent position per signal, regardless of any other signal - proven
         // structurally (every bucket sums back to TotalCount, so no position is ever merged or dropped).
         Assert.Equal(result.SignalResult.Bars.Count, result.ExecutionResult.Positions.Count);
+        // Sprint 15.25 (Lot 15.4): InvalidStopTargetCount added to the accounting identity (see the
+        // real-dataset finding in ExecutionYahooIntegrationTests and the Lot 15.4 report §5/§23) - kept
+        // here too even though this synthetic MeanRevertingOu dataset does not happen to exercise it.
         Assert.Equal(result.ExecutionResult.TotalCount,
             result.ExecutionResult.ClosedCount + result.ExecutionResult.NotExecutableCount +
             result.ExecutionResult.InvalidEntryCount + result.ExecutionResult.InsufficientFutureDataCount +
-            result.ExecutionResult.InvalidExitCount);
+            result.ExecutionResult.InvalidExitCount + result.ExecutionResult.InvalidStopTargetCount);
 
         // brief §32: overlapping positions (two Closed positions whose EntryBarIndex are within
         // HorizonBars of each other) must both exist, unconstrained - find at least one such pair in this

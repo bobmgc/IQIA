@@ -9,7 +9,7 @@ using IQIAIndicator.Core.MarketData;
 using IQIAIndicator.Core.MarketData.Yahoo;
 using IQIAIndicator.Engine.Risk;
 using Xunit;
-using Xunit.Abstractions;
+using IQIAIndicator.Tests.BacktestTests.Yahoo;
 
 namespace IQIAIndicator.Tests.BacktestTests.Execution;
 
@@ -24,10 +24,12 @@ namespace IQIAIndicator.Tests.BacktestTests.Execution;
 public sealed class ExecutionYahooIntegrationTests
 {
     private readonly ITestOutputHelper _output;
+    private readonly YahooSessionDataset _yahoo;
 
-    public ExecutionYahooIntegrationTests(ITestOutputHelper output)
+    public ExecutionYahooIntegrationTests(ITestOutputHelper output, YahooSessionDataset yahoo)
     {
         _output = output;
+        _yahoo = yahoo;
     }
 
     private static InstrumentRiskSpecification Spec() => InstrumentRiskSpecification.FromInstrumentInfo(
@@ -41,11 +43,9 @@ public sealed class ExecutionYahooIntegrationTests
     {
         try
         {
-            var source = new YahooHistoricalBarSource();
-            DateTime to = DateTime.UtcNow;
-            DateTime from = to.AddDays(-45);
-
-            HistoricalSeries series = source.Load("MES", "M5", from, to);
+            HistoricalSeries series = _yahoo.LastDays(45);
+            DateTime from = series.FirstTimestamp;
+            DateTime to = series.LastTimestamp;
             Assert.True(series.Count > 0);
 
             var scenario = BacktestScenario.Create(
@@ -61,10 +61,15 @@ public sealed class ExecutionYahooIntegrationTests
             Assert.Equal(series.Count, result.SignalResult.Bars.Count);
             Assert.Equal(series.Count, result.Measurements.Count);
             Assert.Equal(series.Count, result.ExecutionResult.Positions.Count);
+            // Sprint 15.25 (Lot 15.4): InvalidStopTargetCount added to the accounting identity - a real,
+            // non-zero bucket on this dataset (TradePlan.StopLoss/TakeProfit is computed against the
+            // signal bar's reference EntryPrice, but the actual fill is Open[SignalBarIndex+1] - the two
+            // can differ enough that a level lands on the wrong side of the REAL entry; see the Lot 15.4
+            // report §5/§23 for the full finding). Never silently executed - this lot's whole point.
             Assert.Equal(result.ExecutionResult.TotalCount,
                 result.ExecutionResult.ClosedCount + result.ExecutionResult.NotExecutableCount +
                 result.ExecutionResult.InvalidEntryCount + result.ExecutionResult.InsufficientFutureDataCount +
-                result.ExecutionResult.InvalidExitCount);
+                result.ExecutionResult.InvalidExitCount + result.ExecutionResult.InvalidStopTargetCount);
 
             // Determinism, re-run once more against the SAME already-downloaded series.
             BacktestExecutionResult rerun = ExecutionSimulator.SimulateAll(series, result.SignalResult.Bars, ExecutionConfiguration.Create(10));
@@ -82,10 +87,10 @@ public sealed class ExecutionYahooIntegrationTests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
     private static bool IsConnectivityOrProviderIssue(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or InvalidOperationException;
+        exception is global::IQIAIndicator.Core.MarketData.Yahoo.YahooProviderException or HttpRequestException or TaskCanceledException;
 }

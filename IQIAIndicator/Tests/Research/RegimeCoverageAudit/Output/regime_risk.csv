@@ -1,6 +1,6 @@
 Regime,ReasonOrMetric,Count,Percent
-MeanReverting,Allowed,2328,35.832000000000001
-MeanReverting,PositionNotExecutable,4169,64.168000000000006
+MeanReverting,Allowed,2425,35.704000000000001
+MeanReverting,PositionNotExecutable,4367,64.296000000000006
 MeanReverting,InvalidConfiguration,0,0
 MeanReverting,InvalidInstrument,0,0
 MeanReverting,InvalidRiskDistance,0,0
@@ -8,9 +8,9 @@ MeanReverting,RiskLimitExceeded,0,0
 MeanReverting,MaxQuantityExceeded,0,0
 MeanReverting,ExposureLimitExceeded,0,0
 MeanReverting,ZeroRisk,0,0
-MeanReverting,COST_AVAILABILITY(N_with_cost/MeanTotalCost),2328,10.5
+MeanReverting,COST_AVAILABILITY(N_with_cost/MeanTotalCost),2425,10.5
 StructuralBreak,Allowed,0,0
-StructuralBreak,PositionNotExecutable,3387,100
+StructuralBreak,PositionNotExecutable,3562,100
 StructuralBreak,InvalidConfiguration,0,0
 StructuralBreak,InvalidInstrument,0,0
 StructuralBreak,InvalidRiskDistance,0,0
@@ -20,7 +20,7 @@ StructuralBreak,ExposureLimitExceeded,0,0
 StructuralBreak,ZeroRisk,0,0
 StructuralBreak,COST_AVAILABILITY(N_with_cost/MeanTotalCost),0,
 RandomWalk,Allowed,0,0
-RandomWalk,PositionNotExecutable,481,100
+RandomWalk,PositionNotExecutable,502,100
 RandomWalk,InvalidConfiguration,0,0
 RandomWalk,InvalidInstrument,0,0
 RandomWalk,InvalidRiskDistance,0,0
@@ -30,7 +30,7 @@ RandomWalk,ExposureLimitExceeded,0,0
 RandomWalk,ZeroRisk,0,0
 RandomWalk,COST_AVAILABILITY(N_with_cost/MeanTotalCost),0,
 Trending,Allowed,0,0
-Trending,PositionNotExecutable,448,100
+Trending,PositionNotExecutable,459,100
 Trending,InvalidConfiguration,0,0
 Trending,InvalidInstrument,0,0
 Trending,InvalidRiskDistance,0,0
@@ -40,7 +40,7 @@ Trending,ExposureLimitExceeded,0,0
 Trending,ZeroRisk,0,0
 Trending,COST_AVAILABILITY(N_with_cost/MeanTotalCost),0,
 StableRange,Allowed,0,0
-StableRange,PositionNotExecutable,118,100
+StableRange,PositionNotExecutable,113,100
 StableRange,InvalidConfiguration,0,0
 StableRange,InvalidInstrument,0,0
 StableRange,InvalidRiskDistance,0,0

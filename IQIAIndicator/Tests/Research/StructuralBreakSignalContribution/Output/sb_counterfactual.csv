@@ -1,0 +1,9 @@
+Metric,Count,Pct
+StructuralBreak_winner_bars,3494,30.882000000000001
+  -> MeanReverting when rule ablated,2456,70.292000000000002
+     ...of which ambiguity < gate (reach zscore direction logic),1677,47.997
+  -> a non-tradeable regime when ablated,1038,29.707999999999998
+ambiguity-gate flips on winner-unchanged bars (SB was runner-up),1920,16.969999999999999
+  ...of which on MeanReverting-winner bars,1736,15.343999999999999
+D6 perturbation (force StructuralBreak dim to 0 and 1) changed a decision,0,
+reconstruction fidelity mismatch (engine5 winner != production),0,

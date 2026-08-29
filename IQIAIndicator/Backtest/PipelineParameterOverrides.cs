@@ -22,6 +22,20 @@ public sealed record PipelineParameterOverrides
     /// see <see cref="Engine.EntryTrigger.EntryTriggerBuilder"/>.</summary>
     public double? AmbiguityGateThreshold { get; init; }
 
+    /// <summary>
+    /// Sprint 15.25 (Lot 18 - QDE-012 StructuralBreak cost study, RESEARCH-ONLY). When <c>true</c>, the
+    /// <see cref="BacktestEngine.RunSignalPipeline(BacktestScenario, int, PipelineParameterOverrides)"/>
+    /// call omits <c>Engine.Decision.Rules.StructuralBreakRule</c> from the DecisionEngine rule list for
+    /// this one call - the other four rules and their order are UNCHANGED. Exists only so the Lot 17/18
+    /// audit can measure the end-to-end economic effect of that regime rule (which currently routes ~31%
+    /// of bars to NO_ACTION / UNSUPPORTED_REGIME) by running the exact production pipeline with and
+    /// without it, on the same dataset. Null / <c>false</c> (the default, and every non-research caller)
+    /// means "use the production 5-rule list" - bit-for-bit unchanged (brief's "RÈGLE DE NON-RÉGRESSION").
+    /// It is NOT a calibration parameter: <c>Backtest.Calibration.CalibrationParameterBinding</c> never
+    /// sets it, so no <c>CalibrationParameterSet</c> can reach it.
+    /// </summary>
+    public bool? AblateStructuralBreakRegimeRule { get; init; }
+
     /// <summary>No override for anything - every pipeline parameter falls back to its production default.
     /// Use this constant (never a bare <c>new PipelineParameterOverrides()</c> scattered across call sites)
     /// so every non-calibration caller shares the exact same, obviously-named "no-op" instance.</summary>

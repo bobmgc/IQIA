@@ -11,7 +11,7 @@ using IQIAIndicator.Core.MarketData;
 using IQIAIndicator.Core.MarketData.Yahoo;
 using IQIAIndicator.Engine.Risk;
 using Xunit;
-using Xunit.Abstractions;
+using IQIAIndicator.Tests.BacktestTests.Yahoo;
 
 namespace IQIAIndicator.Tests.BacktestTests.Cost;
 
@@ -25,10 +25,12 @@ namespace IQIAIndicator.Tests.BacktestTests.Cost;
 public sealed class CostYahooIntegrationTests
 {
     private readonly ITestOutputHelper _output;
+    private readonly YahooSessionDataset _yahoo;
 
-    public CostYahooIntegrationTests(ITestOutputHelper output)
+    public CostYahooIntegrationTests(ITestOutputHelper output, YahooSessionDataset yahoo)
     {
         _output = output;
+        _yahoo = yahoo;
     }
 
     private static InstrumentRiskSpecification Spec() => InstrumentRiskSpecification.FromInstrumentInfo(
@@ -42,11 +44,9 @@ public sealed class CostYahooIntegrationTests
     {
         try
         {
-            var source = new YahooHistoricalBarSource();
-            DateTime to = DateTime.UtcNow;
-            DateTime from = to.AddDays(-45);
-
-            HistoricalSeries series = source.Load("MES", "M5", from, to);
+            HistoricalSeries series = _yahoo.LastDays(45);
+            DateTime from = series.FirstTimestamp;
+            DateTime to = series.LastTimestamp;
             Assert.True(series.Count > 0);
 
             var scenario = BacktestScenario.Create(
@@ -106,10 +106,10 @@ public sealed class CostYahooIntegrationTests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
     private static bool IsConnectivityOrProviderIssue(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or InvalidOperationException;
+        exception is global::IQIAIndicator.Core.MarketData.Yahoo.YahooProviderException or HttpRequestException or TaskCanceledException;
 }

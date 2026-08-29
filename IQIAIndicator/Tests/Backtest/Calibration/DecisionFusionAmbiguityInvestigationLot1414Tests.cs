@@ -16,7 +16,7 @@ using IQIAIndicator.Engine.Fusion.Rules;
 using IQIAIndicator.Engine.Fusion.State;
 using IQIAIndicator.Engine.Risk;
 using Xunit;
-using Xunit.Abstractions;
+using IQIAIndicator.Tests.BacktestTests.Yahoo;
 
 namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 
@@ -48,10 +48,12 @@ namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 public sealed class DecisionFusionAmbiguityInvestigationLot1414Tests
 {
     private readonly ITestOutputHelper _output;
+    private readonly YahooSessionDataset _yahoo;
 
-    public DecisionFusionAmbiguityInvestigationLot1414Tests(ITestOutputHelper output)
+    public DecisionFusionAmbiguityInvestigationLot1414Tests(ITestOutputHelper output, YahooSessionDataset yahoo)
     {
         _output = output;
+        _yahoo = yahoo;
     }
 
     private static readonly decimal[] ThresholdGrid = { 0.80m, 0.85m, 0.90m, 0.925m, 0.95m, 0.975m, 0.99m };
@@ -91,11 +93,7 @@ public sealed class DecisionFusionAmbiguityInvestigationLot1414Tests
     {
         try
         {
-            var source = new YahooHistoricalBarSource();
-            DateTime to = DateTime.UtcNow;
-            DateTime from = to.AddDays(-YahooHistoricalBarSource.DefaultMaxChunkSpanDays);
-
-            HistoricalSeries series = source.Load("MES", "M5", from, to);
+            HistoricalSeries series = _yahoo.Require();
             Assert.True(series.Count > 0);
 
             string fingerprint = HistoricalSeriesFingerprint.Compute(series);
@@ -283,7 +281,7 @@ public sealed class DecisionFusionAmbiguityInvestigationLot1414Tests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
@@ -373,5 +371,5 @@ public sealed class DecisionFusionAmbiguityInvestigationLot1414Tests
     }
 
     private static bool IsConnectivityOrProviderIssue(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or InvalidOperationException;
+        exception is global::IQIAIndicator.Core.MarketData.Yahoo.YahooProviderException or HttpRequestException or TaskCanceledException;
 }

@@ -138,7 +138,7 @@ public sealed class Sprint1518RealCaptureQualityTests
         Assert.Equal(6, gaps.Count); // 1 weekend-sized + 5 daily-maintenance-sized, per the report's exploratory analysis
         Assert.Single(gaps, g => g.Classification == "LARGE_GAP_PLAUSIBLE_MULTI_DAY_CLOSURE");
         Assert.Equal(5, gaps.Count(g => g.Classification == "MEDIUM_GAP_PLAUSIBLE_INTRADAY_CLOSURE"));
-        Assert.Empty(gaps.Where(g => g.Classification is "IRREGULAR_INTERVAL_UNRESOLVED" or "UNRESOLVED_GAP_SIZE"));
+        Assert.DoesNotContain(gaps, g => g.Classification is "IRREGULAR_INTERVAL_UNRESOLVED" or "UNRESOLVED_GAP_SIZE");
 
         OhlcValidationFacts ohlc = RealMarketQualityAnalyzer.ValidateOhlc(bars);
         Assert.Equal(0, ohlc.StructuralViolations);

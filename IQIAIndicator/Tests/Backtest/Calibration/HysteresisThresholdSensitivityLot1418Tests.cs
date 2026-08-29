@@ -18,7 +18,7 @@ using IQIAIndicator.Engine.Fusion.State;
 using IQIAIndicator.Engine.Risk;
 using IQIAIndicator.Tests.BacktestTests.Calibration.HysteresisSensitivity;
 using Xunit;
-using Xunit.Abstractions;
+using IQIAIndicator.Tests.BacktestTests.Yahoo;
 
 namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 
@@ -42,6 +42,7 @@ namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 public sealed class HysteresisThresholdSensitivityLot1418Tests
 {
     private readonly ITestOutputHelper _output;
+    private readonly YahooSessionDataset _yahoo;
 
     // Grid centered on production's 0.03 (brief §3), fine enough near 0.03 to detect a transition.
     // 0.00 is semantically valid: with the production comparison `>=` (FusionStateManager.cs:117/118), a
@@ -53,9 +54,10 @@ public sealed class HysteresisThresholdSensitivityLot1418Tests
     private const double ProductionThreshold = 0.03;
     private const double ProductionAlpha = 0.20;
 
-    public HysteresisThresholdSensitivityLot1418Tests(ITestOutputHelper output)
+    public HysteresisThresholdSensitivityLot1418Tests(ITestOutputHelper output, YahooSessionDataset yahoo)
     {
         _output = output;
+        _yahoo = yahoo;
     }
 
     private static InstrumentRiskSpecification Spec() => InstrumentRiskSpecification.FromInstrumentInfo(
@@ -80,11 +82,7 @@ public sealed class HysteresisThresholdSensitivityLot1418Tests
     {
         try
         {
-            var source = new YahooHistoricalBarSource();
-            DateTime to = DateTime.UtcNow;
-            DateTime from = to.AddDays(-YahooHistoricalBarSource.DefaultMaxChunkSpanDays);
-
-            HistoricalSeries series = source.Load("MES", "M5", from, to);
+            HistoricalSeries series = _yahoo.Require();
             Assert.True(series.Count > 0);
 
             string fingerprint = HistoricalSeriesFingerprint.Compute(series);
@@ -314,7 +312,7 @@ public sealed class HysteresisThresholdSensitivityLot1418Tests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
@@ -519,5 +517,5 @@ public sealed class HysteresisThresholdSensitivityLot1418Tests
     }
 
     private static bool IsConnectivityOrProviderIssue(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or InvalidOperationException;
+        exception is global::IQIAIndicator.Core.MarketData.Yahoo.YahooProviderException or HttpRequestException or TaskCanceledException;
 }

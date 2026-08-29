@@ -6,5 +6,6 @@ public enum FusionDimension
     Persistence,
     MeanReversion,
     StructuralStability,
-    RandomWalk
+    RandomWalk,
+    StructuralBreak
 }

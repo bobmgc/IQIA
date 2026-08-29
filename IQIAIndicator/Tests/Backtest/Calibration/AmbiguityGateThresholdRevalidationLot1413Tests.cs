@@ -16,8 +16,8 @@ using IQIAIndicator.Core.MarketData.Yahoo;
 using IQIAIndicator.Engine.Decision.States;
 using IQIAIndicator.Engine.EntryTrigger;
 using IQIAIndicator.Engine.Risk;
+using IQIAIndicator.Tests.BacktestTests.Yahoo;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 
@@ -43,10 +43,12 @@ namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 public sealed class AmbiguityGateThresholdRevalidationLot1413Tests
 {
     private readonly ITestOutputHelper _output;
+    private readonly YahooSessionDataset _yahoo;
 
-    public AmbiguityGateThresholdRevalidationLot1413Tests(ITestOutputHelper output)
+    public AmbiguityGateThresholdRevalidationLot1413Tests(ITestOutputHelper output, YahooSessionDataset yahoo)
     {
         _output = output;
+        _yahoo = yahoo;
     }
 
     private static readonly decimal[] ThresholdGrid = { 0.80m, 0.85m, 0.90m, 0.925m, 0.95m, 0.975m, 0.99m };
@@ -62,19 +64,16 @@ public sealed class AmbiguityGateThresholdRevalidationLot1413Tests
     {
         try
         {
-            var source = new YahooHistoricalBarSource();
-            DateTime to = DateTime.UtcNow;
-            DateTime from = to.AddDays(-YahooHistoricalBarSource.DefaultMaxChunkSpanDays);
-
-            HistoricalSeries series = source.Load("MES", "M5", from, to);
+            // Sprint 15.25 (Lot 15.25-XX): consume the ONE shared session download instead of issuing
+            // yet another identical 59-day MES/M5 request (brief Phase 7 - request minimization).
+            HistoricalSeries series = _yahoo.Require();
             Assert.True(series.Count > 0);
 
             const int leadIn = 128;
             int remaining = series.Count - leadIn;
             if (remaining < 300)
             {
-                _output.WriteLine($"SKIPPED (not a code failure): only {series.Count} bars returned, insufficient for this lot's TRAIN/VALIDATION/OOS split.");
-                return;
+                Assert.Skip($"insufficient data: only {series.Count} bars returned for this lot's TRAIN/VALIDATION/OOS split.");
             }
 
             int train = (int)(remaining * 0.70);
@@ -82,8 +81,7 @@ public sealed class AmbiguityGateThresholdRevalidationLot1413Tests
             int oos = remaining - train - validation - 1; // 1-bar safety margin below series.Count
             if (train < 1 || validation < 1 || oos < 1)
             {
-                _output.WriteLine("SKIPPED (not a code failure): remaining bars too few to give every window at least one bar.");
-                return;
+                Assert.Skip("insufficient data: remaining bars too few to give every window at least one bar.");
             }
 
             CalibrationDatasetSpecification spec = CalibrationDatasetSpecification.Create(
@@ -260,7 +258,7 @@ public sealed class AmbiguityGateThresholdRevalidationLot1413Tests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
@@ -349,5 +347,5 @@ public sealed class AmbiguityGateThresholdRevalidationLot1413Tests
     }
 
     private static bool IsConnectivityOrProviderIssue(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or InvalidOperationException;
+        exception is global::IQIAIndicator.Core.MarketData.Yahoo.YahooProviderException or HttpRequestException or TaskCanceledException;
 }

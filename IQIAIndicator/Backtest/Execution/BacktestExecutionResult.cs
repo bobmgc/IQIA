@@ -16,6 +16,8 @@ namespace IQIAIndicator.Backtest.Execution;
 /// <param name="InsufficientFutureDataCount">Positions rejected as
 /// <see cref="PositionStatus.InsufficientFutureData"/>.</param>
 /// <param name="InvalidExitCount">Positions rejected as <see cref="PositionStatus.InvalidExit"/>.</param>
+/// <param name="InvalidStopTargetCount">Sprint 15.25 (Lot 15.4). Positions rejected as
+/// <see cref="PositionStatus.InvalidStopTarget"/>.</param>
 /// <param name="BuyCount">Closed positions whose Direction is BUY_CANDIDATE.</param>
 /// <param name="SellCount">Closed positions whose Direction is SELL_CANDIDATE.</param>
 /// <param name="DeterministicHash">SHA-256 of every position, in order (brief §29) - see
@@ -27,6 +29,7 @@ public sealed record BacktestExecutionResult(
     int InvalidEntryCount,
     int InsufficientFutureDataCount,
     int InvalidExitCount,
+    int InvalidStopTargetCount,
     int BuyCount,
     int SellCount,
     string DeterministicHash,

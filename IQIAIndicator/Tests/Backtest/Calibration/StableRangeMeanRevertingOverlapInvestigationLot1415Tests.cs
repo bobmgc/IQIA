@@ -16,7 +16,7 @@ using IQIAIndicator.Engine.Fusion.Rules;
 using IQIAIndicator.Engine.Fusion.State;
 using IQIAIndicator.Engine.Risk;
 using Xunit;
-using Xunit.Abstractions;
+using IQIAIndicator.Tests.BacktestTests.Yahoo;
 
 namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 
@@ -38,10 +38,12 @@ namespace IQIAIndicator.Tests.BacktestTests.Calibration;
 public sealed class StableRangeMeanRevertingOverlapInvestigationLot1415Tests
 {
     private readonly ITestOutputHelper _output;
+    private readonly YahooSessionDataset _yahoo;
 
-    public StableRangeMeanRevertingOverlapInvestigationLot1415Tests(ITestOutputHelper output)
+    public StableRangeMeanRevertingOverlapInvestigationLot1415Tests(ITestOutputHelper output, YahooSessionDataset yahoo)
     {
         _output = output;
+        _yahoo = yahoo;
     }
 
     private static InstrumentRiskSpecification Spec() => InstrumentRiskSpecification.FromInstrumentInfo(
@@ -70,11 +72,7 @@ public sealed class StableRangeMeanRevertingOverlapInvestigationLot1415Tests
     {
         try
         {
-            var source = new YahooHistoricalBarSource();
-            DateTime to = DateTime.UtcNow;
-            DateTime from = to.AddDays(-YahooHistoricalBarSource.DefaultMaxChunkSpanDays);
-
-            HistoricalSeries series = source.Load("MES", "M5", from, to);
+            HistoricalSeries series = _yahoo.Require();
             Assert.True(series.Count > 0);
 
             string fingerprint = HistoricalSeriesFingerprint.Compute(series);
@@ -253,7 +251,7 @@ public sealed class StableRangeMeanRevertingOverlapInvestigationLot1415Tests
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))
         {
-            _output.WriteLine($"SKIPPED (network/Yahoo unavailable, not a code failure): {exception.GetType().Name}: {exception.Message}");
+            Assert.Skip($"Yahoo provider unavailable (not a code failure): {exception.GetType().Name}: {exception.Message}");
         }
     }
 
@@ -374,5 +372,5 @@ public sealed class StableRangeMeanRevertingOverlapInvestigationLot1415Tests
     }
 
     private static bool IsConnectivityOrProviderIssue(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or InvalidOperationException;
+        exception is global::IQIAIndicator.Core.MarketData.Yahoo.YahooProviderException or HttpRequestException or TaskCanceledException;
 }

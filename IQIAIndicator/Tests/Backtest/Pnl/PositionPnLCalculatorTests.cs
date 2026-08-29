@@ -106,6 +106,7 @@ public sealed class PositionPnLCalculatorTests
     [InlineData(PositionStatus.InvalidEntry)]
     [InlineData(PositionStatus.InsufficientFutureData)]
     [InlineData(PositionStatus.InvalidExit)]
+    [InlineData(PositionStatus.InvalidStopTarget)] // Sprint 15.25 (Lot 15.4): same generic Status != Closed guard covers this new status too.
     public void NonClosedPosition_NeverProducesAGrossPnL(PositionStatus status)
     {
         var position = new SimulatedPosition(

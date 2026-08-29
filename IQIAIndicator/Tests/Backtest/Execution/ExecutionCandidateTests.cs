@@ -55,12 +55,15 @@ public sealed class ExecutionCandidateTests
     }
 
     [Fact]
-    public void FromSignal_NeverCopiesTheFullTradePlan_OnlyTheFourRelevantFields()
+    public void FromSignal_NeverCopiesTheFullTradePlan_OnlyTheSevenRelevantFields()
     {
-        // Structural check (brief §5: "Ne pas copier inutilement tout le TradePlan") - ExecutionCandidate
-        // has exactly SignalBarIndex/SignalTimestamp/Direction/EntryPrice/TradePlanStatus, never
-        // StopLoss/TakeProfit/RiskPerUnit/PositionSize/RiskRewardRatio/Diagnostics.
+        // Structural check (brief §5: "Ne pas copier inutilement tout le TradePlan"), UPDATED Sprint
+        // 15.25 (Lot 15.4, brief §4: "l'objet approprié... l'étendre"): ExecutionCandidate now carries
+        // SignalBarIndex/SignalTimestamp/Direction/EntryPrice/TradePlanStatus/StopLoss/TakeProfit (7) -
+        // StopLoss/TakeProfit are a DELIBERATE addition this lot (the only two fields ExecutionSimulator's
+        // new intrabar monitoring needs), never a full copy - RiskPerUnit/PositionSize/RiskRewardRatio/
+        // Diagnostics are still excluded, unchanged.
         var properties = typeof(ExecutionCandidate).GetProperties();
-        Assert.Equal(5, properties.Length);
+        Assert.Equal(7, properties.Length);
     }
 }

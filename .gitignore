@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# CodeAtlas MCP local analysis cache (76MB SQLite db)
+.codeatlas-sa/

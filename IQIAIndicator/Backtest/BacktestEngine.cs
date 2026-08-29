@@ -214,17 +214,27 @@ public sealed class BacktestEngine
             new StationarityRule(),
             new PersistenceRule(),
             new MeanReversionRule(),
-            new RandomWalkRule()
+            new RandomWalkRule(),
+            // Sprint 15.25 (Lot 15.8): additive evidence dimension only - not consumed by any
+            // Decision.Rules.IDecisionRule yet (see StructuralBreakEvidenceRule doc comment).
+            new StructuralBreakEvidenceRule()
         ]);
         var fusionState = new FusionStateManager();
-        var decisionEngine = new DecisionEngine(
-        [
+        // Sprint 15.25 (Lot 18, RESEARCH-ONLY): the production list is the five rules below, in this
+        // order. overrides.AblateStructuralBreakRegimeRule == true (only ever set by the Lot 17/18
+        // StructuralBreak cost audit) drops StructuralBreakRule and keeps the other four unchanged;
+        // PipelineParameterOverrides.None leaves it null -> the full production list, bit-for-bit.
+        var decisionRules = new List<DecisionRules.IDecisionRule>
+        {
             new DecisionRules.StableRangeRule(),
             new DecisionRules.TrendingRule(),
             new DecisionRules.MeanRevertingRule(),
             new DecisionRules.StructuralBreakRule(),
             new DecisionRules.RandomWalkRule()
-        ]);
+        };
+        if (overrides.AblateStructuralBreakRegimeRule == true)
+            decisionRules.RemoveAll(rule => rule is DecisionRules.StructuralBreakRule);
+        var decisionEngine = new DecisionEngine(decisionRules);
         var methodologyEngine = new MethodologyEngine();
         // Sprint 15.25 (Lot 14.10, P0-3): traceCollector stays null (unchanged from every prior lot);
         // ambiguityGateThreshold falls back to the production constant when overrides.AmbiguityGateThreshold

@@ -39,17 +39,44 @@ public enum PositionStatus
     /// <summary>The exit bar itself fails <c>HistoricalBar.Validate()</c> (brief §21) - unreachable
     /// through a <see cref="HistoricalSeries"/> built via its own validating constructors (same situation
     /// as Lot 14.1's BarsRejected / Lot 14.4's InvalidFutureData), kept as defence in depth and exercised
-    /// directly against a hand-built bar list in tests.</summary>
-    InvalidExit
+    /// directly against a hand-built bar list in tests. Sprint 15.25 (Lot 15.4): also returned when any
+    /// bar being intrabar-monitored for Stop/Target (not just the final horizon bar) fails validation.
+    InvalidExit,
+
+    /// <summary>Sprint 15.25 (Lot 15.4, brief §5): <c>ExecutionCandidate.StopLoss</c>/<c>.TakeProfit</c>
+    /// is present but violates the direction invariant (BUY requires StopLoss &lt; EntryPrice &lt;
+    /// TakeProfit; SELL the mirror) - never executed silently. Defense in depth: <c>TradePlanBuilder</c>
+    /// and <c>VolatilityStopLossModel</c> (both unmodified, upstream) already guarantee this today: this
+    /// status exists so a future change to either could never silently reach a fabricated position here.</summary>
+    InvalidStopTarget
 }
 
-/// <summary>Sprint 15.25 (Lot 14.5, brief §17). Why a CLOSED position closed. A single member in this
-/// lot - TIME_HORIZON is deliberately the only implemented exit rule (brief §10/§45/§46: no Stop Loss, no
-/// Take Profit, no trailing stop in this lot); the type exists so a future lot can add
-/// StopLoss/TakeProfit/TrailingStop/BreakEven members without changing SimulatedPosition's shape.</summary>
+/// <summary>Sprint 15.25 (Lot 14.5, brief §17). Why a CLOSED position closed. Originally a single member
+/// (TIME_HORIZON only, no Stop Loss/Take Profit in that lot); Sprint 15.25 (Lot 15.4) adds the three
+/// members that lot's own doc comment reserved space for, without changing SimulatedPosition's shape
+/// (ExitPrice/ExitBarIndex/ExitTimestamp already existed and are reused unchanged, brief §26).</summary>
 public enum ExitReason
 {
-    TimeHorizon
+    TimeHorizon,
+
+    /// <summary>Sprint 15.25 (Lot 15.4): intrabar Low (BUY) / High (SELL) touched
+    /// <c>ExecutionCandidate.StopLoss</c> on this bar, and TakeProfit was not ALSO touched the same bar
+    /// (see <see cref="Ambiguous"/> otherwise).</summary>
+    StopLoss,
+
+    /// <summary>Sprint 15.25 (Lot 15.4): intrabar High (BUY) / Low (SELL) touched
+    /// <c>ExecutionCandidate.TakeProfit</c> on this bar, and StopLoss was not ALSO touched the same bar
+    /// (see <see cref="Ambiguous"/> otherwise).</summary>
+    TakeProfit,
+
+    /// <summary>Sprint 15.25 (Lot 15.4, brief §7/§8/§9): the SAME bar's High and Low touched BOTH
+    /// StopLoss and TakeProfit - single-timeframe OHLC cannot determine which was actually hit first.
+    /// Never resolved by an invented assumption. <see cref="SimulatedPosition.ExitPrice"/> on an
+    /// Ambiguous exit uses the conservative convention (the StopLoss price, i.e. the outcome unfavorable
+    /// to the trade) for measurement usability ONLY - this is never a claim about the true execution
+    /// order, and a consumer that wants a different convention can filter on this ExitReason precisely
+    /// because it is never conflated with a genuine <see cref="StopLoss"/> exit.</summary>
+    Ambiguous
 }
 
 /// <summary>

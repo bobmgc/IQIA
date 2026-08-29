@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace IQIAIndicator.Core.MarketData.Yahoo;
 
@@ -50,21 +51,37 @@ public sealed class YahooHistoricalBarSource : IHistoricalBarSource
     /// 60 days; 59 leaves one day of safety margin rather than re-deriving the exact boundary.</summary>
     public const int DefaultMaxChunkSpanDays = 59;
 
+    /// <summary>Sprint 15.25 (Lot 15.25-XX). Hard upper bound on a whole <see cref="Load"/> call
+    /// (all chunks + all bounded retries combined). Per-chunk resilience is already bounded by
+    /// <see cref="YahooRetryPolicy"/> (worst case ≈ 80 s/chunk); this is the belt-and-braces ceiling for
+    /// the multi-chunk case so a load can never run away regardless of how many chunks a range needs.
+    /// Generous enough for a legitimate slow multi-chunk historical download, still finite.</summary>
+    public static readonly TimeSpan DefaultOverallLoadTimeout = TimeSpan.FromMinutes(3);
+
     private readonly IYahooChartClient _client;
     private readonly int _maxChunkSpanDays;
+    private readonly TimeSpan _overallLoadTimeout;
 
     public YahooHistoricalBarSource() : this(new HttpYahooChartClient(), DefaultMaxChunkSpanDays)
     {
     }
 
-    internal YahooHistoricalBarSource(IYahooChartClient client, int maxChunkSpanDays = DefaultMaxChunkSpanDays)
+    internal YahooHistoricalBarSource(
+        IYahooChartClient client,
+        int maxChunkSpanDays = DefaultMaxChunkSpanDays,
+        TimeSpan? overallLoadTimeout = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         if (maxChunkSpanDays <= 0)
             throw new ArgumentOutOfRangeException(nameof(maxChunkSpanDays), maxChunkSpanDays, "maxChunkSpanDays must be positive.");
 
+        TimeSpan overall = overallLoadTimeout ?? DefaultOverallLoadTimeout;
+        if (overall <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(overallLoadTimeout), overall, "overallLoadTimeout must be positive.");
+
         _client = client;
         _maxChunkSpanDays = maxChunkSpanDays;
+        _overallLoadTimeout = overall;
     }
 
     /// <summary>Gap slots (Yahoo-reported, OHLCV-null timestamps) omitted by the most recent
@@ -76,6 +93,14 @@ public sealed class YahooHistoricalBarSource : IHistoricalBarSource
     public int LastRequestChunkCount { get; private set; }
 
     public HistoricalSeries Load(string symbol, string timeFrame, DateTime from, DateTime to)
+        => Load(symbol, timeFrame, from, to, CancellationToken.None);
+
+    /// <summary>Sprint 15.25 (Lot 15.25-XX). Same contract as <see cref="Load(string, string, DateTime, DateTime)"/>,
+    /// plus: the caller can cancel a stalled load, and the whole call is additionally bounded by
+    /// <see cref="DefaultOverallLoadTimeout"/>. A provider failure surfaces as
+    /// <see cref="YahooProviderException"/> (classified), never as an unbounded wait. Kept
+    /// <c>internal</c> - <see cref="IHistoricalBarSource"/> is intentionally not widened.</summary>
+    internal HistoricalSeries Load(string symbol, string timeFrame, DateTime from, DateTime to, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(symbol);
         ArgumentException.ThrowIfNullOrWhiteSpace(timeFrame);
@@ -91,6 +116,9 @@ public sealed class YahooHistoricalBarSource : IHistoricalBarSource
         var allBars = new List<HistoricalBar>();
         int totalGapCount = 0;
 
+        using var overallCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        overallCts.CancelAfter(_overallLoadTimeout);
+
         for (int i = 0; i < chunks.Count; i++)
         {
             // Sprint 15.25 (Lot 14.2, brief §10). Chunks are logically back-to-back
@@ -105,7 +133,27 @@ public sealed class YahooHistoricalBarSource : IHistoricalBarSource
             DateTime queryFrom = i == 0 ? chunks[i].From : chunks[i].From.AddSeconds(1);
             DateTime queryTo = chunks[i].To;
 
-            string json = _client.FetchChartJson(yahooTicker, yahooInterval, queryFrom, queryTo);
+            string json;
+            try
+            {
+                json = _client.FetchChartJson(yahooTicker, yahooInterval, queryFrom, queryTo, overallCts.Token);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw; // caller-requested cancellation propagates verbatim
+            }
+            catch (OperationCanceledException oce)
+            {
+                // The overall-load ceiling fired. Classify it like any other provider stall so callers
+                // (and the network-test guards) treat it as PROVIDER_UNAVAILABLE, never a scientific fault.
+                throw new YahooProviderException(
+                    YahooFailureKind.NetworkFailure,
+                    $"Yahoo load exceeded the overall {_overallLoadTimeout.TotalSeconds:0}s ceiling for "
+                    + $"{symbol} ({yahooTicker}) {timeFrame} at chunk {i + 1}/{chunks.Count}.",
+                    attemptsMade: i + 1,
+                    innerException: oce);
+            }
+
             YahooChartParser.ParseResult parsed = YahooChartParser.Parse(json);
 
             allBars.AddRange(parsed.Bars);
