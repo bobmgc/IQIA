@@ -108,6 +108,17 @@ public sealed class HysteresisThresholdSensitivityLot1418Tests
 
             var observations = new List<BarObservation>(series.Count);
 
+            // Sprint 15.25 (Lot 14.18): the REAL FusionStateManager smooths Persistence over EVERY bar it is
+            // Update()-d on - Warmup bars included - exactly as production does in IQIAIndicator.OnCalculate.
+            // The Ready-only `rawSequence` further down is the intended scope for the descriptive threshold
+            // sweep, but the FIDELITY CHECK must replay the replica over the SAME full history the manager
+            // saw: a cold-start replica vs a warm-start manager diverge at the first Ready bar and hysteresis
+            // then locks that gap in permanently (produces a mass bit-mismatch that is a test-harness
+            // artefact, not a production discrepancy - the cold-start equivalence itself is proven by
+            // HysteresisThresholdSensitivitySyntheticTests.ThresholdBinding_ReplicaMatchesRealFusionStateManager_AtProductionValues).
+            var allRawPersistence = new List<double>(series.Count);
+            var readyPositions = new List<int>(series.Count);
+
             foreach (BacktestSignalResult bar in signalResult.Bars)
             {
                 if (bar.Status is BacktestSignalStatus.Rejected or BacktestSignalStatus.Exception) continue;
@@ -120,9 +131,11 @@ public sealed class HysteresisThresholdSensitivityLot1418Tests
                 double persistenceRaw = Dim(rawResult, FusionDimension.Persistence).Value;
 
                 FusionSnapshot snapshot = fusionState.Update(rawResult, bar.Timestamp);
+                allRawPersistence.Add(persistenceRaw);
 
                 if (bar.Status != BacktestSignalStatus.Ready) continue;
 
+                readyPositions.Add(allRawPersistence.Count - 1);
                 observations.Add(new BarObservation
                 {
                     BarIndex = bar.BarIndex,
@@ -152,7 +165,10 @@ public sealed class HysteresisThresholdSensitivityLot1418Tests
             // ══════════════════════ threshold binding fidelity vs REAL FusionStateManager ══════════════════════
             _output.WriteLine("");
             _output.WriteLine("=== FIDELITY CHECK (replica @ 0.03/0.20 vs REAL FusionStateManager, real dataset) ===");
-            double[] replicaAtProduction = RunReplica(rawSequence, ProductionThreshold);
+            // Replay the replica over the manager's FULL Update() history (warmup included), then keep only
+            // the Ready-bar positions so the comparison is bar-aligned with PersistenceStableProduction.
+            double[] replicaWarmed = RunReplica(allRawPersistence.ToArray(), ProductionThreshold);
+            double[] replicaAtProduction = readyPositions.Select(p => replicaWarmed[p]).ToArray();
             double[] realProduction = observations.Select(o => o.PersistenceStableProduction).ToArray();
             bool fidelityPass = replicaAtProduction.SequenceEqual(realProduction);
             _output.WriteLine($"FidelityPass(BitIdentical)={fidelityPass}, n={replicaAtProduction.Length}");
