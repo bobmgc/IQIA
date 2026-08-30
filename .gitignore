@@ -503,3 +503,6 @@ IQIAIndicator/Tests/Research/*/Output/**
 !IQIAIndicator/Tests/Research/*/Output/_*_snapshots/
 !IQIAIndicator/Tests/Research/*/Output/_*_snapshots/**
 
+
+# Trending calibration: local Yahoo download cache (self-invalidating by date)
+IQIAIndicator/Tests/Research/TrendingCalibration/_cache/

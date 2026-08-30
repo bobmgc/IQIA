@@ -93,15 +93,18 @@ public sealed class StopLossFoundationLot153Tests
 
                 if (bar.Decision.Winner == MarketState.MeanReverting && isDirectional)
                     meanRevertingDirectional.Add(bar);
-                else if (bar.Decision.Winner != MarketState.MeanReverting)
+                // Audit 2026-08-30 (P0-2): Trending is now a directionally-supported regime too, so it
+                // is excluded from the "must never PLAN_READY" set below (only the still-unsupported
+                // regimes are checked).
+                else if (bar.Decision.Winner != MarketState.MeanReverting && bar.Decision.Winner != MarketState.Trending)
                     nonMeanRevertingWithTradePlan.Add(bar);
             }
 
             _output.WriteLine($"Directional MeanReverting bars = {meanRevertingDirectional.Count} (Lot 15.0 baseline: 2305 SIGNAL_ONLY / 0 PLAN_READY, from regime_signal_funnel.csv)");
 
-            // ── Step 4: PLAN_READY must remain empirically zero for every non-MeanReverting regime ───────
+            // ── Step 4: PLAN_READY must remain empirically zero for every still-unsupported regime ───────
             int nonMeanRevertingPlanReady = nonMeanRevertingWithTradePlan.Count(b => b.TradePlan?.Status == TradePlanStatus.PLAN_READY);
-            _output.WriteLine($"Non-MeanReverting bars checked = {nonMeanRevertingWithTradePlan.Count}, of which PLAN_READY = {nonMeanRevertingPlanReady} (must be 0 - structurally impossible per Lot 15.1: Direction is BUY/SELL only when Winner==MeanReverting).");
+            _output.WriteLine($"Unsupported-regime bars checked = {nonMeanRevertingWithTradePlan.Count} (excl. MeanReverting + Trending), of which PLAN_READY = {nonMeanRevertingPlanReady} (must be 0: no directional model for those regimes).");
             Assert.Equal(0, nonMeanRevertingPlanReady);
 
             // ── Step 5: TradePlanStatus distribution over directional MeanReverting bars (the key

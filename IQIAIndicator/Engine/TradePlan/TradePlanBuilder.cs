@@ -87,6 +87,26 @@ public sealed class TradePlanBuilder
             diagnostics.Add("TakeProfit unavailable: EstimatedEquilibrium not present in the pipeline for this bar.");
         }
 
+        // Phase 5b (audit 2026-08-30, P0-2): R-multiple TakeProfit fallback. The equilibrium target
+        // above is a mean-reversion concept; a trend-following trade has none, so when it is
+        // absent/unfavourable AND a StopLoss and a positive R multiple are available, target a fixed
+        // multiple of the stop distance. Mean-reversion trades are unaffected (their equilibrium
+        // target, when valid, already won above; when it did not, no R multiple is supplied for them).
+        if (takeProfit is null &&
+            entryPrice is decimal entryForRMultiple &&
+            stopLoss is decimal slForRMultiple &&
+            context.RiskParameters?.TakeProfitRMultiple is double rMultiple && rMultiple > 0.0)
+        {
+            decimal stopDistance = Math.Abs(entryForRMultiple - slForRMultiple);
+            if (stopDistance > 0m)
+            {
+                decimal rewardDistance = stopDistance * (decimal)rMultiple;
+                takeProfit = direction == DirectionCandidate.BUY_CANDIDATE
+                    ? entryForRMultiple + rewardDistance
+                    : entryForRMultiple - rewardDistance;
+            }
+        }
+
         // Phase 6: Risk per unit, in account currency - abs(Entry - StopLoss) x PointValue. Price
         // distance and currency conversion are never mixed with tick counts.
         decimal? riskPerUnit = null;

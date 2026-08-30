@@ -154,10 +154,15 @@ public sealed class VolatilityStopLossModel : IStopLossStrategy
         if (results is null)
             return false;
 
+        // VolatilityModel is the mean-reversion source; audit 2026-08-30 (P0-2) added
+        // TimeSeriesMomentumModel as the trend-following source (it exposes the same
+        // ScientificMetricKeys.CurrentVolatility, in price units) - only one of the two ever runs on a
+        // given bar (they are hard-gated to disjoint regimes), so first-match is unambiguous.
         ScientificModelResult? volatilityResult = null;
         foreach (ScientificModelResult result in results)
         {
-            if (string.Equals(result.ModelName, "VolatilityModel", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(result.ModelName, "VolatilityModel", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(result.ModelName, "TimeSeriesMomentumModel", StringComparison.OrdinalIgnoreCase))
             {
                 volatilityResult = result;
                 break;

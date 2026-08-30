@@ -18,7 +18,14 @@ public sealed record TradeRiskParameters(
     // stops the pipeline presenting a structurally unfavourable trade (e.g. a mean-reversion entry
     // taken near equilibrium: tiny target, volatility-wide stop). Sourced from RiskPolicy.MinRiskReward
     // (the "Risk/Reward minimum" indicator parameter / BacktestScenario policy). Null/0 = no gate.
-    double? MinRiskReward = null);
+    double? MinRiskReward = null,
+    // Audit 2026-08-30 (P0-2): TakeProfit fallback as a multiple of the stop distance
+    // (TP = Entry +/- R x |Entry - StopLoss|). The equilibrium target (EntryTriggerAssessment
+    // .EstimatedEquilibrium) is a mean-reversion concept and does not exist for a trend-following
+    // trade, so TradePlanBuilder uses this R-multiple ONLY when the equilibrium target is
+    // absent/unfavourable and a StopLoss is present. Null/0 = no fallback (mean-reversion trades keep
+    // their exact prior behaviour: equilibrium target or none).
+    double? TakeProfitRMultiple = null);
 
 public sealed record TradePlanContext(
     EntryTriggerCandidate EntryTriggerCandidate,

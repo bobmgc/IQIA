@@ -16,7 +16,7 @@ namespace IQIAIndicator.Tests.Methodology;
 /// | Regime         | Methodology                | Real models wired | Direction possible | Status      |
 /// |----------------|-----------------------------|--------------------|---------------------|-------------|
 /// | MeanReverting  | MeanReversionMethodology    | 5 (Kalman, OU, DynamicZScore, Volatility, SPRT) | Yes (DynamicZScore sign) | SUPPORTED   |
-/// | Trending       | TrendFollowingMethodology   | 0 (PrimaryModel + BOCPD are placeholder stubs)  | No | UNSUPPORTED |
+/// | Trending       | TrendFollowingMethodology   | 1 (TimeSeriesMomentumModel; BOCPD still a stub, not wired) | Yes (MomentumScore sign) | SUPPORTED (audit 2026-08-30 / P0-2) |
 /// | StructuralBreak| StructuralBreakMethodology  | 0 (PrimaryModel BOCPD is a placeholder stub)    | No | UNSUPPORTED |
 /// | RandomWalk     | RandomWalkMethodology       | 0 (no model class exists for it)                | No | UNSUPPORTED |
 /// | StableRange    | StableRangeMethodology      | 0 (no methodology-specific model exists)        | No | UNSUPPORTED (explicit, distinct from Unknown) |
@@ -28,7 +28,7 @@ public static class MethodologyRegistryCoverageTests
     public static void RunAll()
     {
         AssertMeanRevertingIsTheOnlySupportedRegime();
-        AssertTrendingIsExplicitlyUnsupported();
+        AssertTrendingHasMomentumModelCoverage();
         AssertStructuralBreakIsExplicitlyUnsupported();
         AssertRandomWalkIsExplicitlyUnsupported();
         AssertStableRangeIsExplicitlyUnsupportedAndDistinctFromUnknown();
@@ -47,13 +47,17 @@ public static class MethodologyRegistryCoverageTests
             "DynamicZScoreModel - the only model capable of a directional read - must be part of the MeanReverting bundle.");
     }
 
-    private static void AssertTrendingIsExplicitlyUnsupported()
+    private static void AssertTrendingHasMomentumModelCoverage()
     {
         (QuantitativeMethodology methodology, var models) = Resolve(MarketState.Trending);
 
         Assert(methodology.Name == "TrendFollowingMethodology", "Trending must resolve to TrendFollowingMethodology.");
-        Assert(models.Count == 0,
-            "TrendFollowingMethodology must resolve to zero models: its PrimaryModel (Time Series Momentum) and BOCPD supporting model are unimplemented placeholder stubs - wiring them in would fabricate coverage.");
+        // Audit 2026-08-30 (P0-2): TimeSeriesMomentumModel is now a real, self-contained implementation.
+        // BOCPD is still an unimplemented stub and is deliberately NOT wired.
+        Assert(models.Count == 1,
+            $"TrendFollowingMethodology must resolve to exactly its one real model (TimeSeriesMomentumModel). Actual={models.Count}.");
+        Assert(models.Select(model => model.Name).Contains("TimeSeriesMomentumModel"),
+            "TimeSeriesMomentumModel must be the model wired for TrendFollowing.");
     }
 
     private static void AssertStructuralBreakIsExplicitlyUnsupported()
@@ -121,7 +125,7 @@ public static class MethodologyRegistryCoverageTests
         (MarketState State, string ExpectedMethodology, int ExpectedModelCount)[] matrix =
         [
             (MarketState.MeanReverting, "MeanReversionMethodology", 5),
-            (MarketState.Trending, "TrendFollowingMethodology", 0),
+            (MarketState.Trending, "TrendFollowingMethodology", 1),
             (MarketState.StructuralBreak, "StructuralBreakMethodology", 0),
             (MarketState.RandomWalk, "RandomWalkMethodology", 0),
             (MarketState.StableRange, "StableRangeMethodology", 0),

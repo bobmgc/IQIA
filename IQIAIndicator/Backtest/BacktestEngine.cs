@@ -241,7 +241,10 @@ public sealed class BacktestEngine
         // is null (PipelineParameterOverrides.None, or any override that leaves this one field unset).
         var signalEngine = new SignalEngine(
             traceCollector: null,
-            ambiguityGateThreshold: overrides.AmbiguityGateThreshold ?? EntryTriggerBuilder.AmbiguityGateThreshold);
+            ambiguityGateThreshold: overrides.AmbiguityGateThreshold ?? EntryTriggerBuilder.AmbiguityGateThreshold,
+            // Audit 2026-08-30 (P0-2): trend-following calibration parameters (null -> production default).
+            momentumLookbacks: overrides.MomentumLookbacks,
+            minMomentumConfidence: overrides.MinMomentumConfidence);
         var tradePlanEngine = new TradePlanEngine();
 
         var instrumentInfo = new InstrumentInfo(
@@ -371,13 +374,24 @@ public sealed class BacktestEngine
                     TradeRiskParameters? riskParameters = null;
                     if (entryTrigger.Assessment.Direction is DirectionCandidate.BUY_CANDIDATE or DirectionCandidate.SELL_CANDIDATE)
                     {
-                        decimal? stopLoss = VolatilityStopLossModel.TryResolveStopPrice(entryTrigger, instrumentInfo.TickSize);
+                        // Audit 2026-08-30 (P0-2): stop distance multiplier is overridable for calibration
+                        // (null -> VolatilityStopLossModel.DefaultVolatilityMultiplier).
+                        decimal? stopLoss = VolatilityStopLossModel.TryResolveStopPrice(
+                            entryTrigger, instrumentInfo.TickSize,
+                            overrides.StopVolatilityMultiplier ?? VolatilityStopLossModel.DefaultVolatilityMultiplier);
                         decimal? riskPerTrade = scenario.Policy.MaxRiskPerTradePercent is decimal riskPercent
                             ? scenario.InitialCapital * riskPercent
                             : null;
                         // Audit 2026-08-29: same MinRiskReward gate as the live path - a plan below the
                         // scenario's configured minimum reward/risk is PLAN_REJECTED, not SIGNAL_ONLY.
-                        riskParameters = new TradeRiskParameters(stopLoss, riskPerTrade, scenario.Policy.MinRiskReward);
+                        // Audit 2026-08-30 (P0-2): a trending trade uses an R-multiple TakeProfit (default
+                        // 2.0, overridable for calibration); mean-reversion trades pass null (unchanged
+                        // equilibrium target).
+                        riskParameters = new TradeRiskParameters(
+                            stopLoss, riskPerTrade, scenario.Policy.MinRiskReward,
+                            decision.Winner == MarketState.Trending
+                                ? (overrides.TakeProfitRMultiple ?? 2.0)
+                                : null);
                     }
 
                     tradePlan = tradePlanEngine.Process(new TradePlanContext(entryTrigger, instrumentInfo, riskParameters));

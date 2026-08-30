@@ -21,8 +21,8 @@ public sealed class YahooSymbolMapTests
     }
 
     [Theory]
-    [InlineData("NQ")]
     [InlineData("SPY")]
+    [InlineData("6E")]
     [InlineData("")]
     [InlineData("mes")] // ordinal-cased: lowercase is not the same key
     public void UnverifiedSymbol_Throws_NeverGuessesATicker(string symbol)
@@ -31,11 +31,14 @@ public sealed class YahooSymbolMapTests
     }
 
     [Fact]
-    public void SupportedSymbols_ContainsExactlyEsAndMes_InThisLot()
+    public void SupportedSymbols_AreAllIndividuallyVerifiedFutures()
     {
         var supported = YahooSymbolMap.SupportedSymbols;
-        Assert.Equal(2, supported.Count);
-        Assert.Contains("ES", supported);
-        Assert.Contains("MES", supported);
+        // Audit 2026-08-30 (P0-2): NQ/YM/RTY/GC/CL added (each live-verified as instrumentType=FUTURE).
+        Assert.Equal(7, supported.Count);
+        foreach (string symbol in new[] { "ES", "MES", "NQ", "YM", "RTY", "GC", "CL" })
+        {
+            Assert.Contains(symbol, supported);
+        }
     }
 }

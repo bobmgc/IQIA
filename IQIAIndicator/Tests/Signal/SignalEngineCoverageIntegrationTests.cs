@@ -29,17 +29,18 @@ public static class SignalEngineCoverageIntegrationTests
     }
 
     /// <summary>
-    /// Decision selects a regime (Trending) for which ScientificModelRegistry.Resolve returns zero
-    /// models (see audit finding ARC-003). Verifies that: (1) no scientific model is executed as if
-    /// it existed, (2) the NO MODEL COVERAGE state survives into the ScientificAssessment consumed by
-    /// Entry, (3) Entry does not turn this structural gap into a qualified opportunity, and (4)
-    /// EntryTrigger does not fabricate a directional (BUY/SELL) signal from it.
+    /// Decision selects a regime (StableRange) for which ScientificModelRegistry.Resolve returns zero
+    /// models (see audit finding ARC-003; audit 2026-08-30 / P0-2 added a real model for Trending, so
+    /// StableRange is now the no-coverage example). Verifies that: (1) no scientific model is executed
+    /// as if it existed, (2) the NO MODEL COVERAGE state survives into the ScientificAssessment
+    /// consumed by Entry, (3) Entry does not turn this structural gap into a qualified opportunity, and
+    /// (4) EntryTrigger does not fabricate a directional (BUY/SELL) signal from it.
     /// </summary>
     private static void AssertNoCoverageRegimeNeverFabricatesADirectionalSignal()
     {
-        var decisionResult = new DecisionResult { Winner = MarketState.Trending, Confidence = 0.82 };
+        var decisionResult = new DecisionResult { Winner = MarketState.StableRange, Confidence = 0.82 };
         MethodologySelection methodologySelection = new MethodologyEngine().Evaluate(decisionResult);
-        Assert(methodologySelection.SelectedMethodology.Name == "TrendFollowingMethodology",
+        Assert(methodologySelection.SelectedMethodology.Name == "StableRangeMethodology",
             "Sanity check on the real MethodologyRegistry wiring this test depends on.");
 
         var marketContext = new ScientificMarketContext(
@@ -115,20 +116,21 @@ public static class SignalEngineCoverageIntegrationTests
     }
 
     /// <summary>
-    /// Sprint 15.5 (C1/C2/C3). Full-pipeline confirmation of the 6-regime coverage matrix established
-    /// by the Sprint 15.4 audit and fixed by this sprint: exactly one regime (MeanReverting) has real
-    /// scientific model coverage, and Direction is never fabricated for any of the other five -
-    /// through the real DecisionEngine -&gt; MethodologyEngine -&gt; ScientificModelRegistry -&gt; SignalEngine
-    /// wiring, not a hand-built substitute. See MethodologyRegistryCoverageTests (Tests/Methodology)
-    /// for the equivalent unit-level matrix and DecisionDirectionCoherenceTests
-    /// (Tests/EntryTrigger) for deterministic BUY/SELL coverage.
+    /// Sprint 15.5 (C1/C2/C3), updated by audit 2026-08-30 (P0-2). Full-pipeline confirmation of the
+    /// 6-regime coverage matrix: TWO regimes now have real scientific model coverage - MeanReverting
+    /// (5 models) and Trending (1 model, TimeSeriesMomentumModel) - and Direction is never fabricated
+    /// for the remaining four. Trending's direction stays NO_ACTION here specifically because
+    /// BuildHistory() is a flat oscillator with no drift: the model runs (CoverageStatus =
+    /// ModelsExecuted) but the multi-horizon momentum is too weak to trade (INSUFFICIENT_MOMENTUM).
+    /// See MethodologyRegistryCoverageTests (Tests/Methodology) and DecisionDirectionCoherenceTests
+    /// (Tests/EntryTrigger).
     /// </summary>
     private static void AssertAllSixRegimesMatchTheAuditedCoverageMatrix()
     {
         (MarketState State, string ExpectedMethodology, int ExpectedModelCount, bool DirectionMustBeNoAction)[] matrix =
         [
             (MarketState.MeanReverting, "MeanReversionMethodology", 5, false),
-            (MarketState.Trending, "TrendFollowingMethodology", 0, true),
+            (MarketState.Trending, "TrendFollowingMethodology", 1, true),
             (MarketState.StructuralBreak, "StructuralBreakMethodology", 0, true),
             (MarketState.RandomWalk, "RandomWalkMethodology", 0, true),
             (MarketState.StableRange, "StableRangeMethodology", 0, true),

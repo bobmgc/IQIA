@@ -147,7 +147,7 @@ Le code (`Visualization/`) est **défensif et globalement propre** — pas de cr
 | # | Action | Fichier(s) |
 |---|---|---|
 | P0-1 | Câbler une méthodologie **Stop Loss en live**, en miroir de `BacktestEngine.cs:356-381` (`VolatilityStopLossModel`). Sans ça `PLAN_READY` reste inatteignable en production. | `IQIAIndicator.cs` (~575) |
-| P0-2 | **Décision utilisateur** : implémenter au moins un modèle réel pour `Trending` (régime le plus fréquent après MeanReverting/StructuralBreak) — **ou** assumer explicitement « MeanReverting-only » et l'afficher clairement. | `Engine/ScientificModels/Trend/`, `ScientificModelRegistry.cs` |
+| P0-2 | ~~implémenter un modèle réel pour `Trending`~~ **FAIT le 2026-08-30** (`TimeSeriesMomentumModel` réel + câblage complet + calibration). **Résultat : Trending est fonctionnel mais SANS EDGE** — voir §8. | `Engine/ScientificModels/Trend/`, `ScientificModelRegistry.cs` |
 | P0-3 | **Décision utilisateur** : réparer la sémantique `StructuralBreak` — soit `StructuralBreakRule` consomme la dimension D6 (CUSUM/Bai-Perron), soit renommer le régime pour ne pas prétendre détecter une rupture. | `StructuralBreakRule.cs`, câblage `IQIAIndicator.cs` |
 | P0-4 | ~~`ExecutionSimulator` : clôturer une position via le **Stop Loss**~~ **CADUC** — déjà fait (Lots 15.4/15.5). Ne restait que : ne pas simuler un plan `PLAN_REJECTED` — **fait le 2026-08-30**. | `Backtest/Execution/ExecutionSimulator.cs` |
 | P0-5 | Corriger les biais de mesure : fill à l'**ouverture de la barre suivante** ; activer coûts + slippage par défaut dans la campagne de calibration. | `Backtest/Execution/`, `Backtest/Cost/` |
@@ -176,3 +176,32 @@ Le code (`Visualization/`) est **défensif et globalement propre** — pas de cr
 ## 7. Une phrase
 
 Le moteur est bien construit mais il ne trade rien : avant toute calibration, il faut (a) câbler le Stop Loss en live, (b) trancher le sort des 4 régimes non couverts, (c) réparer la sémantique `StructuralBreak`, (d) corriger les biais de mesure du backtest.
+
+---
+
+## 8. Suivi 2026-08-30 — P0-1, P0-4, P2 (partiel) et P0-2 traités
+
+**Commits `9475fbc`..`82518aa` puis le lot P0-2 :**
+
+- **P0-1 (Stop Loss live)** : `IQIAIndicator.cs` résout maintenant `TradeRiskParameters` pour un candidat directionnel (SL via `VolatilityStopLossModel`, RiskPerTrade via `RiskInitialCapital × RiskPolicyMaxRiskPerTradePercent`). Nécessite « Capital initial » + « Risque max par trade (%) » côté ATAS. En **Replay pur**, le RiskEngine rejette toujours `INVALID_EQUITY` (ATAS ne fournit pas de série d'équité replay — décision Lot 12.2) : la validation complète du RiskEngine demande un compte Sim/live.
+- **P0-4** : caduc — `ExecutionSimulator` fait déjà le monitoring intrabar SL/TP (Lots 15.4/15.5). Backtest MES M5 ~45 j : **96 % des sorties sur SL/TP**. Ajouté : `ExecutionSimulator` ne simule plus un plan `PLAN_REJECTED`.
+- **Gate R:R minimum** : `TradeRiskParameters.MinRiskReward` + nouveau statut `TradePlanStatus.PLAN_REJECTED` (opt-in, câblé sur le paramètre « Risk/Reward minimum »). `RiskEngineRequestFactory` et `ExecutionSimulator` ignorent un plan rejeté.
+- **P2 (glyphes dashboard)** : marqueurs ASCII (`[+]/[!]/[x]`, `#`/`-`, `v`/`>`) — les emoji ne sont pas rendus par le moteur texte d'ATAS (confirmé sur capture).
+- **#3 Distance équilibre** : `SignalEngine` peuple `DistanceToEquilibrium = CurrentPrice − EstimatedMean`.
+
+### P0-2 — Trending : implémenté, calibré, SANS EDGE
+
+**Implémentation** (6 fichiers production) :
+- `TimeSeriesMomentumModel` — vrai TSMOM multi-horizon (Moskowitz et al. 2012, cf. R-005) : t-stat de momentum normalisé par la volatilité sur plusieurs lookbacks, accord inter-horizons, autocorrélation lag-1 des rendements, expose aussi `CurrentVolatility` (unités de prix) pour le stop.
+- `ScientificModelRegistry` → `{ TimeSeriesMomentumModel }` pour `TrendFollowingMethodology` (`VolatilityModel`/`SPRTModel` restent hard-gated `MeanReverting`).
+- `ScientificAssessmentBuilder.ExpectedModels` devient dépendant de la méthodologie (transmis par `SignalEngine`) — une barre Trending n'est plus jugée « il manque les 5 modèles MeanReversion ».
+- `EntryTriggerBuilder` — branche `Winner == Trending` : direction = continuation du momentum, plancher `MinMomentumConfidence` (défaut 0.10), gate d'ambiguïté partagé. Nouvelles raisons `INSUFFICIENT_MOMENTUM` / `MOMENTUM_UNAVAILABLE`.
+- `TradePlanBuilder` — Take Profit tendance = R-multiple (`entry ± R × distance_stop`) quand la cible d'équilibre est absente/défavorable.
+- `PipelineParameterOverrides` — 4 champs (`MomentumLookbacks`, `MinMomentumConfidence`, `StopVolatilityMultiplier`, `TakeProfitRMultiple`) threadés via `SignalEngine`.
+- `YahooSymbolMap` +5 marchés vérifiés live (NQ, YM, RTY, GC, CL).
+
+**Calibration** (`Tests/Research/TrendingCalibration/`) : grille 81 cellules (lookbacks {court/défaut/long} × MinMomentumConfidence {0.05, 0.15, 0.30} × stop {1.5, 2.5, 3.5}×σ × TP {1.5, 2.5, 3.5}R), 6 marchés M5 ~59 j, split croisé TRAIN {NQ, RTY, GC} / OOS {ES, YM, CL} + split temporel purgé 70/30. Métrique : espérance par trade en R.
+
+**Résultat : les 81 cellules ont une espérance-R médiane cross-market NÉGATIVE.** Meilleure cellule `défaut/mc0.30/sl3.5/tp1.5` : **−0,082 R/trade**, ne généralise pas (OOS temporel −0,32). PnL $ (1 % de $25 000 par trade, sans coûts) : défauts = **−$40 675** sur 6 marchés / ~−$6 800 par marché ; meilleure cellule = **−$6 092** total ; **0 cellule profitable sur 81**.
+
+**Conclusion** : Trending est *fonctionnel* mais l'entrée telle que conçue (signe du momentum multi-horizon dans une barre étiquetée « Trending » par des poids `Provisional`) **n'a pas d'edge**, et aucun des 4 leviers ne le corrige. Aucune calibration livrée — les défauts restent inchangés. Rendre Trending (ou MeanReverting) rentable relève d'une refonte de l'entrée/du modèle (P1+), pas d'un réglage.

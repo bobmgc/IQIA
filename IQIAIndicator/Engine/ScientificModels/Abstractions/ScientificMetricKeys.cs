@@ -32,4 +32,10 @@ public static class ScientificMetricKeys
     public const string DecisionStrength = "DecisionStrength";
     public const string EvidenceStrength = "EvidenceStrength";
     public const string SPRTConfidence = "SPRTConfidence";
+
+    // Audit 2026-08-30 (P0-2): TimeSeriesMomentumModel (trend-following stack).
+    public const string MomentumScore = "MomentumScore";
+    public const string MomentumConfidence = "MomentumConfidence";
+    public const string HorizonAgreement = "HorizonAgreement";
+    public const string ReturnsAutocorrelation = "ReturnsAutocorrelation";
 }

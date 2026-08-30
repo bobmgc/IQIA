@@ -2,12 +2,28 @@ using IQIAIndicator.Engine.Methodology.Core;
 using IQIAIndicator.Engine.ScientificModels.Abstractions;
 using IQIAIndicator.Engine.ScientificModels.Context;
 using IQIAIndicator.Engine.ScientificModels.MeanReversion;
+using IQIAIndicator.Engine.ScientificModels.Trend;
 using IQIAIndicator.Engine.ScientificModels.Validation;
 
 namespace IQIAIndicator.Engine.ScientificModels.Registry;
 
 public sealed class ScientificModelRegistry
 {
+    private readonly int[]? _momentumLookbacks;
+
+    public ScientificModelRegistry() : this(null)
+    {
+    }
+
+    /// <summary>Audit 2026-08-30 (P0-2). <paramref name="momentumLookbacks"/> overrides
+    /// <c>TimeSeriesMomentumModel</c>'s default lookback set for the trend-following methodology;
+    /// null keeps the production default. Threaded from
+    /// <c>PipelineParameterOverrides.MomentumLookbacks</c> via <c>SignalEngine</c>.</summary>
+    public ScientificModelRegistry(int[]? momentumLookbacks)
+    {
+        _momentumLookbacks = momentumLookbacks;
+    }
+
     /// <summary>
     /// Sprint 15.5 (C2): explicit, audited per-methodology mapping instead of a single fragile
     /// string-literal special case (Sprint 15.4 audit finding BC-02) that happened to only cover
@@ -43,11 +59,16 @@ public sealed class ScientificModelRegistry
                 new SPRTModel()
             },
 
-            // TrendFollowingMethodology: PrimaryModel "Time Series Momentum" (TimeSeriesMomentumModel)
-            // and SupportingModel "BOCPD" (BOCPDModel) are both unimplemented stubs. VolatilityModel
-            // alone cannot support this methodology's own defining claim (trend continuation), so
-            // returning it in isolation would be partial, misleading coverage rather than real support.
-            "TrendFollowingMethodology" => Array.Empty<IScientificModel>(),
+            // TrendFollowingMethodology: audit 2026-08-30 (P0-2) wired the now-real
+            // TimeSeriesMomentumModel (multi-horizon TSMOM, self-contained - reads only the price
+            // history, computes its own volatility scaling and returns autocorrelation). The
+            // SupportingModel "BOCPD" (BOCPDModel) is still an unimplemented stub and is NOT wired.
+            // VolatilityModel/SPRTModel are hard-gated to MeanReverting (see their own compatible
+            // checks) and cannot run here, so this methodology's real coverage is TSMOM alone.
+            "TrendFollowingMethodology" => new IScientificModel[]
+            {
+                new TimeSeriesMomentumModel(_momentumLookbacks)
+            },
 
             // StructuralBreakMethodology: PrimaryModel "BOCPD" (BOCPDModel) is an unimplemented stub.
             "StructuralBreakMethodology" => Array.Empty<IScientificModel>(),

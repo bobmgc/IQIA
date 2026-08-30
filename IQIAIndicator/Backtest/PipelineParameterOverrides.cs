@@ -36,6 +36,29 @@ public sealed record PipelineParameterOverrides
     /// </summary>
     public bool? AblateStructuralBreakRegimeRule { get; init; }
 
+    // Audit 2026-08-30 (P0-2 Trending calibration). Four trend-following parameters, each null = "use
+    // the production default". These reach the pipeline through the same single seam as
+    // AmbiguityGateThreshold: BacktestEngine.RunSignalPipeline(scenario, warmup, overrides) threads
+    // them into the SignalEngine constructor (MomentumLookbacks/MinMomentumConfidence) and into its own
+    // TradePlan-stage wiring (StopVolatilityMultiplier/TakeProfitRMultiple) - never a static mutable.
+
+    /// <summary>Overrides <c>TimeSeriesMomentumModel</c>'s multi-horizon lookback set (production
+    /// default: {12, 36, 72, 144} bars). Null or empty = production default.</summary>
+    public int[]? MomentumLookbacks { get; init; }
+
+    /// <summary>Overrides <c>EntryTriggerBuilder.DefaultMinMomentumConfidence</c> (0.10) - the floor a
+    /// trending bar's momentum confidence must clear before a BUY/SELL is emitted. Null = default.</summary>
+    public double? MinMomentumConfidence { get; init; }
+
+    /// <summary>Overrides <c>VolatilityStopLossModel.DefaultVolatilityMultiplier</c> (2.0) for this
+    /// call's TradePlan stop-loss distance (Entry ∓ multiplier × CurrentVolatility). Null = default.</summary>
+    public double? StopVolatilityMultiplier { get; init; }
+
+    /// <summary>Overrides the R-multiple TakeProfit applied to a trending trade (production default:
+    /// 2.0 × stop distance). Null = default. Ignored for mean-reversion trades (they use the
+    /// equilibrium target).</summary>
+    public double? TakeProfitRMultiple { get; init; }
+
     /// <summary>No override for anything - every pipeline parameter falls back to its production default.
     /// Use this constant (never a bare <c>new PipelineParameterOverrides()</c> scattered across call sites)
     /// so every non-calibration caller shares the exact same, obviously-named "no-op" instance.</summary>

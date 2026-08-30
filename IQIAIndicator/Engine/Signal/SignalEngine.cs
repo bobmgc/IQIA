@@ -29,16 +29,23 @@ public sealed class SignalEngine
     private readonly IPipelineTraceCollector _traceCollector;
 
     /// <summary><paramref name="ambiguityGateThreshold"/>: Sprint 15.25 (Lot 14.10, P0-3), an explicit,
-    /// typed, optional override of EntryTriggerBuilder's production ambiguity gate (default:
-    /// EntryTriggerBuilder.AmbiguityGateThreshold, i.e. identical behaviour to every SignalEngine that
-    /// existed before this lot when this parameter is omitted - see
-    /// Backtest.BacktestEngine.RunSignalPipeline's PipelineParameterOverrides overload for the one place a
-    /// calibration experiment ever supplies a different value).</summary>
-    public SignalEngine(IPipelineTraceCollector? traceCollector = null, double ambiguityGateThreshold = EntryTriggerBuilder.AmbiguityGateThreshold)
+    /// typed, optional override of EntryTriggerBuilder's production ambiguity gate. Audit 2026-08-30
+    /// (P0-2): <paramref name="momentumLookbacks"/> and <paramref name="minMomentumConfidence"/> are the
+    /// trend-following equivalents (TimeSeriesMomentumModel horizons; the momentum-confidence floor for a
+    /// trending BUY/SELL). All three are omitted by every caller except
+    /// Backtest.BacktestEngine.RunSignalPipeline's PipelineParameterOverrides overload; omitted =
+    /// production default, i.e. identical behaviour to every prior SignalEngine.</summary>
+    public SignalEngine(
+        IPipelineTraceCollector? traceCollector = null,
+        double ambiguityGateThreshold = EntryTriggerBuilder.AmbiguityGateThreshold,
+        int[]? momentumLookbacks = null,
+        double? minMomentumConfidence = null)
     {
-        _registry = new ScientificModelRegistry();
+        _registry = new ScientificModelRegistry(momentumLookbacks);
         _traceCollector = traceCollector ?? NullPipelineTraceCollector.Instance;
-        _entryTriggerEngine = new EntryTriggerEngine(ambiguityGateThreshold);
+        _entryTriggerEngine = new EntryTriggerEngine(
+            ambiguityGateThreshold,
+            minMomentumConfidence ?? EntryTriggerBuilder.DefaultMinMomentumConfidence);
     }
 
     public ChartAnnotationCandidate? LastChartAnnotationCandidate { get; private set; }
@@ -105,7 +112,12 @@ public sealed class SignalEngine
         PipelineTraceScope fusionTrace = trace is null ? default : _traceCollector.BeginStage(trace, PipelineTraceStage.ScientificFusion);
         try
         {
-            scientificAssessment = _scientificFusionEngine.Assess(scientificResults);
+            // Audit 2026-08-30 (P0-2): tell the fusion engine which models SHOULD have run for THIS
+            // methodology (the registry's own resolution above) - so a trending bar is scored against
+            // { TimeSeriesMomentumModel }, not the five MeanReversion models it never had.
+            scientificAssessment = _scientificFusionEngine.Assess(
+                scientificResults,
+                activeModels.Select(model => model.Name).ToArray());
             if (trace is not null)
             {
                 fusionTrace.Complete(

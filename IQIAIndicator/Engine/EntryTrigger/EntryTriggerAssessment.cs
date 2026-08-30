@@ -45,7 +45,14 @@ public enum EntryTriggerReason
     // means "market conditions insufficient" and never means "technical error" - see
     // Engine.ScientificFusion.ScientificCoverageStatus.NoModelCoverage, the existing, already-wired
     // signal this reason reports on (reused, not duplicated - brief §13).
-    UNSUPPORTED_REGIME
+    UNSUPPORTED_REGIME,
+
+    // Audit 2026-08-30 (P0-2): trend-following (Winner == Trending) NO_ACTION reasons, analogous to
+    // the mean-reversion ones above. INSUFFICIENT_MOMENTUM = TimeSeriesMomentumModel ran but the
+    // multi-horizon momentum is too weak / undirected to trade; MOMENTUM_UNAVAILABLE = the model's
+    // MomentumScore metric was absent from the scientific results this bar.
+    INSUFFICIENT_MOMENTUM,
+    MOMENTUM_UNAVAILABLE
 }
 
 public sealed record EntryTriggerAssessment(

@@ -29,6 +29,20 @@ internal static class YahooSymbolMap
         ["ES"] = "ES=F",
         // Verified 2026-08-22: chart.result[0].meta = { symbol: "MES=F", instrumentType: "FUTURE", exchangeName: "CME", fullExchangeName: "CME", shortName: "MICRO E-MINI S&P 500 INDEX FUTU" }.
         ["MES"] = "MES=F",
+        // Audit 2026-08-30 (P0-2 Trending calibration): five more index/commodity futures, each verified
+        // by a live HTTP call to query2.finance.yahoo.com/v8/finance/chart/{ticker}?interval=5m&range=5d
+        // returning instrumentType="FUTURE" with usable 5-minute OHLC bars. Added only to widen the
+        // cross-market calibration set - the generic pipeline never sees these strings (brief §14).
+        // Verified 2026-08-30: meta = { symbol: "NQ=F", instrumentType: "FUTURE", exchangeName: "CME", shortName: "Nasdaq 100 Sep 26" }.
+        ["NQ"] = "NQ=F",
+        // Verified 2026-08-30: meta = { symbol: "YM=F", instrumentType: "FUTURE", exchangeName: "CBT", fullExchangeName: "CBOT", shortName: "Mini Dow Jones Indus.-$5 Sep 26" }.
+        ["YM"] = "YM=F",
+        // Verified 2026-08-30: meta = { symbol: "RTY=F", instrumentType: "FUTURE", exchangeName: "CME", shortName: "E-mini Russell 2000 Index Futur" }.
+        ["RTY"] = "RTY=F",
+        // Verified 2026-08-30: meta = { symbol: "GC=F", instrumentType: "FUTURE", exchangeName: "CMX" (COMEX), shortName: "Gold December 26" }.
+        ["GC"] = "GC=F",
+        // Verified 2026-08-30: meta = { symbol: "CL=F", instrumentType: "FUTURE", exchangeName: "NYM" (NYMEX), shortName: "Crude Oil Oct 26" }.
+        ["CL"] = "CL=F",
     };
 
     public static string Resolve(string iqiaSymbol)

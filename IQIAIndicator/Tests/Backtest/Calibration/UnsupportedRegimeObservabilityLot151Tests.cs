@@ -166,8 +166,12 @@ public sealed class UnsupportedRegimeObservabilityLot151Tests
             Assert.Equal(0, meanReverting.UnsupportedRegime);
             Assert.Equal(meanReverting.Total, meanReverting.Buy + meanReverting.Sell + meanReverting.NoAction + meanReverting.Watch);
 
-            // ── Every non-MeanReverting live regime present in this dataset: ~100% UNSUPPORTED_REGIME ───
-            foreach (MarketState regime in new[] { MarketState.Trending, MarketState.RandomWalk, MarketState.StructuralBreak, MarketState.StableRange })
+            // ── Every STILL-unsupported live regime present in this dataset: ~100% UNSUPPORTED_REGIME ───
+            // Audit 2026-08-30 (P0-2): Trending removed from this set - it now has a real directional
+            // model (TimeSeriesMomentumModel) and legitimately produces BUY/SELL and its own NO_ACTION
+            // reasons (INSUFFICIENT_MOMENTUM / MOMENTUM_UNAVAILABLE / DECISION_AMBIGUOUS). It is only
+            // asserted below to NEVER report UNSUPPORTED_REGIME.
+            foreach (MarketState regime in new[] { MarketState.RandomWalk, MarketState.StructuralBreak, MarketState.StableRange })
             {
                 if (!perRegime.TryGetValue(regime, out RegimeReasonSummary summary) || summary.Total == 0)
                 {
@@ -179,6 +183,13 @@ public sealed class UnsupportedRegimeObservabilityLot151Tests
                 Assert.Equal(summary.Total, summary.UnsupportedRegime);
                 Assert.Equal(0, summary.Buy);
                 Assert.Equal(0, summary.Sell);
+            }
+
+            if (perRegime.TryGetValue(MarketState.Trending, out RegimeReasonSummary trending) && trending.Total > 0)
+            {
+                _output.WriteLine($"Trending (now supported, P0-2): N={trending.Total}, BUY={trending.Buy}, SELL={trending.Sell}, NO_ACTION={trending.NoAction}, WATCH={trending.Watch}, UNSUPPORTED_REGIME={trending.UnsupportedRegime}");
+                Assert.Equal(0, trending.UnsupportedRegime);
+                Assert.Equal(trending.Total, trending.Buy + trending.Sell + trending.NoAction + trending.Watch);
             }
         }
         catch (Exception exception) when (IsConnectivityOrProviderIssue(exception))

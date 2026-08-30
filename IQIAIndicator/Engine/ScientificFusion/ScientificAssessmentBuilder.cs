@@ -6,7 +6,11 @@ namespace IQIAIndicator.Engine.ScientificFusion;
 
 public sealed class ScientificAssessmentBuilder
 {
-    private static readonly IReadOnlyList<string> ExpectedModels = new[]
+    // Audit 2026-08-30 (P0-2): fallback only, kept for callers/tests that do not supply the expected
+    // set. The real expected set is now per-methodology (the model names ScientificModelRegistry
+    // .Resolve returned for THIS bar's methodology), passed through Populate by SignalEngine - so a
+    // trending bar is no longer scored as "missing all five MeanReversion models".
+    private static readonly IReadOnlyList<string> DefaultExpectedModels = new[]
     {
         "KalmanFilterModel",
         "OrnsteinUhlenbeckModel",
@@ -14,6 +18,8 @@ public sealed class ScientificAssessmentBuilder
         "VolatilityModel",
         "SPRTModel"
     };
+
+    private IReadOnlyList<string> _expectedModels = DefaultExpectedModels;
 
     public double OverallConfidence { get; private set; }
 
@@ -36,7 +42,16 @@ public sealed class ScientificAssessmentBuilder
     public ScientificCoverageStatus CoverageStatus { get; private set; } = ScientificCoverageStatus.NoModelCoverage;
 
     public void Populate(IReadOnlyList<ScientificModelResult>? scientificResults)
+        => Populate(scientificResults, null);
+
+    /// <summary>Audit 2026-08-30 (P0-2). <paramref name="expectedModelNames"/> is the set of models
+    /// that SHOULD have run for this bar's methodology (ScientificModelRegistry.Resolve's output);
+    /// when null or empty the <see cref="DefaultExpectedModels"/> MeanReversion set is used, so every
+    /// pre-existing caller keeps its exact behaviour.</summary>
+    public void Populate(IReadOnlyList<ScientificModelResult>? scientificResults, IReadOnlyList<string>? expectedModelNames)
     {
+        _expectedModels = expectedModelNames is { Count: > 0 } ? expectedModelNames : DefaultExpectedModels;
+
         OverallConfidence = 0.0;
         EvidenceAgreement.Clear();
         EvidenceConflict.Clear();
@@ -50,7 +65,7 @@ public sealed class ScientificAssessmentBuilder
 
         if (scientificResults is null)
         {
-            MissingEvidence.AddRange(ExpectedModels);
+            MissingEvidence.AddRange(_expectedModels);
             Diagnostics = "ScientificResults list is null.";
             return;
         }
@@ -69,7 +84,7 @@ public sealed class ScientificAssessmentBuilder
 
         var foundExpectedModels = new HashSet<string>(scientificResults.Select(result => result.ModelName), StringComparer.OrdinalIgnoreCase);
 
-        foreach (var expectedModel in ExpectedModels)
+        foreach (var expectedModel in _expectedModels)
         {
             if (foundExpectedModels.Contains(expectedModel))
             {
@@ -97,9 +112,9 @@ public sealed class ScientificAssessmentBuilder
             EvidenceConflict.AddRange(FailedModels);
         }
 
-        OverallConfidence = ExpectedModels.Count == 0
+        OverallConfidence = _expectedModels.Count == 0
             ? 0.0
-            : SuccessfulModels.Count / (double)ExpectedModels.Count;
+            : SuccessfulModels.Count / (double)_expectedModels.Count;
 
         Diagnostics = BuildDiagnostics();
     }

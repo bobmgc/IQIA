@@ -597,7 +597,14 @@ public sealed class IQIAIndicator : Indicator
                     // already fed to RunRiskStage's RiskPolicy) also gates the TradePlan itself now - a
                     // plan below it is PLAN_REJECTED here, not surfaced as an actionable SIGNAL_ONLY.
                     double? minRiskReward = RiskPolicyMinRiskReward > 0d ? RiskPolicyMinRiskReward : null;
-                    riskParameters = new TradeRiskParameters(stopLoss, riskPerTrade, minRiskReward);
+                    // Audit 2026-08-30 (P0-2): a trend-following trade has no equilibrium target, so it
+                    // uses an R-multiple TakeProfit (NON CALIBRATED, 2.0). Mean-reversion trades pass
+                    // null and keep their exact equilibrium-target behaviour.
+                    double? takeProfitRMultiple =
+                        _latestDecisionResult?.Winner == global::IQIAIndicator.Engine.Decision.States.MarketState.Trending
+                            ? 2.0
+                            : null;
+                    riskParameters = new TradeRiskParameters(stopLoss, riskPerTrade, minRiskReward, takeProfitRMultiple);
                 }
 
                 _latestTradePlan = _tradePlanEngine.Process(new TradePlanContext(entryTriggerCandidate, instrumentInfo, riskParameters));
@@ -644,7 +651,11 @@ public sealed class IQIAIndicator : Indicator
 
         if (ActiveDashboard == DashboardKind.Debug)
         {
-            LogPipelineDebug(context, _latestDecisionResult, _latestMethodologySelection, _latestOpportunityPresentation, _latestChartAnnotationCandidate);
+            // _latestDecisionResult / _latestMethodologySelection were assigned unconditionally by the
+            // Decision and Methodology stages above (OnCalculate returns early on any earlier failure);
+            // the null-forgiveness is explicit since the P0-2 `_latestDecisionResult?.Winner` read in
+            // the TradePlan stage reset the compiler's non-null flow state for this later use.
+            LogPipelineDebug(context, _latestDecisionResult!, _latestMethodologySelection!, _latestOpportunityPresentation, _latestChartAnnotationCandidate);
         }
         _latestBarIndex = bar;
         _latestTimestamp = evidence.Timestamp;

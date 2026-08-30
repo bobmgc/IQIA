@@ -54,6 +54,11 @@ public static class UnsupportedRegimeReasonTests
             AssertUnsupportedRegimeProducesExplicitNoActionReason(regime);
         }
 
+        // Audit 2026-08-30 (P0-2): Trending is no longer an unsupported regime - it has a real model
+        // (TimeSeriesMomentumModel). A hand-built context with no momentum result reports the new
+        // MOMENTUM_UNAVAILABLE reason (still NO_ACTION), never UNSUPPORTED_REGIME.
+        AssertTrendingWithoutMomentumResultReportsMomentumUnavailable();
+
         AssertWatchlistOverrideStillWorksForUnsupportedRegime();
 
         // ── 2. Real MethodologyEngine -> ScientificModelRegistry -> SignalEngine.Process chain ─────
@@ -65,15 +70,26 @@ public static class UnsupportedRegimeReasonTests
         AssertNoStateLeaksBetweenConsecutiveSignalEngineRuns();
     }
 
+    // Audit 2026-08-30 (P0-2): MarketState.Trending removed - it now has a real scientific model
+    // (TimeSeriesMomentumModel) and is a supported regime.
     private static IEnumerable<MarketState> UnsupportedRegimes() => new[]
     {
-        MarketState.Trending,
         MarketState.RandomWalk,
         MarketState.StructuralBreak,
         MarketState.StableRange,
         MarketState.Unknown,
         MarketState.Transitional
     };
+
+    private static void AssertTrendingWithoutMomentumResultReportsMomentumUnavailable()
+    {
+        EntryTriggerCandidate candidate = Trigger(MarketState.Trending, ambiguityScore: 0.0, dynamicZScore: -2.0);
+
+        Assert(candidate.Assessment.Direction == DirectionCandidate.NO_ACTION,
+            $"Trending with no momentum result must be NO_ACTION, never a fabricated direction from a z-score. Actual={candidate.Assessment.Direction}.");
+        Assert(candidate.Assessment.Reason == EntryTriggerReason.MOMENTUM_UNAVAILABLE,
+            $"Trending with no TimeSeriesMomentumModel result must report MOMENTUM_UNAVAILABLE, never UNSUPPORTED_REGIME. Actual={candidate.Assessment.Reason}.");
+    }
 
     // ── 1a. MeanReverting regression (brief §25: no behaviour change for the one supported regime) ──
 
