@@ -5,7 +5,8 @@
 | Version | Référence | Statut |
 |---|---|---|
 | **v1** | commit `2d21ae5`, tag `qde-022-prereg` | **remplacée** (conservée dans l'historique git, non réécrite) |
-| **v2** | ce document, tag `qde-022-prereg-v2` | **en vigueur — remplace v1** |
+| **v2** | commit `2e8d7c9`, tag `qde-022-prereg-v2` | **remplacée** (conservée dans l'historique git, non réécrite) |
+| **v3** | ce document, tag `qde-022-prereg-v3` | **en vigueur — remplace v2** |
 
 **v2 remplace v1 sur trois points, et trois seulement :**
 1. **Gate économique corrigé** : `0,75 pt ES` (v1, infaisable — voir §7.3, note) → **`0,80 tick ES`**.
@@ -16,11 +17,23 @@
 
 Tout le reste de v1 est conservé à l'identique : §2 (spécification d'achat), §3 (les 4 indicateurs et leurs formules), §4 (les 6 horizons), §5 (24 tests, Holm α = 0,05), §6 (métrique primaire = courbe de décroissance IC, Pearson + IC95 Newey–West, pas de backtest / P&L / Sharpe / calibration), les deux autres conditions cumulatives de §7 (Holm ; stabilité de signe TRAIN/OOS 60/40 purgé), §8 à §13.
 
+**v3 remplace v2 sur quatre points, et quatre seulement :**
+1. **Période déplacée** : avril 2026 (repli mai 2026) → **août 2026** (repli juillet 2026). Choix a priori : août 2026 est le dernier mois calendaire complet à la date de rédaction (2026-09-04) ; aucune donnée n'a été acquise pour avril ni pour août avant ce changement, donc ce n'est pas un re-choix après résultat.
+2. **Contrat changé** : `ESM26` → **`ESU6`** (échéance septembre 2026), cohérent avec le principe déjà gelé « mois de front, hors roulement » : le roulement M26→U26 a lieu ~mi-juin 2026, le roulement U26→Z26 ~mi-septembre 2026 ; août 2026 est donc à l'intérieur de la fenêtre de front-month d'ESU6.
+3. **Voie d'acquisition explicitée comme choix actif** (§2.2) : téléchargement ciblé direct (`stype_in="raw_symbol"`, `symbols=["ESU6"]`) retenu, contre un pull large via symbologie `parent` (`ES.FUT`, tous contrats ES cotés) suivi d'un filtrage local à l'instrument. Ce n'est pas un changement de règle — v2 §2.1 fixait déjà `stype_in=raw_symbol` — mais v3 documente explicitement pourquoi l'alternative `parent` + filtrage a posteriori est écartée (§2.2, note).
+4. **Une exclusion de 3 dates calendaires (2, 9, 29 août) a été examinée puis ABANDONNÉE avant congélation** — voir note ci-dessous. v3 ne contient aucune exclusion de date individuelle.
+
+> **Note — exclusion de dates examinée et rejetée.** Lors de la préparation de v3, une exclusion des 2, 9 et 29 août avait été envisagée. Vérification : ce ne sont pas tous les week-ends d'août (1, 8, 15, 16, 22, 23, 30 ne l'étaient pas), et la raison de ce sous-ensemble précis s'est révélée inconnue au moment de la rédaction — ni jour férié CME identifié, ni anomalie de donnée documentée. Introduire une exclusion de jour dont la justification n'est pas connue violerait l'interdit de v2 §9 (choix, après avoir vu les données, du jour, sans pénalité), qui est précisément le garde-fou que ce format de document existe pour faire respecter. Décision : l'exclusion n'est pas retenue. Le filtre de session RTH (§2.1, 13:30–20:00 UTC) écarte nativement, à l'analyse, tout jour calendaire sans point de grille valide (week-ends compris) — aucune intervention manuelle sur la liste de jours n'est nécessaire ni introduite.
+
+**Aucune donnée L2 (`get_range`/`batch.submit_job`) n'a été acquise avant v3.** Une déviation de séquencement réelle est cependant consignée ci-dessous plutôt que dissimulée :
+
+> **Déviation de séquencement — `metadata.get_cost` exécuté avant le tag v3.** Contrairement à la discipline énoncée en v2 §2.2/§11 (le tag doit précéder tout `get_cost`), l'appel `metadata.get_cost(dataset="GLBX.MDP3", schema="mbp-10", symbols=["ESU6"], stype_in="raw_symbol", start="2026-08-02", end="2026-09-02")` a été exécuté le 2026-09-04, à la demande explicite de l'utilisateur, avant que ce document v3 n'existe sous forme commitée/taggée. Résultat : 30,048361867666 USD (~30,05 $). `metadata.get_cost` ne retourne qu'un coût et un volume estimé — aucune donnée de prix, de carnet ou de signal — donc cette déviation ne crée aucun risque de data-snooping sur les indicateurs (§3), les horizons (§4) ou la règle de décision (§7) : rien de ce qui est mesuré par QDE-022 n'a été vu. Elle est néanmoins documentée ici par souci de transparence totale, et la règle de séquencement reste en vigueur pour tout amendement futur (v4+) : tag avant tout nouvel appel get_cost/get_range.
+
 ---
 
-**Date v1 :** 2026-09-01 — **Date v2 :** 2026-09-01
-**Statut : PRÉ-ENREGISTREMENT — AUCUNE DONNÉE L2 ACQUISE À CE JOUR.**
-Ce document est rédigé, commité et **taggé (`qde-022-prereg-v2`) AVANT tout téléchargement de données**. Le hash du commit taggé sera reporté en tête du rapport de résultats (QDE-022-R). Toute modification postérieure au tag exige un nouveau tag horodaté et une justification explicite dans QDE-022-R.
+**Date v1 :** 2026-09-01 — **Date v2 :** 2026-09-01 — **Date v3 :** 2026-09-04
+**Statut : PRÉ-ENREGISTREMENT — AUCUNE DONNÉE L2 (`get_range`/`batch.submit_job`) ACQUISE À CE JOUR.**
+Ce document est rédigé, commité et **taggé (`qde-022-prereg-v3`) AVANT tout `get_range`/`batch.submit_job`**. Le hash du commit taggé sera reporté en tête du rapport de résultats (QDE-022-R). Toute modification postérieure au tag exige un nouveau tag horodaté et une justification explicite dans QDE-022-R.
 **Type :** registre gelé d'hypothèses, d'indicateurs, d'horizons, de comptabilité des tests multiples et de règle de décision GO / GO conditionnel / STOP.
 **Production modifiée : NON.** Ce lot ne touche aucun code de production. Aucune entrée `YahooSymbolMap`. La sonde d'analyse (Python, à écrire APRÈS acquisition) vivra sous `IQIAIndicator/Tests/Research/OrderFlow/` et ne contiendra aucun code de stratégie.
 
@@ -45,7 +58,7 @@ QDE-012 → QDE-021 ont épuisé, **négativement**, toutes les pistes d'edge di
 
 > **H1 (hypothèse de travail).** Au moins un des 4 indicateurs de flux de carnet listés en §3, mesuré sur ES, présente avec le rendement futur du prix moyen une corrélation (IC) qui, à au moins un des 6 horizons listés en §4, est : (i) statistiquement significative après correction Holm sur les 24 tests, (ii) de signe stable entre la première et la seconde moitié du mois, et (iii) économiquement matérielle au sens du gate §7.3.
 
-> **H0 (hypothèse nulle — portée étroite, à retenir par défaut).** L'OFI et ses variantes (les 4 indicateurs de §3), mesurés sur **ES MBP-10**, ne présentent **pas d'IC exploitable nette de coûts à un horizon ≥ 60 s**, sur un **échantillon d'un mois** (avril 2026, repli mai 2026), avec **latence supposée nulle**.
+> **H0 (hypothèse nulle — portée étroite, à retenir par défaut).** L'OFI et ses variantes (les 4 indicateurs de §3), mesurés sur **ES MBP-10**, ne présentent **pas d'IC exploitable nette de coûts à un horizon ≥ 60 s**, sur un **échantillon d'un mois** (août 2026, repli juillet 2026), avec **latence supposée nulle**.
 
 **Rejet de H0** = au moins une cellule (indicateur × horizon ≥ 60 s) **porteuse** au sens de §7.1.
 **Non-rejet de H0** = aucune cellule porteuse à un horizon ≥ 60 s. La clôture de la ligne recherche d'edge n'est **pas** contenue dans H0 : c'est une **conséquence recommandée** traitée en §7.5.
@@ -58,7 +71,7 @@ QDE-022 **mesure un contenu informationnel**. Il ne construit **aucune stratégi
 
 ---
 
-## 2. Achat de données — spécification exacte *(inchangé depuis v1)*
+## 2. Achat de données — spécification exacte *(v3 : §2.1 contrat/période, §2.2 voie d'acquisition ; reste inchangé depuis v1)*
 
 ### 2.1 Source et contrat
 
@@ -68,21 +81,23 @@ QDE-022 **mesure un contenu informationnel**. Il ne construit **aucune stratégi
 | Dataset | `GLBX.MDP3` | CME Globex MDP 3.0, flux natif du CME |
 | **Instrument** | **ES (E-mini S&P 500), PAS MES** | le flux institutionnel est dans l'ES ; le MES en est un reflet. Signal **mesuré sur ES**, trading final **possible sur MES** (§7.2) |
 | Schéma | **`mbp-10`** (market-by-price, 10 niveaux) | suffisant pour l'OFI top-of-book et l'OFI 10 niveaux, l'imbalance et le micro-prix. **`mbo` est EXCLU** : volume ~10×, non requis pour ces 4 indicateurs, ingérable pour un premier test |
-| Contrat (`raw_symbol`) | **`ESM26`** (échéance juin 2026) | mois de front pour avril **et** mai 2026 ; le roulement M26→U26 a lieu ~mi-juin 2026, donc **hors de la fenêtre** |
-| `stype_in` | `raw_symbol` | ciblage direct du contrat, pas de résolution `parent`/continu |
-| Période primaire | **2026-04-01T00:00:00Z → 2026-05-01T00:00:00Z** | 1 mois calendaire, **hors mois de roulement** (mars/juin/sept./déc. exclus) |
-| Période de repli | **2026-05-01 → 2026-06-01** | si avril indisponible/incomplet ; toujours sur `ESM26`, toujours hors roll |
-| Filtre de session | RTH uniquement : **13:30:00 → 20:00:00 UTC** (08:30–15:00 CT) | avril/mai = CDT = UTC−5. Session cash S&P 09:30–16:00 ET. Les événements hors de cette plage sont écartés à l'analyse, pas à l'achat |
+| Contrat (`raw_symbol`) | **`ESU6`** (échéance septembre 2026) *(v3 : remplace `ESM26`)* | mois de front pour août 2026 (et juillet 2026, repli) ; le roulement M26→U26 a lieu ~mi-juin 2026, le roulement U26→Z26 ~mi-septembre 2026 — août est donc **hors des deux fenêtres de roulement** |
+| `stype_in` | `raw_symbol` | ciblage direct du contrat, pas de résolution `parent`/continu — voir §2.2 note pour la justification explicite de ce choix par rapport à l'alternative `parent` |
+| Période primaire | **2026-08-02T00:00:00Z → 2026-09-02T00:00:00Z** *(v3 : remplace avril 2026)* | ~1 mois calendaire, **hors mois de roulement** pour `ESU6` ; dernier mois calendaire complet à la date de rédaction (2026-09-04) |
+| Période de repli | **2026-07-01 → 2026-08-01** *(v3 : remplace mai 2026)* | si août indisponible/incomplet ; toujours sur `ESU6`, toujours hors roll |
+| Filtre de session | RTH uniquement : **13:30:00 → 20:00:00 UTC** (08:30–15:00 CT) | juillet/août = CDT = UTC−5. Session cash S&P 09:30–16:00 ET. Les événements hors de cette plage sont écartés à l'analyse, pas à l'achat. Ce filtre écarte nativement les jours calendaires sans session RTH (week-ends) — voir amendement v3, note sur l'exclusion de dates abandonnée |
 | Horodatage de référence | **`ts_event`** (heure du moteur d'appariement CME), UTC ns | causalité stricte ; `ts_recv` conservé pour diagnostic de latence uniquement |
 | Encodage / compression | `dbn` / `zstd` | format natif Databento |
 
-### 2.2 Procédure d'acquisition (ordre impératif)
+### 2.2 Procédure d'acquisition (ordre impératif) *(v3)*
 
-1. **`metadata.get_cost(dataset="GLBX.MDP3", schema="mbp-10", symbols=["ESM26"], stype_in="raw_symbol", start=…, end=…, mode="historical")`** — **AVANT tout `get_range` / `batch.submit_job`**.
-2. **Consigner dans QDE-022-R : montant estimé** (USD) retourné par `get_cost`, date/heure de l'appel, volume estimé (octets, `record_count`).
-3. Si le montant estimé ≤ budget plafond (§2.3, **TODO utilisateur**) → lancer `batch.submit_job(...)` (job batch, pas streaming, pour un mois entier).
+1. **`metadata.get_cost(dataset="GLBX.MDP3", schema="mbp-10", symbols=["ESU6"], stype_in="raw_symbol", start="2026-08-02", end="2026-09-02")`** — **AVANT tout `get_range` / `batch.submit_job`**. *(Exécuté le 2026-09-04, avant l'existence du tag v3 — déviation de séquencement consignée explicitement en tête de document, sans risque de data-snooping puisque `get_cost` ne retourne pas de donnée de marché.)*
+2. **Consigné : montant estimé = 30,048361867666 USD (~30,05 $)**, appel du 2026-09-04, sur la portée exacte ci-dessus. Volume estimé (octets, `record_count`) non renvoyé par cet appel — à consigner dans QDE-022-R si disponible via un appel `metadata` complémentaire.
+3. Si le montant estimé ≤ budget plafond (§2.3, **TODO utilisateur**) → lancer `batch.submit_job(...)` ou `timeseries.get_range(...)` (pas streaming, pour la période complète ci-dessus).
 4. **Consigner : montant réellement facturé** (relevé Databento) + **volume réel téléchargé**. Écart estimé/réel commenté.
 5. **Consigner les frais de licence CME** : Databento refacture une licence CME **séparée** pour `GLBX.MDP3`, dont le tarif dépend du **statut particulier (non-professional) vs professionnel**. Reporter : statut déclaré, montant mensuel exact, période couverte. Le statut est **déterminé par le questionnaire Databento, pas par estimation** (§2.3, **TODO utilisateur**).
+
+> **Note — voie d'acquisition retenue : ciblage direct, pas `parent`.** Deux voies étaient possibles pour obtenir `ESU6` : (a) **ciblage direct retenu** — `stype_in="raw_symbol"`, `symbols=["ESU6"]`, un seul contrat facturé/téléchargé ; (b) **pull `parent` écarté** — `stype_in="parent"`, `symbols=["ES.FUT"]`, qui aurait renvoyé **tous** les contrats ES cotés simultanément (dont `ESZ6` résiduel), à filtrer localement sur l'`instrument_id` d'`ESU6` après téléchargement. (a) est retenu car il reproduit le principe déjà gelé en v2 §2.1, minimise le volume facturé/téléchargé pour une étude mono-contrat, et évite toute étape de filtrage post-acquisition (surface d'erreur en moins). Le coût de 30,05 $ consigné au point 2 ci-dessus est celui de la voie (a).
 
 ### 2.3 Budget et licence — **TODO utilisateur, à renseigner AVANT `get_cost`**
 
@@ -277,7 +292,7 @@ Cette recommandation est une **décision de portefeuille de recherche**, révisa
 
 ---
 
-## 8. Menaces à la validité — déclarées d'avance *(v2 : ancien point « signal ES → trade MES » retiré, désormais traité en §7.3–§7.4)*
+## 8. Menaces à la validité — déclarées d'avance *(v2 : ancien point « signal ES → trade MES » retiré, désormais traité en §7.3–§7.4 ; v3 : §8.7 mis à jour, §8.8 ajouté)*
 
 1. **Un seul mois, un seul instrument, un seul contrat.** Aucune généralité saisonnière ni de régime. Un rejet de H0 impose une réplication sur un 2ᵉ mois hors-roll avant tout capital (§7.4).
 2. **Latence et slippage nuls supposés.** L'IC est mesuré avec un carnet parfaitement synchrone et une exécution instantanée en `T`. Tout edge trouvé subira un abattement latence/file d'attente/slippage **non modélisé ici** ; le gate à 2× (§7.3) et le verdict « haut risque de latence » pour les horizons < 60 s (§7.4) visent à préserver cette marge, sans la garantir.
@@ -285,7 +300,8 @@ Cette recommandation est une **décision de portefeuille de recherche**, révisa
 4. **Sémantique des snapshots Databento.** `mbp-10` publie l'état après chaque événement ; l'OFI est reconstruit par différences d'états successifs, conforme à CKS. Une mauvaise gestion des types d'événements (`T` trade, `F` fill, `A/C/M` add/cancel/modify) fausserait l'OFI — la sonde devra journaliser leur ventilation.
 5. **Statut de licence.** Un basculement "professionnel" change la licence CME et possiblement les commissions → gate §7.3 à recalculer.
 6. **Biais de sur-échantillonnage temporel.** La grille 1 s crée une autocorrélation massive des résidus ; traitée par HAC + sous-échantillon non chevauchant (§6.2–6.3). `n`, `n_eff` et MDE réels sont **TODO** (§6.4) — non chiffrés ici.
-7. **Choix du mois.** Avril 2026 est choisi **a priori** (hors-roll, pas de contrainte connue le liant à un résultat). Si un événement macro exceptionnel domine le mois, QDE-022-R le signale ; le mois **n'est pas** re-choisi après coup.
+7. **Choix du mois.** *(v3)* Août 2026 est choisi **a priori** (hors-roll pour `ESU6`, dernier mois calendaire complet à la date de rédaction — pas un résultat qui l'a motivé, puisqu'aucune donnée n'a jamais été acquise pour aucun mois candidat). Si un événement macro exceptionnel domine le mois, QDE-022-R le signale ; le mois **n'est pas** re-choisi après coup.
+8. **Déviation de séquencement `get_cost`/tag.** *(v3, nouveau)* L'appel `metadata.get_cost` de la portée v3 a précédé l'existence du tag `qde-022-prereg-v3` (voir amendement en tête de document). Sans impact sur H0/H1 (aucune donnée de marché renvoyée par cet appel), mais consigné comme écart au protocole d'intégrité (§11) plutôt que laissé implicite.
 
 ---
 
@@ -300,33 +316,33 @@ Cette recommandation est une **décision de portefeuille de recherche**, révisa
 
 ---
 
-## 10. Livrables *(inchangé depuis v1)*
+## 10. Livrables *(v3 : tag mis à jour)*
 
 | Livrable | Contenu | Moment |
 |---|---|---|
-| **QDE-022 v2** (ce fichier) | Pré-enregistrement gelé | Maintenant — commité + taggé `qde-022-prereg-v2` |
+| **QDE-022 v3** (ce fichier) | Pré-enregistrement gelé | Maintenant — commité + taggé `qde-022-prereg-v3` |
 | **`qde022_l2_ofi.py`** | Sonde d'analyse Python : lecture DBN `mbp-10`, reconstruction du carnet, calcul des **4 indicateurs gelés**, grille 1 s, **6 horizons**, IC Pearson + HAC, Spearman, sous-échantillon non chevauchant, split TRAIN/OOS, Holm(24), gate §7.3. **Zéro code de stratégie.** | Après acquisition |
 | **QDE-022-R** | Rapport de résultats : hash du commit taggé ; `get_cost` estimé **vs** facturé **vs** volume réel ; licence CME réelle + statut ; `record_count`/jour, `n`, `n_eff`, MDE (§6.4) ; table des 24 cellules (IC, IC95 HAC, p, Holm, n, n_eff) ; 4 courbes de décroissance ; IC TRAIN/OOS ; gate économique par cellule **en ticks ES et MES** ; **verdict GO / GO conditionnel / STOP** ; menaces §8 réévaluées | Après analyse |
 
 ---
 
-## 11. Intégrité du pré-enregistrement *(v2 : tag mis à jour)*
+## 11. Intégrité du pré-enregistrement *(v3 : tag mis à jour, déviation §2.2 consignée)*
 
-1. Ce fichier v2 est commité **seul** (aucun autre changement dans le commit), message :
-   `research(qde-022): pre-registration v2 - economic gate fix + gate reference instrument + narrowed H0 (FROZEN, pre-data)`
-2. Tag annoté **`qde-022-prereg-v2`** sur ce commit.
-3. **v1 (`2d21ae5`, tag `qde-022-prereg`) reste dans l'historique git, non réécrite.** v2 la remplace explicitement (voir en-tête).
-4. **Aucune donnée L2 n'a été téléchargée avant l'existence du tag `qde-022-prereg-v2`, ni entre v1 et v2.**
-5. QDE-022-R cite le hash complet du commit taggé `qde-022-prereg-v2` en première ligne.
-6. Toute évolution ultérieure de QDE-022 → nouveau tag `qde-022-prereg-v3` (etc.) + section "Écarts au pré-enregistrement" en tête de QDE-022-R, chaque écart justifié.
+1. Ce fichier v3 est commité **seul** (aucun autre changement dans le commit), message :
+   `research(qde-022): pre-registration v3 - period/contract moved to August 2026 ESU6 + acquisition path documented, day-exclusion candidate rejected (FROZEN, pre-data)`
+2. Tag annoté **`qde-022-prereg-v3`** sur ce commit.
+3. **v1 (`2d21ae5`, tag `qde-022-prereg`) et v2 (`2e8d7c9`, tag `qde-022-prereg-v2`) restent dans l'historique git, non réécrites.** v3 les remplace explicitement (voir en-tête).
+4. **Aucune donnée L2 (`get_range`/`batch.submit_job`) n'a été téléchargée avant l'existence du tag `qde-022-prereg-v3`, ni entre v1/v2/v3.** Une déviation ponctuelle sur `metadata.get_cost` (exécuté avant le tag v3) est consignée en tête de document — voir §8.8 pour son évaluation d'impact (nulle sur H0/H1).
+5. QDE-022-R cite le hash complet du commit taggé `qde-022-prereg-v3` en première ligne.
+6. Toute évolution ultérieure de QDE-022 → nouveau tag `qde-022-prereg-v4` (etc.) + section "Écarts au pré-enregistrement" en tête de QDE-022-R, chaque écart justifié.
 
 ---
 
-## 12. Index des fichiers *(inchangé depuis v1)*
+## 12. Index des fichiers *(v3 : tag mis à jour)*
 
 | Fichier | Rôle | Committable en production ? |
 |---|---|---|
-| `IQIAIndicator/Tests/Research/OrderFlow/QDE-022_OrderFlow_L2_PreRegistration.md` | Ce pré-enregistrement (v2) | Oui (documentation de recherche) |
+| `IQIAIndicator/Tests/Research/OrderFlow/QDE-022_OrderFlow_L2_PreRegistration.md` | Ce pré-enregistrement (v3) | Oui (documentation de recherche) |
 | `IQIAIndicator/Tests/Research/OrderFlow/qde022_l2_ofi.py` | Sonde d'analyse (à créer post-acquisition) | Recherche uniquement |
 | `IQIAIndicator/Tests/Research/OrderFlow/Output/qde022_*.txt` | Sorties mesurées (à créer) | Recherche uniquement |
 | `IQIAIndicator/Documentation/Scientific/QDE-022-R_*.md` | Rapport de résultats (à créer) | Oui (documentation) |
@@ -335,14 +351,14 @@ Les données brutes DBN **ne sont pas versionnées** — stockées hors dépôt,
 
 ---
 
-## 13. FINAL OUTPUT *(v2)*
+## 13. FINAL OUTPUT *(v3)*
 
-**STATUS :** Pré-enregistrement **v2** rédigé, amendement visible de v1. **Aucune donnée L2 acquise, ni avant v1, ni entre v1 et v2.** Corrections v2 : (1) **gate économique** `0,75 pt ES` (infaisable, confusion tick/point) → **`0,80 tick ES`** (§7.3, avec note d'explication) ; (2) **instrument de référence du gate = ES**, explicité en §7, report obligatoire en ticks ES **et** ticks MES, **seuil MES documenté à 6,16 ticks**, verdict **GO conditionnel** introduit pour `0,80 ≤ M < 6,16` (décision de passage sur ES renvoyée à un document ultérieur) ; (3) **H0 restreinte** (ES MBP-10, horizon ≥ 60 s, un mois, latence nulle) — la clôture de la ligne recherche d'edge devient une **conséquence recommandée** (§7.5), pas la définition de H0. Inchangé : §2 achat (`GLBX.MDP3` / `mbp-10` / `ESM26` / avril 2026 / `get_cost` obligatoire / licence CME à part), §3 les 4 indicateurs, §4 les 6 horizons, §5 Holm(24) α = 0,05, §6 métrique = courbe de décroissance IC (Pearson + IC95 Newey–West, pas de backtest / P&L / Sharpe / calibration), §7 conditions 1 & 2, §8–§13.
+**STATUS :** Pré-enregistrement **v3** rédigé, amendement visible de v2. **Aucune donnée L2 (`get_range`/`batch.submit_job`) acquise, ni avant v1/v2, ni entre v2 et v3.** Changements v3 : (1) **période** avril 2026 → **août 2026** (repli mai 2026 → juillet 2026), choix a priori (dernier mois calendaire complet, aucun résultat antérieur pour aucun mois candidat) ; (2) **contrat** `ESM26` → **`ESU6`**, cohérent avec le principe « front-month hors roll » déjà gelé ; (3) **voie d'acquisition explicitée** : ciblage direct `raw_symbol=ESU6` retenu contre un pull `parent` (`ES.FUT`) + filtrage local, écarté (§2.2, note) ; (4) **candidate d'exclusion de 3 dates (2/9/29 août) examinée puis rejetée** faute de justification connue, conforme à l'interdit §9 — aucune exclusion de date individuelle en v3. `metadata.get_cost` exécuté pour la portée v3 le 2026-09-04 : **30,048361867666 USD (~30,05 $)**, consigné avec la déviation de séquencement associée (§8.8, sans impact H0/H1). Inchangé depuis v2 : §3 les 4 indicateurs, §4 les 6 horizons, §5 Holm(24) α = 0,05, §6 métrique = courbe de décroissance IC (Pearson + IC95 Newey–West, pas de backtest / P&L / Sharpe / calibration), §7 conditions 1–3 (gate économique 0,80 tick ES / 6,16 ticks MES, verdicts GO / GO conditionnel / STOP), §9.
 
 **PRODUCTION MODIFIED :** NO. Aucun code touché. Aucune donnée acquise.
 
 **TESTS :** aucun (document de pré-enregistrement).
 
-**DOCUMENTATION :** ce fichier — `IQIAIndicator/Tests/Research/OrderFlow/QDE-022_OrderFlow_L2_PreRegistration.md` (v2).
+**DOCUMENTATION :** ce fichier — `IQIAIndicator/Tests/Research/OrderFlow/QDE-022_OrderFlow_L2_PreRegistration.md` (v3).
 
-**NEXT ACTION :** (1) commiter ce fichier seul + tag `qde-022-prereg-v2` ; `git push --follow-tags` reste à faire par l'utilisateur. (2) **[TODO utilisateur]** fixer le budget plafond USD (§2.3). (3) **[TODO utilisateur]** résoudre le statut de licence CME via le questionnaire Databento (§2.3). (4) appeler `metadata.get_cost` et consigner estimé/réel + volume. (5) si ≤ plafond, `batch.submit_job` pour avril 2026 sur `ESM26`. (6) écrire `qde022_l2_ofi.py` conforme au registre gelé ; renseigner `record_count`/jour, `n`, `n_eff`, MDE (§6.4) après lecture du premier fichier journalier. (7) produire QDE-022-R avec verdict GO / GO conditionnel / STOP. **Aucun téléchargement avant l'existence du tag `qde-022-prereg-v2`.**
+**NEXT ACTION :** (1) commiter ce fichier seul + tag `qde-022-prereg-v3` ; `git push --follow-tags`. (2) **[TODO utilisateur]** fixer le budget plafond USD (§2.3) — le coût déjà consigné (30,05 $) est très inférieur aux 125 $ de crédits gratuits Databento évoqués en §2.3. (3) **[TODO utilisateur]** résoudre le statut de licence CME via le questionnaire Databento (§2.3). (4) lancer `batch.submit_job`/`timeseries.get_range` pour la portée gelée (`ESU6`, `mbp-10`, 2026-08-02 → 2026-09-02) et consigner le montant réellement facturé + volume réel téléchargé. (5) écrire `qde022_l2_ofi.py` conforme au registre gelé ; renseigner `record_count`/jour, `n`, `n_eff`, MDE (§6.4) après lecture du premier fichier journalier. (6) produire QDE-022-R avec verdict GO / GO conditionnel / STOP. **Aucun `get_range`/`batch.submit_job` avant l'existence du tag `qde-022-prereg-v3`.**
