@@ -108,7 +108,12 @@ Fenêtre gelée : 2026-08-02 → 2026-09-01 inclus (32 dates calendaires ; `end`
 
 **Recoupement avec le job `parent` précédent :** conforme à ce qu'indiquait l'utilisateur, **le même statut `degraded` sur 2026-08-29 se retrouve ici**, sur une livraison `raw_symbol` indépendante. Le signal semble donc attaché à la donnée d'échange sous-jacente elle-même (assessment Databento de la qualité de la journée CME), pas à la voie d'acquisition (`parent` vs `raw_symbol`) — constat, pas d'interprétation plus poussée demandée ici.
 
-**Verdict contrôle 4 : ÉCART MINEUR** — constaté, sans impact sur un jour ouvré, donc sans impact sur H0/H1 tel que testé (aucun horizon ni indicateur n'est mesuré sur un samedi).
+**Reclassement (relecture du 2026-09-04) — vérifié par calcul :**
+- `datetime.date(2026, 8, 29).strftime('%A')` → **`Saturday`**. Confirmé.
+- Balayage complet de `condition.json` : **le seul enregistrement non-`available` de toute la fenêtre est 2026-08-29, un samedi.** Aucun jour ouvré (lundi-vendredi) n'est concerné.
+- La méthodologie QDE-022 (§4.2 du pré-enregistrement) n'évalue que la grille RTH 13:30–20:00 UTC, lundi-vendredi. Un samedi ne contient **aucun point de grille RTH** — il est structurellement invisible pour H0/H1, pas seulement « sans impact » sur elles.
+
+**Verdict contrôle 4 : SANS OBJET** *(reclassé, était ÉCART MINEUR)* — le statut `degraded` du 2026-08-29 porte sur un jour hors du domaine de définition de la méthodologie QDE-022 (aucun point de grille RTH possible un samedi), pas sur une dégradation constatée puis jugée sans impact. Aucun jour ouvré n'est affecté.
 
 ---
 
@@ -233,10 +238,45 @@ Ce choix relève d'une décision de portefeuille de recherche, pas d'un contrôl
 | 1. Conformité au gel (`metadata.json`) | CONFORME |
 | 2. Unicité du contrat | CONFORME |
 | 3. Inventaire des jours | CONFORME |
-| 4. Qualité déclarée (`condition.json`) | ÉCART MINEUR (non bloquant) |
+| 4. Qualité déclarée (`condition.json`) | SANS OBJET *(2026-08-29, samedi, hors domaine RTH de la méthodologie ; aucun jour ouvré concerné)* |
 | 5. Comptage des enregistrements | CONFORME |
 | 6. Coût et licence | CONFORME (structure), voir §8 |
 | 7. MDE | Renseigné (§6.4 du pré-enregistrement) |
 | **Constat §8 (antériorité job `parent`)** | **NON CONFORME (processus)** |
 
-**Verdict global : NON CONFORME**, du seul fait du constat §8 — au niveau du **processus** de pré-enregistrement, pas de la structure du jeu de données lui-même. **Aucune analyse (OFI/IC/gate) n'est autorisée par ce rapport** ; elle reste subordonnée à la décision utilisateur demandée en §9 et, le cas échéant, à un amendement v4 taggé.
+**Verdict global : NON CONFORME**, du seul fait du constat §8 — au niveau du **processus** de pré-enregistrement, pas de la structure du jeu de données lui-même. **Aucune analyse (OFI/IC/gate) n'est autorisée par ce rapport** ; elle reste subordonnée à la décision utilisateur demandée en §9 et, le cas échéant, à un amendement v4 taggé. *(Non rouverte par l'addendum ci-dessous — voir consigne.)*
+
+---
+
+## Addendum — relecture du 2026-09-04 (trois incohérences mineures)
+
+Trois points signalés à la relecture de ce rapport ont été vérifiés. Correctifs appliqués **au rapport uniquement** ; le pré-enregistrement gelé n'a pas été modifié (sauf accord explicite déjà donné pour le §6.4 lors de la rédaction initiale — voir point 3 ci-dessous pour un second point, non résolu, qui requiert une confirmation séparée).
+
+### Point 1 — Écart 26 vs 27 fichiers
+
+Vérification directe :
+- `ls *.dbn.zst` dans `QDE-022_Data\GLBX-20260904-93PSB55DT3\` → **27 fichiers** sur disque.
+- `manifest.json` → **27 entrées `.dbn.zst`** + `condition.json` + `metadata.json` = 29 entrées au total (le manifeste ne se liste pas lui-même ; 27 + 2 + `manifest.json` lui-même = 30 fichiers sur disque, cohérent).
+- Recomptage exhaustif : disque, `manifest.json` et le rapport (contrôles 2, 3, 5) s'accordent **tous les trois sur 27**.
+
+**Le chiffre « 27 » du rapport est correct et n'a pas été modifié.** La source du chiffre « 26 » n'est ni `batch.download()` (dont la sortie brute liste bien 27 chemins `.dbn.zst`, plus `condition.json`/`metadata.json`/`manifest.json`) ni ce rapport : c'est une erreur de frappe dans mon propre résumé en conversation (*« 26 fichiers journaliers .dbn.zst »*), au moment d'annoncer la fin du téléchargement, jamais reprise dans un document commité. Aucune correction nécessaire ici ; **contrôle 3 reste cohérent** avec le chiffre de 27 (22 jours ouvrés + 5 dimanches, 4 samedis absents).
+
+### Point 2 — Reclassement du 2026-08-29
+
+Traité ci-dessus (contrôle 4) : reclassé **ÉCART MINEUR → SANS OBJET**, tableau récapitulatif mis à jour. Vérifications : samedi confirmé par calcul, aucun jour ouvré non-`available` dans `condition.json`.
+
+### Point 3 — Emplacement du MDE
+
+Numérotation réelle du document `QDE-022_OrderFlow_L2_PreRegistration.md` (v3), vérifiée par relecture complète des en-têtes `##`/`###` :
+
+- **§6.4** (« Effet minimal détectable (MDE) ») est la section où le TODO MDE a **toujours** vécu, depuis v1/v2 (`### 6.4 Effet minimal détectable (MDE) — TODO après lecture du premier fichier journalier`) — ce n'est pas un emplacement nouveau ni déplacé, c'est celui où il a été rempli en place lors de la vérification d'intégrité initiale.
+- **§9 réel du document** = « Hors périmètre — INTERDITS GELÉS » — une tout autre section (interdits : schéma `mbo`, 5ᵉ indicateur, horizons hors liste, backtest, etc.), sans rapport avec le MDE. La référence à « §9 » dans la consigne initiale de cette tâche était donc une erreur de numérotation dans la consigne elle-même, pas un signe que le MDE aurait été mal placé.
+- **§6.4 est le bon emplacement. Confirmé, rien à déplacer.**
+
+**Un TODO résiduel a cependant été repéré ailleurs, hors du périmètre strict de la question posée :** §8, menace à la validité n°6, ligne inchangée depuis v1/v2 : *« `n`, `n_eff` et MDE réels sont **TODO** (§6.4) — non chiffrés ici. »* Cette phrase est désormais **obsolète** — §6.4 contient des chiffres depuis le commit `0bc5311`. C'est une incohérence interne du document gelé, découverte pendant cette relecture, distincte de la question posée (qui portait sur l'emplacement, pas sur les renvois croisés).
+
+**Conformément à la consigne (« ne pas modifier le pré-enregistrement sauf confirmation explicite »), cette phrase n'a PAS été corrigée.** Elle est seulement signalée ici : §8, menace n°6, à mettre à jour de *« TODO — non chiffrés ici »* vers un renvoi factuel vers le tableau MDE de §6.4, **si et seulement si l'utilisateur confirme** qu'une telle modification (purement éditoriale, aucun chiffre ni conclusion changée) peut être appliquée au document gelé sans nouveau tag.
+
+---
+
+**Commit de cet addendum :** voir hash reporté dans la réponse de la tâche (fichier modifié : ce rapport uniquement — `QDE-022_OrderFlow_L2_PreRegistration.md` non touché).
