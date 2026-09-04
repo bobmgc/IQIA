@@ -2,21 +2,33 @@
 
 **Date :** 2026-09-04
 **Portée vérifiée :** job Databento `GLBX-20260904-93PSB55DT3` (`GLBX.MDP3` / `mbp-10` / `ESU6` / `stype_in=raw_symbol` / 2026-08-02 → 2026-09-02), livré dans `c:\Users\rnbch\OneDrive\Bureau\QDE-022_Data\GLBX-20260904-93PSB55DT3\` (hors dépôt).
-**Document de référence :** `QDE-022_OrderFlow_L2_PreRegistration.md`, tag `qde-022-prereg-v3`, commit `2dd383a013e0f2c2a4f493703a73fbb9f45c90e1`.
-**Type :** vérification de conformité uniquement. **Aucun calcul d'OFI, d'IC, de rendement ou de statistique de prix n'a été effectué.**
+**Document de référence (au moment de la vérification initiale) :** `QDE-022_OrderFlow_L2_PreRegistration.md`, tag `qde-022-prereg-v3`, commit `2dd383a013e0f2c2a4f493703a73fbb9f45c90e1`.
+**Document de référence (depuis la mise à jour du verdict, 2026-09-05) :** même fichier, tag `qde-022-prereg-v4` — voir « Historique du verdict » ci-dessous.
+**Type :** vérification de conformité uniquement. **Aucun calcul d'OFI, d'IC, de rendement ou de statistique de prix n'a été effectué**, ni lors de la vérification initiale ni lors de cette mise à jour.
 
 ---
 
 ## Verdict global
 
-# **NON CONFORME**
+# **CONFORME** *(mis à jour le 2026-09-05 — voir historique du verdict ci-dessous)*
 
-Ce verdict porte sur le **processus de pré-enregistrement dans son ensemble**, pas sur la structure du jeu de données livré. À noter explicitement :
+**Ce verdict a changé depuis la publication initiale de ce rapport. Les deux verdicts sont conservés ci-dessous, aucun n'est effacé.**
 
-- Le **jeu de données lui-même** (job `GLBX-20260904-93PSB55DT3`) est **structurellement conforme** à la portée gelée v3 sur tous les champs vérifiés (contrôles 1, 2, 3, 5, 6 : CONFORME ; contrôle 4 : ÉCART MINEUR non bloquant).
-- Le motif du NON CONFORME est un **constat découvert pendant ce contrôle, au §8 ci-dessous** : un job antérieur non conforme (`stype_in=parent`) a téléchargé de **vraies données de marché ESU6/août 2026** le **2026-09-03**, soit **avant** l'existence de tout tag couvrant cette portée (`qde-022-prereg-v3`, créé le 2026-09-04). Cela contredit factuellement l'affirmation « choix a priori » de v3 §8.7. Voir §8 et §9 pour le détail et la correction proposée.
+### Historique du verdict
 
-**Aucune analyse (OFI, IC, gate économique) n'est lancée à la suite de ce rapport**, conformément à la consigne, quel que soit le verdict.
+| Date | Verdict | Motif |
+|---|---|---|
+| 2026-09-04 (publication initiale, commit `0bc5311`) | **NON CONFORME** | v3 §8.7 affirmait un choix « a priori » de la période/du contrat, factuellement contredit par la préexistence d'un job Databento non conforme (`stype_in=parent`) ayant téléchargé de vraies données ESU6/août 2026 avant le tag `qde-022-prereg-v3`. |
+| 2026-09-05 (cette mise à jour) | **CONFORME** | v4 (`QDE-022_OrderFlow_L2_PreRegistration.md`, tag `qde-022-prereg-v4`) réécrit §8.7 pour énoncer la chronologie exacte, sans minimisation, et documente une décision explicite (conserver août 2026) avec risque résiduel assumé. Le motif du NON CONFORME était l'inexactitude du document, pas un défaut des fichiers — cette inexactitude est corrigée. |
+
+**Ce qui n'a pas changé et reste vrai dans les deux versions du verdict :**
+- Le **jeu de données lui-même** (job `GLBX-20260904-93PSB55DT3`) est et reste **structurellement conforme** à la portée gelée sur tous les champs vérifiés (contrôles 1, 2, 3, 5, 6 : CONFORME ; contrôle 4 : SANS OBJET, voir reclassement du 2026-09-04 ci-dessous).
+- Le job `parent` antérieur (`GLBX-20260903-7XE859LGPE`) a bien téléchargé de vraies données ESU6/août 2026 le 2026-09-03, avant l'existence de `qde-022-prereg-v3` (2026-09-04) — **ce fait n'est pas remis en cause**, il est maintenant correctement documenté (v4 §8.7) plutôt que contredit par le document lui-même.
+- Le **risque résiduel** (le choix de la période/du contrat a pu être exposé à la préexistence de ces données) **reste documenté et non neutralisé** — voir v4 §8.7, raisonnement a-f — et devra être rapporté dans QDE-022-R comme menace à la validité, quel que soit le verdict d'analyse (GO / GO conditionnel / STOP). **CONFORME signifie que le document est maintenant honnête sur ce risque, pas que le risque a disparu.**
+
+**Renvoi explicite :** `QDE-022_OrderFlow_L2_PreRegistration.md`, tag `qde-022-prereg-v4`, §8 point 7 (« Choix de la période — historique complet et risque résiduel assumé »).
+
+**Aucune analyse (OFI, IC, gate économique) n'est lancée à la suite de cette mise à jour**, conformément à la consigne, quel que soit le verdict.
 
 ---
 
@@ -229,6 +241,10 @@ Un amendement **v4** est recommandé avant toute exécution de la sonde d'analys
 
 Ce choix relève d'une décision de portefeuille de recherche, pas d'un contrôle technique — il n'est pas tranché par ce rapport.
 
+### Résolution (2026-09-05)
+
+L'utilisateur a tranché l'option **(a)** ci-dessus : **risque résiduel accepté et documenté**, août 2026 conservé comme échantillon unique, aucun achat supplémentaire, budget restant réservé à un élargissement conditionné au résultat de la courbe de décroissance. Le volet 1 (correction factuelle de §8.7) a été appliqué dans **v4** (`QDE-022_OrderFlow_L2_PreRegistration.md`, tag `qde-022-prereg-v4`) — voir cette section pour le raisonnement complet (points a-f) justifiant la décision. Cette recommandation §9 est donc **traitée**, dans son volet 1 comme dans son volet 2(a) ; elle est conservée ici telle qu'écrite le 2026-09-04, sans réécriture, pour que le lecteur voie la question posée avant de voir la réponse.
+
 ---
 
 ## Tableau récapitulatif des verdicts
@@ -242,9 +258,9 @@ Ce choix relève d'une décision de portefeuille de recherche, pas d'un contrôl
 | 5. Comptage des enregistrements | CONFORME |
 | 6. Coût et licence | CONFORME (structure), voir §8 |
 | 7. MDE | Renseigné (§6.4 du pré-enregistrement) |
-| **Constat §8 (antériorité job `parent`)** | **NON CONFORME (processus)** |
+| **Constat §8 (antériorité job `parent`)** | **Résolu par v4** — était NON CONFORME (processus) le 2026-09-04, voir « Historique du verdict » en tête de document |
 
-**Verdict global : NON CONFORME**, du seul fait du constat §8 — au niveau du **processus** de pré-enregistrement, pas de la structure du jeu de données lui-même. **Aucune analyse (OFI/IC/gate) n'est autorisée par ce rapport** ; elle reste subordonnée à la décision utilisateur demandée en §9 et, le cas échéant, à un amendement v4 taggé. *(Non rouverte par l'addendum ci-dessous — voir consigne.)*
+**Verdict global au 2026-09-04 (archivé, ne plus utiliser comme état courant) : NON CONFORME**, du seul fait du constat §8. **Verdict global courant (depuis 2026-09-05, voir tête de document) : CONFORME**, v4 ayant corrigé l'inexactitude factuelle de §8.7 sans que la structure des fichiers de données n'ait jamais été en cause. **Aucune analyse (OFI/IC/gate) n'est autorisée par ce rapport**, quel que soit le verdict.
 
 ---
 

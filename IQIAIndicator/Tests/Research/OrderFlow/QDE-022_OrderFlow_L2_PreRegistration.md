@@ -6,7 +6,8 @@
 |---|---|---|
 | **v1** | commit `2d21ae5`, tag `qde-022-prereg` | **remplacée** (conservée dans l'historique git, non réécrite) |
 | **v2** | commit `2e8d7c9`, tag `qde-022-prereg-v2` | **remplacée** (conservée dans l'historique git, non réécrite) |
-| **v3** | ce document, tag `qde-022-prereg-v3` | **en vigueur — remplace v2** |
+| **v3** | commit `2dd383a`, tag `qde-022-prereg-v3` | **remplacée** (conservée dans l'historique git, non réécrite) |
+| **v4** | ce document, tag `qde-022-prereg-v4` | **en vigueur — remplace v3** |
 
 **v2 remplace v1 sur trois points, et trois seulement :**
 1. **Gate économique corrigé** : `0,75 pt ES` (v1, infaisable — voir §7.3, note) → **`0,80 tick ES`**.
@@ -29,11 +30,21 @@ Tout le reste de v1 est conservé à l'identique : §2 (spécification d'achat),
 
 > **Déviation de séquencement — `metadata.get_cost` exécuté avant le tag v3.** Contrairement à la discipline énoncée en v2 §2.2/§11 (le tag doit précéder tout `get_cost`), l'appel `metadata.get_cost(dataset="GLBX.MDP3", schema="mbp-10", symbols=["ESU6"], stype_in="raw_symbol", start="2026-08-02", end="2026-09-02")` a été exécuté le 2026-09-04, à la demande explicite de l'utilisateur, avant que ce document v3 n'existe sous forme commitée/taggée. Résultat : 30,048361867666 USD (~30,05 $). `metadata.get_cost` ne retourne qu'un coût et un volume estimé — aucune donnée de prix, de carnet ou de signal — donc cette déviation ne crée aucun risque de data-snooping sur les indicateurs (§3), les horizons (§4) ou la règle de décision (§7) : rien de ce qui est mesuré par QDE-022 n'a été vu. Elle est néanmoins documentée ici par souci de transparence totale, et la règle de séquencement reste en vigueur pour tout amendement futur (v4+) : tag avant tout nouvel appel get_cost/get_range.
 
+**v4 remplace v3 sur deux points, et deux seulement :**
+1. **§8.7 réécrit pour dire la vérité.** Le contrôle d'intégrité des données livrées (`QDE-022_DataIntegrity_Check.md`, 2026-09-04) a révélé qu'un job Databento antérieur non conforme (`GLBX-20260903-7XE859LGPE`, `stype_in=parent`, `symbols=ES.FUT`) avait déjà téléchargé de vraies données de marché sur exactement la portée « août 2026 / `ESU6` » le 2026-09-03, **avant** que cette portée n'existe sous forme de pré-enregistrement gelé (tag `qde-022-prereg-v3`, 2026-09-04). L'affirmation de v3 §8.7 (« choix a priori, aucune donnée acquise ») était donc **factuellement fausse**. §8.7 est intégralement réécrit avec la chronologie datée, le raisonnement retenu, et la décision explicite de conserver août 2026 avec ce risque résiduel assumé — voir §8.7 pour le détail complet, non résumé ici afin de ne pas en atténuer la portée.
+2. **Renvoi corrigé en §8, menace n°6** : pointait encore vers un MDE « TODO, non chiffrés » ; corrigé vers §6.4, où le MDE a été chiffré lors du contrôle d'intégrité (2026-09-04, avant v4).
+
+**Aucune analyse n'a été lancée entre v3 et v4 : aucun OFI, aucun IC, aucun rendement n'a été calculé à ce jour.** L'amendement précède toute mesure.
+
+**Conséquence hors de ce document :** le rapport `QDE-022_DataIntegrity_Check.md` portait un verdict global NON CONFORME motivé exclusivement par l'inexactitude de l'ancien §8.7 — pas par un défaut des fichiers de données, qui étaient et restent structurellement conformes. Ce rapport est mis à jour en CONFORME dans le même commit que v4, avec renvoi explicite à v4 §8.7 et mention du risque résiduel documenté ; la trace du verdict antérieur (NON CONFORME) y est conservée, pas effacée.
+
+Tout le reste de v3 est conservé à l'identique : §1.2 (H0), §2 (spécification d'acquisition), §3 (les 4 indicateurs), §4 (les 6 horizons), §5 (Holm α = 0,05), §6 (métrique primaire et §6.4 MDE, déjà chiffré), §7 (règle de décision et gate à 0,80 tick ES), §9 (interdits gelés), §10 à §13. Aucun indicateur, aucun horizon, aucun seuil ne bouge.
+
 ---
 
-**Date v1 :** 2026-09-01 — **Date v2 :** 2026-09-01 — **Date v3 :** 2026-09-04
-**Statut : PRÉ-ENREGISTREMENT — AUCUNE DONNÉE L2 (`get_range`/`batch.submit_job`) ACQUISE À CE JOUR.**
-Ce document est rédigé, commité et **taggé (`qde-022-prereg-v3`) AVANT tout `get_range`/`batch.submit_job`**. Le hash du commit taggé sera reporté en tête du rapport de résultats (QDE-022-R). Toute modification postérieure au tag exige un nouveau tag horodaté et une justification explicite dans QDE-022-R.
+**Date v1 :** 2026-09-01 — **Date v2 :** 2026-09-01 — **Date v3 :** 2026-09-04 — **Date v4 :** 2026-09-05
+**Statut : PRÉ-ENREGISTREMENT — AUCUNE DONNÉE L2 (`get_range`/`batch.submit_job`) ACQUISE SOUS LA VOIE CONFORME AU-DELÀ DU JOB DÉJÀ CONSIGNÉ EN §8.7/§8.8.**
+Ce document est rédigé, commité et **taggé (`qde-022-prereg-v4`) AVANT toute analyse (OFI/IC/gate)**. Le hash du commit taggé sera reporté en tête du rapport de résultats (QDE-022-R). Toute modification postérieure au tag exige un nouveau tag horodaté et une justification explicite dans QDE-022-R.
 **Type :** registre gelé d'hypothèses, d'indicateurs, d'horizons, de comptabilité des tests multiples et de règle de décision GO / GO conditionnel / STOP.
 **Production modifiée : NON.** Ce lot ne touche aucun code de production. Aucune entrée `YahooSymbolMap`. La sonde d'analyse (Python, à écrire APRÈS acquisition) vivra sous `IQIAIndicator/Tests/Research/OrderFlow/` et ne contiendra aucun code de stratégie.
 
@@ -305,16 +316,34 @@ Cette recommandation est une **décision de portefeuille de recherche**, révisa
 
 ---
 
-## 8. Menaces à la validité — déclarées d'avance *(v2 : ancien point « signal ES → trade MES » retiré, désormais traité en §7.3–§7.4 ; v3 : §8.7 mis à jour, §8.8 ajouté)*
+## 8. Menaces à la validité — déclarées d'avance *(v2 : ancien point « signal ES → trade MES » retiré, désormais traité en §7.3–§7.4 ; v3 : §8.7 mis à jour, §8.8 ajouté ; v4 : §8.7 intégralement réécrit — l'énoncé « a priori » de v3 était factuellement inexact —, renvoi de §8.6 corrigé)*
 
 1. **Un seul mois, un seul instrument, un seul contrat.** Aucune généralité saisonnière ni de régime. Un rejet de H0 impose une réplication sur un 2ᵉ mois hors-roll avant tout capital (§7.4).
 2. **Latence et slippage nuls supposés.** L'IC est mesuré avec un carnet parfaitement synchrone et une exécution instantanée en `T`. Tout edge trouvé subira un abattement latence/file d'attente/slippage **non modélisé ici** ; le gate à 2× (§7.3) et le verdict « haut risque de latence » pour les horizons < 60 s (§7.4) visent à préserver cette marge, sans la garantir.
 3. **MBP-10 = vue agrégée par prix, 10 niveaux.** Position dans la file (queue) et icebergs non observables ; l'OFI 10 niveaux ne "voit" que la liquidité affichée sur 10 crans de prix.
 4. **Sémantique des snapshots Databento.** `mbp-10` publie l'état après chaque événement ; l'OFI est reconstruit par différences d'états successifs, conforme à CKS. Une mauvaise gestion des types d'événements (`T` trade, `F` fill, `A/C/M` add/cancel/modify) fausserait l'OFI — la sonde devra journaliser leur ventilation.
 5. **Statut de licence.** Un basculement "professionnel" change la licence CME et possiblement les commissions → gate §7.3 à recalculer.
-6. **Biais de sur-échantillonnage temporel.** La grille 1 s crée une autocorrélation massive des résidus ; traitée par HAC + sous-échantillon non chevauchant (§6.2–6.3). `n`, `n_eff` et MDE réels sont **TODO** (§6.4) — non chiffrés ici.
-7. **Choix du mois.** *(v3)* Août 2026 est choisi **a priori** (hors-roll pour `ESU6`, dernier mois calendaire complet à la date de rédaction — pas un résultat qui l'a motivé, puisqu'aucune donnée n'a jamais été acquise pour aucun mois candidat). Si un événement macro exceptionnel domine le mois, QDE-022-R le signale ; le mois **n'est pas** re-choisi après coup.
-8. **Déviation de séquencement `get_cost`/tag.** *(v3, nouveau)* L'appel `metadata.get_cost` de la portée v3 a précédé l'existence du tag `qde-022-prereg-v3` (voir amendement en tête de document). Sans impact sur H0/H1 (aucune donnée de marché renvoyée par cet appel), mais consigné comme écart au protocole d'intégrité (§11) plutôt que laissé implicite.
+6. **Biais de sur-échantillonnage temporel.** La grille 1 s crée une autocorrélation massive des résidus ; traitée par HAC + sous-échantillon non chevauchant (§6.2–6.3). `n`, `n_eff` et MDE réels sont **chiffrés en §6.4** *(v4 : corrigé — §6.4 a été renseigné lors du contrôle d'intégrité du 2026-09-04, cf. `QDE-022_DataIntegrity_Check.md` ; ce point renvoyait encore vers un TODO obsolète)*.
+7. **Choix de la période — historique complet et risque résiduel assumé.** *(v4 : réécriture intégrale. La version v3 de ce point affirmait un choix « a priori » ; cette affirmation était factuellement inexacte et est retirée ci-dessous, pas atténuée.)*
+
+   **Chronologie établie** (`batch.list_jobs` Databento, horodatages serveur ; `git log`) :
+   - **2026-09-01** : v1 puis v2 gelés et taggés — portée avril 2026 / `ESM26`. Les protections de fond de QDE-022 (4 indicateurs §3, 6 horizons §4, comptabilité Holm §5, règle de décision et gate économique 0,80 tick ES §7, formulation de H0 §1.2) sont figées à cette date et **n'ont jamais été modifiées depuis**.
+   - **2026-09-03T07:43:23Z → 08:11:37Z** : job Databento `GLBX-20260903-7XE859LGPE` (`stype_in=parent`, `symbols=ES.FUT`, `mbp-10`, 2026-08-02 → 2026-09-02) soumis puis terminé. **De vraies données de marché couvrant `ESU6` (parmi d'autres contrats ES livrés simultanément par la symbologie `parent`) sur exactement août 2026 ont été téléchargées à ce moment** — 193 356 682 enregistrements, 33,13424949347973 USD facturés.
+   - **2026-09-04, ~18:39:53Z UTC** (commit `2dd383a`) : rédaction et tag de v3, qui fixe pour la première fois la portée « août 2026 / `ESU6` » dans un pré-enregistrement gelé.
+
+   **Le job `parent` a terminé environ 34 h 28 min avant que la portée « août 2026 / `ESU6` » n'existe sous forme de document gelé.** L'affirmation de v3 (« Août 2026 est choisi a priori […] aucune donnée n'a été acquise pour avril ni pour août avant ce changement ») **était factuellement fausse** au moment où elle a été écrite : des données réelles sur cette portée exacte existaient déjà depuis la veille. Cette inexactitude a été découverte le 2026-09-04, lors du contrôle d'intégrité des données livrées (`QDE-022_DataIntegrity_Check.md`, §8 de ce rapport), pas au moment de la rédaction de v3.
+
+   **Décision (v4) : août 2026 est conservé comme échantillon unique.** Aucun achat supplémentaire n'est engagé ; le budget restant est réservé à un élargissement ultérieur, conditionné au résultat de la courbe de décroissance (§6.1). Cette décision est prise en connaissance du risque résiduel ci-dessus, sur la base du raisonnement suivant :
+
+   a. **Ce qui a été consulté du job `parent` se limite à des métadonnées** : tailles de fichiers, statuts de qualité (`condition.json`), liste des symboles. Aucune barre, aucun prix, aucun état de carnet n'a été ouvert ou inspecté.
+   b. **Le data-snooping consiste à choisir en fonction d'un résultat.** Aucun résultat n'existait ni n'existe à ce jour : aucun OFI, aucun IC, aucun rendement n'a été calculé, ni sur les données `parent` ni sur les données `raw_symbol` conformes. Le risque documenté ici est une exposition à la *possibilité* que le choix ait été influencé — ce n'est ni une preuve qu'il l'a été, ni *a fortiori* un résultat qui l'aurait motivé.
+   c. **Août n'a pas été retenu parce qu'il produisait un signal.** Il a été retenu parce que le job `parent` avait été déclenché par erreur sur cette période, et parce qu'août 2026 satisfait indépendamment le critère « front month, hors fenêtre de roulement » déjà gelé en v1 pour `ESU6` (roulement M26→U26 ~mi-juin 2026, U26→Z26 ~mi-septembre 2026 — §2.1).
+   d. **Les protections de fond n'ont jamais bougé.** Les 4 indicateurs (§3), les 6 horizons (§4), la correction de Holm (§5), le gate économique à 0,80 tick ES (§7) et la formulation de H0 (§1.2) sont gelés depuis v1 (2026-09-01), soit **avant** l'existence même du job `parent` (2026-09-03). Aucun de ces paramètres n'a pu être choisi ou ajusté après exposition à de vraies données.
+   e. **Le seul paramètre exposé est le choix de la période/du contrat.** Il est documenté comme tel, ici, sans minimisation : c'est un écart réel à la discipline de pré-enregistrement, pas un point aveugle occulté.
+   f. **Un basculement vers juillet 2026 a été examiné et écarté.** Juillet serait choisi aujourd'hui (2026-09-05), en pleine connaissance de cette situation — il ne serait donc pas davantage « a priori » qu'août ne l'est déjà. Changer de mois ne répare pas l'antériorité du problème, il la déplace.
+
+   **Ce risque résiduel reste ouvert, assumé et non neutralisé par ce paragraphe.** QDE-022-R devra le rapporter explicitement comme menace à la validité, quel que soit le verdict (GO / GO conditionnel / STOP), au même titre que les menaces 1 à 6 et 8.
+8. **Déviation de séquencement `get_cost`/tag.** *(v3)* L'appel `metadata.get_cost` de la portée v3 a précédé l'existence du tag `qde-022-prereg-v3` (voir amendement en tête de document). Sans impact sur H0/H1 (aucune donnée de marché renvoyée par cet appel), mais consigné comme écart au protocole d'intégrité (§11) plutôt que laissé implicite.
 
 ---
 
