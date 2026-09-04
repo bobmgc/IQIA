@@ -213,14 +213,27 @@ Observations fortement chevauchantes (grille 1 s, horizons jusqu'à 900 s) → e
 
 Une divergence forte entre Pearson plein-chevauchement et ces trois vues est un signal d'alerte consigné, même si Holm passe.
 
-### 6.4 Effet minimal détectable (MDE) — **TODO après lecture du premier fichier journalier**
+### 6.4 Effet minimal détectable (MDE) — **renseigné (v3, post-acquisition)**
 
-Le MDE (plus petit `|IC|` détectable à α corrigé = 0,05 / puissance 0,80) et le `n_eff` par horizon dépendent :
-- du **nombre réel de mises à jour du carnet par jour sur ES** (`record_count`/jour) — **inconnu à ce stade, ne PAS inventer** ;
-- du **taux de rejet** de points de grille (carnets croisés, bords de session) — inconnu à ce stade ;
-- de la structure d'autocorrélation résiduelle réelle à chaque horizon.
+Le MDE (plus petit `|IC|` détectable à α corrigé / puissance 0,80) et le `n_eff` par horizon dépendent :
+- du **nombre réel de mises à jour du carnet par jour sur ES** (`record_count`/jour) — **connu depuis le job `GLBX-20260904-93PSB55DT3`**, voir table ci-dessous ; détail complet dans `QDE-022_DataIntegrity_Check.md` (contrôle 5) ;
+- du **taux de rejet** de points de grille (carnets croisés, bords de session) — **toujours inconnu à ce stade** : sa mesure exige de rejouer l'état du carnet, ce qui relève de la sonde d'analyse (`qde022_l2_ofi.py`, post-gel), pas de ce contrôle d'intégrité. Le MDE ci-dessous majore donc `n_eff` (borne supérieure) et sous-estime en conséquence le MDE réel ;
+- de la structure d'autocorrélation résiduelle réelle à chaque horizon — inconnue à ce stade, mesurée par la sonde.
 
-**À renseigner dans QDE-022-R après lecture du premier fichier journalier :** `record_count`/jour, `n` valide et `n_eff` par horizon, MDE(`h`) correspondant. Aucune borne chiffrée n'est inscrite ici (la borne « grille 1 s » ≈ 23 400 points/jour RTH est une **borne supérieure théorique**, pas une estimation de `n` valide).
+**`record_count`/jour (27 fichiers, job `GLBX-20260904-93PSB55DT3`, ESU6, mbp-10, 2026-08-02 → 2026-09-02) :** 22 jours ouvrés, médiane 7 852 498 enregistrements/jour, écart-type (population) 1 717 223 ; aucun jour ouvré à plus de 3σ. 5 dimanches présents (session nocturne uniquement, hors fenêtre RTH), 4 samedis absents (dont 2026-08-29 marqué `degraded` dans `condition.json`). Somme totale 175 348 820 = `record_count` facturé exactement. Détail complet : `IQIAIndicator/Tests/Research/OrderFlow/QDE-022_DataIntegrity_Check.md`, contrôles 3 et 5.
+
+**MDE par horizon, borne supérieure théorique** (grille 1 s RTH ≈ 23 400 pts/jour × 22 jours ouvrés, non-chevauchement par horizon `h`, **PAS** de rejet carnet croisé/bord de session appliqué — donc `n_eff` ci-dessous est un **majorant**, le MDE réel sera **plus grand**) :
+
+| `h` (s) | grille/jour | `n_eff` (22 j, majorant) | MDE (α=0,05, non corrigé, indicatif) | MDE (α=0,05/24, borne Holm la plus stricte) |
+|---|---|---|---|---|
+| 1 | 23 400 | 514 800 | 0,0039 | 0,0055 |
+| 5 | 4 680 | 102 960 | 0,0087 | 0,0122 |
+| 30 | 780 | 17 160 | 0,0214 | 0,0299 |
+| 60 | 390 | 8 580 | 0,0302 | 0,0423 |
+| 300 | 78 | 1 716 | 0,0676 | 0,0944 |
+| 900 | 26 | 572 | 0,1169 | 0,1629 |
+
+Le seuil Holm réel appliqué à chaque cellule (§5) dépend du classement des 24 p-values et se situe entre les deux colonnes MDE ci-dessus — il n'est **pas** re-calculable avant l'exécution de la sonde. **Rappel (inchangé) : le seuil décisionnel de §7 reste économique (`M(X,h) ≥ 0,80` tick ES, §7.3), pas statistique — le MDE documente ici ce que l'échantillon permet d'exclure sur le plan de la puissance, il n'entre dans aucun critère de §7.**
 
 ---
 

@@ -506,3 +506,11 @@ IQIAIndicator/Tests/Research/*/Output/**
 
 # Trending calibration: local Yahoo download cache (self-invalidating by date)
 IQIAIndicator/Tests/Research/TrendingCalibration/_cache/
+
+# QDE-022 L2 order-flow raw data (Databento DBN). Stockées hors dépôt par
+# construction (cf. QDE-022_OrderFlow_L2_PreRegistration.md §12), mais
+# ignorées ici aussi par défense en profondeur si jamais placées sous le repo.
+QDE-022_Data/
+**/QDE-022_Data/**
+*.dbn.zst
+*.dbn
