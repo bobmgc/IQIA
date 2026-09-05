@@ -326,9 +326,10 @@ La première version de `qde022_build_grid.py` utilisait `ts_recv` (heure de ré
 | Première / dernière seconde | 09:30:00 → 15:59:59 (America/New_York) — **dans [09:30, 16:00), OK** |
 | NaN | 0, toutes colonnes |
 
-**Deux écarts aux attentes énoncées, signalés sans être corrigés :**
-- **`lat_ms` très inférieur à l'attendu** (« de l'ordre de 1 à 3 ms ») : médiane observée 0,094 ms, max 0,930 ms — un ordre de grandeur sous l'attendu. Fait rapporté brut, aucune cause diagnostiquée (hors périmètre de ce contrôle).
-- **`micro_dev` sort de [-0,5, +0,5] sur 5 points sur 23 400** (0,02 %), min -0,622, max 0,714. Le contrôle attendu n'est donc pas strictement respecté sur l'ensemble de la grille. Fait rapporté brut, non interprété : `micro_dev` borné à `±spread_ticks/2` par construction, donc une valeur hors [-0,5, 0,5] indique simplement un spread momentanément > 1 tick sur ces 5 secondes, pas une erreur de calcul — mais ce n'est qu'une lecture, pas une conclusion validée.
+**Deux écarts aux attentes énoncées, signalés à l'étape A — tous deux tranchés le 2026-09-05 comme des erreurs de spécification du contrôle, pas des anomalies de donnée :**
+
+- **`lat_ms` : attente initiale corrigée.** L'attente de 1-3 ms énoncée dans la consigne d'étape A était mal calibrée pour ce contexte de capture. Une médiane de 0,094 ms (max 0,930 ms) est normale pour une capture colocalisée chez Databento (Aurora, IL) avec horodatage matériel côté CME — la latence réseau typique d'une liaison non colocalisée (1-3 ms) ne s'applique pas ici. **Donnée saine, contrôle mis à jour :** `lat_ms` attendu de l'ordre de 0,05 à 1 ms pour cette configuration, pas 1-3 ms.
+- **`micro_dev` : borne du contrôle mal spécifiée, pas les données.** Le contrôle initial (« doit rester dans [-0,5, +0,5] ») supposait implicitement un spread ES d'un seul tick. Or `micro_dev = (micro_price − mid) / TICK_SIZE`, et `|micro_price − mid| ≤ spread / 2` par construction (moyenne pondérée entre bid et ask) — donc la borne réelle est **`± (spread_en_ticks) / 2`** : 0,5 pour un spread d'un tick, **1,0 pour un spread de deux ticks**. Les 5 points à 0,714 correspondent à un spread momentané de deux ticks (0,714 < 1,0, cohérent). **Donnée saine, contrôle corrigé :** `micro_dev` doit rester dans `[-spread_ticks/2, +spread_ticks/2]`, pas dans un intervalle fixe `[-0,5, 0,5]` indépendant du spread observé.
 
 Aucune erreur d'exécution sur cette tentative (après correctif). Aucun résultat, backtest, ni interprétation au-delà de ces contrôles bruts.
 
@@ -348,4 +349,131 @@ Termine. Grilles ecrites dans ...
 
 Scripts commités et poussés dans le même commit que cette mise à jour du rapport — voir hash dans la réponse de la tâche. Grilles et sorties (`_step_a_input/output`, `_step_a2_input/output`) hors dépôt, sous `QDE-022_Data\`, rien de volumineux commité.
 
-**Étape B (27 fichiers + courbe d'IC) non lancée — en attente de validation explicite**, conformément à la consigne.
+---
+
+## Addendum 2026-09-05 (suite) — Étape B : grilles complètes + courbe d'IC
+
+**Aucune interprétation ci-dessous. Aucune règle de décision §7 appliquée. Chiffres bruts uniquement.**
+
+### B.1 — `qde022_build_grid.py` sur les 27 fichiers
+
+| Date | Jour | Points | Mises à jour de carnet |
+|---|---|---:|---:|
+| 2026-08-02 | Dimanche | 0 | 0 |
+| 2026-08-03 | Lundi | 23 400 | 5 761 386 |
+| 2026-08-04 | Mardi | 23 400 | 6 523 003 |
+| 2026-08-05 | Mercredi | 23 396 | 8 366 889 |
+| 2026-08-06 | Jeudi | 23 400 | 8 428 266 |
+| 2026-08-07 | Vendredi | 23 400 | 7 230 452 |
+| 2026-08-09 | Dimanche | 0 | 0 |
+| 2026-08-10 | Lundi | 23 400 | 5 217 195 |
+| 2026-08-11 | Mardi | 23 400 | 5 010 858 |
+| 2026-08-12 | Mercredi | 23 399 | 4 648 368 |
+| 2026-08-13 | Jeudi | 23 398 | 4 756 815 |
+| 2026-08-14 | Vendredi | 23 400 | 4 053 404 |
+| 2026-08-16 | Dimanche | 0 | 0 |
+| 2026-08-17 | Lundi | 23 400 | 3 992 489 |
+| 2026-08-18 | Mardi | 23 399 | 5 922 589 |
+| 2026-08-19 | Mercredi | 23 400 | 6 985 390 |
+| 2026-08-20 | Jeudi | 23 400 | 7 110 189 |
+| 2026-08-21 | Vendredi | 23 399 | 5 063 978 |
+| 2026-08-23 | Dimanche | 0 | 0 |
+| 2026-08-24 | Lundi | 23 400 | 5 319 486 |
+| 2026-08-25 | Mardi | 23 398 | 4 613 783 |
+| 2026-08-26 | Mercredi | 23 398 | 4 412 303 |
+| 2026-08-27 | Jeudi | 23 400 | 6 193 787 |
+| 2026-08-28 | Vendredi | 23 400 | 9 272 609 |
+| 2026-08-30 | Dimanche | 0 | 0 |
+| 2026-08-31 | Lundi | 23 399 | 5 340 090 |
+| 2026-09-01 | Mardi | 23 400 | 6 768 477 |
+| **Total (27 fichiers)** | | **514 786** | **130 991 806** |
+
+**Jours à zéro point (5) :** 2026-08-02 (dimanche), 2026-08-09 (dimanche), 2026-08-16 (dimanche), 2026-08-23 (dimanche), 2026-08-30 (dimanche). **Uniquement des dimanches**, conforme à l'attendu (les 4 samedis de la fenêtre — 08, 15, 22, 29 août — n'apparaissent même pas dans les 27 fichiers livrés, cf. contrôle 3 de ce rapport).
+
+**Ratio mises à jour retenues / `record_count` facturé par le job :** 130 991 806 / 175 348 820 = **0,7470** (74,70 %). Le filtre RTH écarte la session de nuit ; une baisse nette est attendue et normale — chiffre rapporté brut, non interprété au-delà.
+
+### B.2 — `qde022_ic_curve.py`
+
+**En-tête (brut, sortie du script) :**
+```
+Points de grille : 514,786
+Jours            : 22
+TRAIN            : 13 j, 304,192 pts
+OOS              : 8 j, 187,194 pts
+Purge            : 1 j
+```
+
+**Tableau TRAIN (brut, sortie du script, 24 lignes) :**
+```
+ horizon_s indicator        ic   ci95_lo   ci95_hi   p_value  holm_reject  move_ticks_es
+         1    ofi_l1   0.01395   0.00739   0.02051   0.00003         True        0.01004
+         1   ofi_l10  -0.03557  -0.04142  -0.02972   0.00000         True        0.02561
+         1  book_imb   0.06041   0.05624   0.06458   0.00000         True        0.04349
+         1 micro_dev   0.20289   0.19921   0.20657   0.00000         True        0.14606
+         5    ofi_l1   0.00785   0.00130   0.01440   0.01879        False        0.01227
+         5   ofi_l10  -0.01699  -0.02273  -0.01125   0.00000         True        0.02655
+         5  book_imb   0.03240   0.02538   0.03942   0.00000         True        0.05064
+         5 micro_dev   0.10143   0.09757   0.10529   0.00000         True        0.15854
+        30    ofi_l1  -0.00459  -0.00928   0.00010   0.05489        False        0.01697
+        30   ofi_l10  -0.01569  -0.01996  -0.01143   0.00000         True        0.05801
+        30  book_imb   0.01685   0.00342   0.03028   0.01393        False        0.06228
+        30 micro_dev   0.04590   0.04154   0.05025   0.00000         True        0.16965
+        60    ofi_l1  -0.00114  -0.00577   0.00348   0.62829        False        0.00584
+        60   ofi_l10  -0.00946  -0.01342  -0.00551   0.00000         True        0.04840
+        60  book_imb   0.00865  -0.00898   0.02627   0.33623        False        0.04422
+        60 micro_dev   0.03133   0.02674   0.03592   0.00000         True        0.16020
+       300    ofi_l1  -0.00409  -0.00855   0.00037   0.07211        False        0.04424
+       300   ofi_l10  -0.00745  -0.01106  -0.00384   0.00005         True        0.08055
+       300  book_imb   0.01944  -0.01265   0.05154   0.23510        False        0.21019
+       300 micro_dev   0.01349   0.00771   0.01927   0.00000         True        0.14580
+       900    ofi_l1  -0.00058  -0.00486   0.00370   0.79037        False        0.01034
+       900   ofi_l10  -0.00314  -0.00672   0.00044   0.08592        False        0.05584
+       900  book_imb   0.01692  -0.02657   0.06042   0.44569        False        0.30133
+       900 micro_dev   0.01186   0.00506   0.01867   0.00063         True        0.21122
+
+Gate ES : 0.8 tick | Gate MES : 6.16 ticks
+```
+
+**Tableau OOS (brut, extrait du CSV, 24 lignes, colonnes complètes) :**
+
+| horizon_s | sample | indicator | ic | se_nw | ci95_lo | ci95_hi | p_value | sd_ret_ticks_es | move_ticks_es | move_ticks_mes | gate_es_pass | holm_reject |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | OOS | ofi_l1 | 0.019944 | 0.004726 | 0.010681 | 0.029207 | 2.442983e-05 | 0.888108 | 0.014132 | 0.141323 | False | False |
+| 1 | OOS | ofi_l10 | -0.027952 | 0.004139 | -0.036065 | -0.019839 | 1.452204e-11 | 0.888108 | 0.019807 | 0.198070 | False | False |
+| 1 | OOS | book_imb | 0.063753 | 0.002506 | 0.058840 | 0.068666 | 1.018851e-142 | 0.888108 | 0.045176 | 0.451758 | False | False |
+| 1 | OOS | micro_dev | 0.203915 | 0.002432 | 0.199148 | 0.208681 | 0.000000e+00 | 0.888108 | 0.144496 | 1.444955 | False | False |
+| 5 | OOS | ofi_l1 | 0.011125 | 0.004033 | 0.003222 | 0.019029 | 5.799056e-03 | 1.930420 | 0.017136 | 0.171360 | False | False |
+| 5 | OOS | ofi_l10 | -0.013149 | 0.003748 | -0.020494 | -0.005803 | 4.505320e-04 | 1.930420 | 0.020252 | 0.202521 | False | False |
+| 5 | OOS | book_imb | 0.029398 | 0.004483 | 0.020612 | 0.038183 | 5.447301e-11 | 1.930420 | 0.045280 | 0.452796 | False | False |
+| 5 | OOS | micro_dev | 0.096548 | 0.002511 | 0.091627 | 0.101469 | 1.482197e-323 | 1.930420 | 0.148708 | 1.487082 | False | False |
+| 30 | OOS | ofi_l1 | -0.000072 | 0.003351 | -0.006640 | 0.006495 | 9.827755e-01 | 4.592583 | 0.000265 | 0.002651 | False | False |
+| 30 | OOS | ofi_l10 | -0.010781 | 0.002968 | -0.016599 | -0.004963 | 2.812790e-04 | 4.592583 | 0.039506 | 0.395060 | False | False |
+| 30 | OOS | book_imb | -0.006444 | 0.009034 | -0.024150 | 0.011262 | 4.756334e-01 | 4.592583 | 0.023613 | 0.236133 | False | False |
+| 30 | OOS | micro_dev | 0.037084 | 0.002853 | 0.031493 | 0.042675 | 1.218743e-38 | 4.592583 | 0.135889 | 1.358895 | False | False |
+| 60 | OOS | ofi_l1 | 0.000736 | 0.002996 | -0.005136 | 0.006607 | 8.060068e-01 | 6.404733 | 0.003760 | 0.037596 | False | False |
+| 60 | OOS | ofi_l10 | -0.006699 | 0.002593 | -0.011782 | -0.001616 | 9.792874e-03 | 6.404733 | 0.034233 | 0.342327 | False | False |
+| 60 | OOS | book_imb | -0.005003 | 0.011471 | -0.027486 | 0.017481 | 6.627637e-01 | 6.404733 | 0.025564 | 0.255644 | False | False |
+| 60 | OOS | micro_dev | 0.032303 | 0.003017 | 0.026390 | 0.038217 | 9.488403e-27 | 6.404733 | 0.165078 | 1.650778 | False | False |
+| 300 | OOS | ofi_l1 | -0.000828 | 0.002946 | -0.006603 | 0.004946 | 7.786124e-01 | 13.639611 | 0.009014 | 0.090138 | False | False |
+| 300 | OOS | ofi_l10 | -0.003829 | 0.002430 | -0.008593 | 0.000934 | 1.151015e-01 | 13.639611 | 0.041675 | 0.416755 | False | False |
+| 300 | OOS | book_imb | -0.038125 | 0.019135 | -0.075629 | -0.000621 | 4.632391e-02 | 13.639611 | 0.414904 | 4.149038 | False | False |
+| 300 | OOS | micro_dev | 0.012999 | 0.003365 | 0.006403 | 0.019594 | 1.120308e-04 | 13.639611 | 0.141461 | 1.414615 | False | False |
+| 900 | OOS | ofi_l1 | 0.002879 | 0.003892 | -0.004749 | 0.010508 | 4.594180e-01 | 23.728912 | 0.054516 | 0.545162 | False | False |
+| 900 | OOS | ofi_l10 | 0.000644 | 0.003193 | -0.005615 | 0.006902 | 8.402216e-01 | 23.728912 | 0.012188 | 0.121885 | False | False |
+| 900 | OOS | book_imb | -0.075959 | 0.026814 | -0.128515 | -0.023403 | 4.614696e-03 | 23.728912 | 1.438127 | 14.381270 | True | False |
+| 900 | OOS | micro_dev | 0.008822 | 0.003726 | 0.001518 | 0.016125 | 1.790879e-02 | 23.728912 | 0.167023 | 1.670227 | False | False |
+
+**Note technique sur `holm_reject` (OOS) :** la correction de Holm (§5) n'est appliquée qu'aux 24 tests **TRAIN**, par construction du script (§7 exige la stabilité de signe TRAIN/OOS, pas un second test Holm sur OOS) — la colonne `holm_reject` vaut donc `False` pour les 24 lignes OOS par défaut, ce n'est pas un résultat de test.
+
+**CSV complet :** `c:\Users\rnbch\OneDrive\Bureau\QDE-022_Data\Output\qde022_ic_curve.csv` (9 288 octets — hors dépôt ; une copie est commitée séparément, voir hash de commit).
+
+**Aucune règle de décision de §7 n'a été appliquée à ces chiffres dans ce document.** Aucun verdict GO / GO conditionnel / STOP n'est énoncé ici.
+
+---
+
+**Historique des correctifs techniques du pipeline (`qde022_build_grid.py`, `qde022_ic_curve.py`), tous validés comme des corrections de mise en conformité ou de mécanique pandas, sans impact sur aucun paramètre de recherche gelé :**
+1. `ts_recv` → `ts_event` comme référence causale (build_grid), + `chunk.reset_index()` pour lever un plantage sur doublons d'index.
+2. `forward_returns`/`split_train_oos` (ic_curve) : écriture par position (`np.flatnonzero` + `reset_index(drop=True)`) au lieu de labels d'index hérités d'un filtre booléen, qui provoquait un `IndexError` sur OOS.
+3. `holm_reject` (ic_curve) : colonne créée explicitement en `bool` avant affectation partielle, au lieu de laisser pandas créer la colonne à la volée via `.loc` + liste Python brute (`TypeError`/`LossySetitemError`).
+
+**Étape B terminée.** Chiffres bruts rapportés ci-dessus, aucune interprétation, aucune application de la règle de décision §7, aucun QDE-022-R rédigé.

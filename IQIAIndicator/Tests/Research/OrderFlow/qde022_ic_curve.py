@@ -56,11 +56,17 @@ def forward_returns(df: pd.DataFrame, h: int) -> np.ndarray:
 
     La grille est reindexee a la seconde pleine par jour, ce qui evite de
     compter h positions de tableau la ou il manque des secondes creuses.
+
+    Travaille exclusivement par POSITION, jamais par label d'index : un
+    DataFrame issu d'un filtre booleen conserve les labels d'origine, qui ne
+    sont pas des positions valides dans le tableau de sortie.
     """
     out = np.full(len(df), np.nan)
+    dates = df["date"].to_numpy()
 
-    for _, day in df.groupby("date", sort=False):
-        idx = day.index.to_numpy()
+    for d in pd.unique(dates):
+        idx = np.flatnonzero(dates == d)
+        day = df.iloc[idx]
         secs = day["sec"].to_numpy().astype("datetime64[s]").astype(np.int64)
         mid = day["mid"].to_numpy(np.float64)
 
@@ -139,7 +145,12 @@ def split_train_oos(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     cut = int(len(days) * TRAIN_FRAC)
     train_days = days[:cut]
     oos_days = days[cut + PURGE_DAYS:]
-    return df[df["date"].isin(train_days)], df[df["date"].isin(oos_days)]
+    # reset_index obligatoire : forward_returns ecrit par position, et les
+    # labels laisses par un filtre booleen ne sont pas des positions.
+    return (
+        df[df["date"].isin(train_days)].reset_index(drop=True),
+        df[df["date"].isin(oos_days)].reset_index(drop=True),
+    )
 
 
 def main() -> None:
@@ -194,9 +205,15 @@ def main() -> None:
     res = pd.DataFrame(rows)
 
     # Holm sur les 24 tests TRAIN (v4 Â§5).
-    tr = res["sample"] == "TRAIN"
-    res.loc[tr, "holm_reject"] = holm(res.loc[tr, "p_value"].tolist())
-    res["holm_reject"] = res["holm_reject"].fillna(False)
+    # La colonne est creee explicitement en bool AVANT l'affectation : creer
+    # une colonne et n'en remplir qu'un sous-ensemble via .loc avec une liste
+    # Python brute est un chemin pandas fragile qui tente d'ecrire la liste
+    # entiere comme valeur unique.
+    res["holm_reject"] = False
+    tr = (res["sample"] == "TRAIN").to_numpy()
+    res.loc[tr, "holm_reject"] = np.asarray(
+        holm(res.loc[tr, "p_value"].tolist()), dtype=bool
+    )
 
     path = out_dir / "qde022_ic_curve.csv"
     res.to_csv(path, index=False)
