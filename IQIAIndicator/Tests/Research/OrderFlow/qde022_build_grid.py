@@ -93,19 +93,43 @@ def build_day(path: Path) -> pd.DataFrame | None:
     for chunk in _iter_day(path):
         if chunk.empty:
             continue
+
+        # to_df() indexe par ts_recv, qui contient legitimement des doublons :
+        # plusieurs mises a jour distinctes arrivent dans le meme paquet reseau
+        # et recoivent le meme horodatage de reception a la nanoseconde. Toute
+        # assignation de colonne declencherait alors un realignement pandas qui
+        # echoue sur index duplique. On repasse en index entier : l'ordre des
+        # lignes et les valeurs restent strictement identiques.
+        chunk = chunk.reset_index()
+
         if scale is None:
             scale = _detect_px_scale(chunk["bid_px_00"])
 
-        # ts_recv : instant ou l'information nous etait disponible.
-        ts = chunk.index if chunk.index.name == "ts_recv" else chunk["ts_recv"]
-        ts = pd.to_datetime(ts, utc=True).tz_convert(TZ)
-
+        # ts_event : heure du moteur d'appariement CME. Reference causale
+        # gelee en v4 Â§2.1. ts_recv est l'heure de reception de Databento a
+        # Aurora, pas la notre, et reste reserve au diagnostic de latence.
+        #
+        # L'ordre des lignes du fichier est l'ordre d'arrivee reel, et c'est
+        # lui qui definit la sequence d'etats du carnet dont depend l'OFI.
+        # On ne retrie donc PAS : on change seulement l'horodatage servant au
+        # filtre RTH et au decoupage en secondes.
         df = chunk.copy()
-        df["ts"] = ts
+        ts_event = pd.to_datetime(df["ts_event"], utc=True)
+        df["ts"] = ts_event.dt.tz_convert(TZ)
+
+        # Diagnostic de latence, conserve mais jamais utilise comme reference.
+        if "ts_recv" in df.columns:
+            ts_recv = pd.to_datetime(df["ts_recv"], utc=True)
+            df["lat_ms"] = (
+                ts_recv.to_numpy("datetime64[ns]").astype("int64")
+                - ts_event.to_numpy("datetime64[ns]").astype("int64")
+            ) / 1e6
+        else:
+            df["lat_ms"] = np.nan
 
         # RTH strict, jours ouvres uniquement.
         t = df["ts"].dt.time
-        df = df[(t >= RTH_START) & (t < RTH_END) & (df["ts"].dt.dayofweek < 5)]
+        df = df[(t >= RTH_START) & (t < RTH_END) & (df["ts"].dt.dayofweek < 5)].copy()
         if df.empty:
             continue
 
@@ -115,7 +139,7 @@ def build_day(path: Path) -> pd.DataFrame | None:
         ask_sz = df["ask_sz_00"].to_numpy(np.float64)
 
         valid = (bid_px > 0) & (ask_px > 0) & (ask_px >= bid_px)
-        df = df[valid]
+        df = df[valid].copy()
         if df.empty:
             continue
         bid_px, ask_px = bid_px[valid], ask_px[valid]
@@ -147,6 +171,7 @@ def build_day(path: Path) -> pd.DataFrame | None:
             micro_dev=("micro_dev", "last"),
             mid=("mid", "last"),
             n_upd=("mid", "size"),
+            lat_ms=("lat_ms", "median"),
         )
         buckets.append(g)
 
@@ -161,6 +186,7 @@ def build_day(path: Path) -> pd.DataFrame | None:
         micro_dev=("micro_dev", "last"),
         mid=("mid", "last"),
         n_upd=("n_upd", "sum"),
+        lat_ms=("lat_ms", "median"),
     )
     out.index.name = "sec"
     out["date"] = out.index.date

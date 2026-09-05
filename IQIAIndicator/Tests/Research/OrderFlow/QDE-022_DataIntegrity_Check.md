@@ -296,3 +296,56 @@ Numérotation réelle du document `QDE-022_OrderFlow_L2_PreRegistration.md` (v3)
 ---
 
 **Commit de cet addendum :** voir hash reporté dans la réponse de la tâche (fichier modifié : ce rapport uniquement — `QDE-022_OrderFlow_L2_PreRegistration.md` non touché).
+
+**Résolu depuis (v4) :** le renvoi obsolète de §8 menace n°6 signalé ci-dessus a été corrigé dans `QDE-022_OrderFlow_L2_PreRegistration.md` v4 (tag `qde-022-prereg-v4`, commit `eaba9be`), avec confirmation explicite de l'utilisateur au préalable.
+
+---
+
+## Addendum 2026-09-05 — pipeline d'analyse : correctif technique `ts_event`, validation A1/A2
+
+Contexte : `qde022_build_grid.py` et `qde022_ic_curve.py` (pipeline de calcul de la courbe d'IC, conforme à v4 §3-§7) ont été ajoutés sous `IQIAIndicator/Tests/Research/OrderFlow/`. **Aucun OFI, aucun IC, aucun rendement n'a encore été calculé sur l'échantillon complet** — cet addendum documente uniquement la validation technique du pipeline sur un fichier isolé (étape A du protocole d'exécution), pas une analyse QDE-022.
+
+### Correctif technique — `ts_recv` → `ts_event`
+
+La première version de `qde022_build_grid.py` utilisait `ts_recv` (heure de réception Databento) comme horodatage de référence pour le filtre RTH et le découpage en grille 1 s, alors que le gel v4/v1 §2.1 fixe **`ts_event`** (heure du moteur d'appariement CME) comme référence causale, `ts_recv` étant réservé au diagnostic de latence. Vérifié sur données réelles : les deux colonnes existent bien séparément, écart typique 0,08 à 0,93 ms (voir tableau A1 ci-dessous — sous l'ordre de grandeur de 1-3 ms qu'on pouvait attendre d'une liaison réseau standard, cohérent avec une réception colocalisée chez Databento).
+
+**Classification : correctif technique de mise en conformité avec le gel, pas un changement de paramètre de recherche.** Aucun indicateur, horizon, seuil ou règle de décision n'est affecté — seul l'horodatage utilisé pour trier les événements dans le temps change, dans le sens d'une **meilleure** conformité à §2.1, pas d'un écart. Ne nécessite pas d'amendement v5.
+
+**Bug découvert et corrigé en cours de route (même correctif) :** la première tentative de bascule vers `ts_event` provoquait un plantage (`ValueError: cannot reindex on an axis with duplicate labels`), causé par des doublons légitimes dans l'index `ts_recv` retourné par `to_df()` (64 777 / 2 000 000 lignes dupliquées observées sur le premier lot du 2026-08-03 — plusieurs mises à jour de carnet distinctes, `ts_event` différents, partageant le même `ts_recv` à la nanoseconde près). Corrigé par un `chunk.reset_index()` avant toute manipulation de colonne — ordre des lignes et valeurs strictement inchangés. Également un correctif technique, pas un changement de paramètre.
+
+### Étape A1 — `glbx-mdp3-20260803` (lundi 3 août, seul fichier testé)
+
+| Métrique | Valeur |
+|---|---|
+| Points de grille | **23 400** (identique avant/après le correctif) |
+| Mises à jour de carnet (`n_upd`) | 5 761 386 (contre 5 761 348 avec `ts_recv` — écart de +38 événements, cohérent avec le décalage sous-milliseconde `ts_event`/`ts_recv` sur quelques enregistrements en bord de fenêtre RTH) |
+| `lat_ms` — min / médiane / max | 0,084 / 0,094 / 0,930 ms |
+| `mid` — min / médiane / max | 7543,875 / 7614,375 / 7637,625 |
+| `book_imb` — min / max | -0,683 / 0,388 — **dans [-1, 1], OK** |
+| `micro_dev` — min / max | -0,622 / 0,714 |
+| Première / dernière seconde | 09:30:00 → 15:59:59 (America/New_York) — **dans [09:30, 16:00), OK** |
+| NaN | 0, toutes colonnes |
+
+**Deux écarts aux attentes énoncées, signalés sans être corrigés :**
+- **`lat_ms` très inférieur à l'attendu** (« de l'ordre de 1 à 3 ms ») : médiane observée 0,094 ms, max 0,930 ms — un ordre de grandeur sous l'attendu. Fait rapporté brut, aucune cause diagnostiquée (hors périmètre de ce contrôle).
+- **`micro_dev` sort de [-0,5, +0,5] sur 5 points sur 23 400** (0,02 %), min -0,622, max 0,714. Le contrôle attendu n'est donc pas strictement respecté sur l'ensemble de la grille. Fait rapporté brut, non interprété : `micro_dev` borné à `±spread_ticks/2` par construction, donc une valeur hors [-0,5, 0,5] indique simplement un spread momentanément > 1 tick sur ces 5 secondes, pas une erreur de calcul — mais ce n'est qu'une lecture, pas une conclusion validée.
+
+Aucune erreur d'exécution sur cette tentative (après correctif). Aucun résultat, backtest, ni interprétation au-delà de ces contrôles bruts.
+
+### Étape A2 — `glbx-mdp3-20260802` (dimanche 2 août, contrôle négatif)
+
+```
+1 fichiers a traiter.
+
+[ 1/1] glbx-mdp3-20260802.mbp-10.dbn.zst -> aucun point RTH
+
+Termine. Grilles ecrites dans ...
+```
+
+**Résultat attendu obtenu exactement : aucun point de grille produit, aucun fichier Parquet écrit.** Ce contrôle négatif confirme empiriquement que le filtre RTH (§2.1) écarte de lui-même les jours de week-end, sans intervention manuelle — **validation par les faits** de la décision prise en v3 (rejet de l'exclusion de dates candidate 2/9/29 août, voir historique des amendements de `QDE-022_OrderFlow_L2_PreRegistration.md`) : un filtrage explicite par date n'était pas nécessaire, le mécanisme déjà gelé suffit.
+
+### État du dépôt
+
+Scripts commités et poussés dans le même commit que cette mise à jour du rapport — voir hash dans la réponse de la tâche. Grilles et sorties (`_step_a_input/output`, `_step_a2_input/output`) hors dépôt, sous `QDE-022_Data\`, rien de volumineux commité.
+
+**Étape B (27 fichiers + courbe d'IC) non lancée — en attente de validation explicite**, conformément à la consigne.
